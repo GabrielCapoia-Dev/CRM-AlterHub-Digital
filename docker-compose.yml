@@ -1,11 +1,13 @@
+version: "3.8"
+
 services:
 
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    image: laravel-app-gestao-edu
-    container_name: laravel-app-gestao-edu
+    image: ${DOCKER_IMAGE_APP}
+    container_name: ${DOCKER_CONTAINER_APP}
     working_dir: /var/www
     env_file:
       - .env
@@ -14,16 +16,15 @@ services:
     volumes:
       - .:/var/www
       - ./vendor:/var/www/vendor
-      - ./node_modules:/var/www/node_modules
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - laravel_gestao-edu
+      - ${DOCKER_NETWORK}
 
   cron:
-    image: laravel-app-gestao-edu
-    container_name: laravel-cron-gestao-edu
+    image: ${DOCKER_IMAGE_APP}
+    container_name: ${DOCKER_CONTAINER_CRON}
     working_dir: /var/www
     env_file:
       - .env
@@ -35,47 +36,47 @@ services:
       db:
         condition: service_healthy
     networks:
-      - laravel_gestao-edu
+      - ${DOCKER_NETWORK}
 
   db:
-    image: mysql:8.0
-    container_name: laravel-db-gestao-edu
+    image: ${DOCKER_IMAGE_DB}
+    container_name: ${DOCKER_CONTAINER_DB}
     env_file:
       - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - ./db_data:/var/lib/mysql
     ports:
       - "${DOCKER_DB_PORT}:3306"
     healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot" ]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD}" ]
       interval: 5s
       timeout: 5s
       retries: 20
     networks:
-      - laravel_gestao-edu
+      - ${DOCKER_NETWORK}
 
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: laravel-phpmyadmin-gestao-edu
+    image: ${DOCKER_IMAGE_PHPMYADMIN}
+    container_name: ${DOCKER_CONTAINER_PHPMYADMIN}
     env_file:
       - .env
     environment:
       PMA_HOST: db
-      PMA_USER: ${DB_USERNAME}
-      PMA_PASSWORD: ${DB_PASSWORD}
     ports:
       - "${DOCKER_PHPMYADMIN_PORT}:80"
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - laravel_gestao-edu
+      - ${DOCKER_NETWORK}
 
 volumes: {}
 
 networks:
-  laravel_gestao-edu:
+  ${DOCKER_NETWORK}:
     driver: bridge
