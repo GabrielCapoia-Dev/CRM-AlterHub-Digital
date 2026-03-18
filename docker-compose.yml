@@ -4,8 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${DOCKER_IMAGE_APP}
-    container_name: ${DOCKER_CONTAINER_APP}
+    image: laravel-app-alterhub
+    container_name: laravel-app-alterhub
     working_dir: /var/www
     env_file:
       - .env
@@ -14,16 +14,15 @@ services:
     volumes:
       - .:/var/www
       - ./vendor:/var/www/vendor
-      - ./node_modules:/var/www/node_modules
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - ${DOCKER_NETWORK}
+      - laravel_alterhub
 
   cron:
-    image: ${DOCKER_IMAGE_APP}
-    container_name: ${DOCKER_CONTAINER_CRON}
+    image: laravel-app-alterhub
+    container_name: laravel-cron-alterhub
     working_dir: /var/www
     env_file:
       - .env
@@ -35,18 +34,18 @@ services:
       db:
         condition: service_healthy
     networks:
-      - ${DOCKER_NETWORK}
+      - laravel_alterhub
 
   db:
-    image: ${DOCKER_IMAGE_DB}
-    container_name: ${DOCKER_CONTAINER_DB}
+    image: mysql:8.0
+    container_name: laravel-db-alterhub
     env_file:
       - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: Educacao
+      MYSQL_PASSWORD: Senhanova@2026
     volumes:
       - ./db_data:/var/lib/mysql
     ports:
@@ -57,28 +56,25 @@ services:
       timeout: 5s
       retries: 20
     networks:
-      - ${DOCKER_NETWORK}
+      - laravel_alterhub
 
   phpmyadmin:
-    image: ${DOCKER_IMAGE_PHPMYADMIN}
-    container_name: ${DOCKER_CONTAINER_PHPMYADMIN}
+    image: phpmyadmin/phpmyadmin
+    container_name: laravel-phpmyadmin-alterhub
     env_file:
       - .env
     environment:
       PMA_HOST: db
-      PMA_USER: ${DB_USERNAME}
-      PMA_PASSWORD: ${DB_PASSWORD}
     ports:
       - "${DOCKER_PHPMYADMIN_PORT}:80"
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - ${DOCKER_NETWORK}
+      - laravel_alterhub
 
-volumes:
-  db_data:
+volumes: {}
 
 networks:
-  ${DOCKER_NETWORK}:
+  laravel_alterhub:
     driver: bridge
