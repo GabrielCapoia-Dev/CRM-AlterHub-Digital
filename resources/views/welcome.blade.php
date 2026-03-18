@@ -1375,33 +1375,6 @@ footer {
 </div><!-- .page -->
 
 <script>
-// ─── CUSTOM CURSOR ───
-const cursor = document.getElementById('cursor');
-const ring = document.getElementById('cursorRing');
-let mx = 0, my = 0, rx = 0, ry = 0;
-
-document.addEventListener('mousemove', e => {
-  mx = e.clientX; my = e.clientY;
-  cursor.style.transform = `translate(${mx - 6}px, ${my - 6}px)`;
-});
-function animateRing() {
-  rx += (mx - rx) * 0.12;
-  ry += (my - ry) * 0.12;
-  ring.style.transform = `translate(${rx - 20}px, ${ry - 20}px)`;
-  requestAnimationFrame(animateRing);
-}
-animateRing();
-
-document.querySelectorAll('a, button').forEach(el => {
-  el.addEventListener('mouseenter', () => {
-    cursor.style.transform += ' scale(2)';
-    ring.style.transform += ' scale(1.5)';
-    ring.style.borderColor = 'rgba(74,222,128,0.8)';
-  });
-  el.addEventListener('mouseleave', () => {
-    ring.style.borderColor = 'rgba(74,222,128,0.5)';
-  });
-});
 
 // ─── PARTICLES ───
 const canvas = document.getElementById('particle-canvas');
