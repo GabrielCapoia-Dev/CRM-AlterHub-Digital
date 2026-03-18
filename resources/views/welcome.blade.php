@@ -1250,6 +1250,33 @@
                 text-align: center;
             }
         }
+
+        .nav-btn-panel {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 18px;
+            background: transparent;
+            border: 1.5px solid rgba(45, 106, 53, 0.25);
+            color: var(--green);
+            font-family: 'Outfit', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .nav-btn-panel:hover {
+            background: var(--green);
+            border-color: var(--green);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 106, 53, 0.2);
+        }
     </style>
 </head>
 
@@ -1277,7 +1304,7 @@
                 Acessar Painel
             </a>
         </nav>
-        
+
         <!-- HERO -->
         <section class="hero">
             <div class="hero-bg-gradient"></div>
