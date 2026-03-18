@@ -7,60 +7,34 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --black: #030508;
-  --deep: #060d14;
-  --surface: #0a1628;
-  --glass: rgba(10,22,40,0.6);
-  --glass-border: rgba(74,222,128,0.12);
-  --green: #4ade80;
-  --green-dim: #16a34a;
-  --green-glow: rgba(74,222,128,0.15);
-  --teal: #2dd4bf;
-  --gold: #fbbf24;
-  --text: #e2e8f0;
-  --muted: rgba(226,232,240,0.45);
-  --white: #ffffff;
+  --bg:           #F6F4F0;
+  --bg2:          #EDEAE4;
+  --surface:      #FFFFFF;
+  --glass:        rgba(255,255,255,0.65);
+  --glass-border: rgba(45,106,53,0.13);
+  --green:        #2D6A35;
+  --green-mid:    #4A9455;
+  --green-light:  #8CC63F;
+  --green-glow:   rgba(45,106,53,0.08);
+  --teal:         #0D9488;
+  --text:         #1A1A18;
+  --muted:        rgba(26,26,24,0.48);
+  --white:        #FFFFFF;
+  --ink:          #111110;
+  --shadow-sm:    0 2px 8px rgba(26,26,24,0.06);
+  --shadow-md:    0 8px 32px rgba(26,26,24,0.10);
+  --shadow-lg:    0 24px 64px rgba(26,26,24,0.13);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 
 body {
-  background: var(--black);
+  background: var(--bg);
   color: var(--text);
   font-family: 'Outfit', sans-serif;
   font-weight: 300;
   overflow-x: hidden;
-  cursor: none;
-}
-
-/* ─── CUSTOM CURSOR ─── */
-.cursor {
-  position: fixed;
-  width: 12px; height: 12px;
-  background: var(--green);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 9999;
-  transition: transform 0.15s ease, opacity 0.15s;
-  mix-blend-mode: screen;
-}
-.cursor-ring {
-  position: fixed;
-  width: 40px; height: 40px;
-  border: 1px solid rgba(74,222,128,0.5);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 9998;
-  transition: transform 0.4s cubic-bezier(.25,.46,.45,.94);
-}
-
-/* ─── CANVAS PARTICLES ─── */
-#particle-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
 }
 
 /* ─── NOISE OVERLAY ─── */
@@ -71,7 +45,15 @@ body::after {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 1;
-  opacity: 0.4;
+  opacity: 0.25;
+}
+
+/* ─── CANVAS PARTICLES ─── */
+#particle-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
 }
 
 /* ─── LAYOUT ─── */
@@ -86,17 +68,23 @@ nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  backdrop-filter: blur(20px);
-  background: rgba(3,5,8,0.5);
-  border-bottom: 1px solid rgba(74,222,128,0.05);
-  transition: padding 0.3s;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  background: rgba(246,244,240,0.72);
+  border-bottom: 1px solid rgba(45,106,53,0.08);
+  transition: padding 0.3s, background 0.3s, box-shadow 0.3s;
+}
+nav.scrolled {
+  background: rgba(246,244,240,0.94);
+  box-shadow: 0 1px 24px rgba(26,26,24,0.07);
+  padding: 14px 60px;
 }
 .nav-brand {
   font-family: 'Cormorant Garamond', serif;
   font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.15em;
-  color: var(--white);
+  color: var(--ink);
 }
 .nav-brand span { color: var(--green); }
 .nav-links { display: flex; gap: 36px; list-style: none; }
@@ -114,7 +102,7 @@ nav {
   content: '';
   position: absolute;
   bottom: -4px; left: 0;
-  width: 0; height: 1px;
+  width: 0; height: 1.5px;
   background: var(--green);
   transition: width 0.3s;
 }
@@ -130,15 +118,16 @@ nav {
   position: relative;
   overflow: hidden;
   padding: 120px 60px 80px;
+  background: var(--bg);
 }
 
 .hero-bg-gradient {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 50% at 20% 50%, rgba(22,163,74,0.12) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 60% at 80% 30%, rgba(45,212,191,0.06) 0%, transparent 55%),
-    radial-gradient(ellipse 80% 40% at 50% 100%, rgba(74,222,128,0.04) 0%, transparent 50%);
+    radial-gradient(ellipse 60% 50% at 20% 50%, rgba(45,106,53,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 80% 30%, rgba(13,148,136,0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 40% at 50% 100%, rgba(140,198,63,0.04) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -146,10 +135,11 @@ nav {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(74,222,128,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(74,222,128,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(45,106,53,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45,106,53,0.04) 1px, transparent 1px);
   background-size: 60px 60px;
   mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 0%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -168,7 +158,7 @@ nav {
   background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: 100px;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.25em;
@@ -176,6 +166,7 @@ nav {
   color: var(--green);
   margin-bottom: 36px;
   animation: fadeDown 0.8s ease both;
+  box-shadow: var(--shadow-sm);
 }
 .hero-eyebrow-dot {
   width: 6px; height: 6px;
@@ -193,7 +184,7 @@ nav {
   font-weight: 300;
   line-height: 0.95;
   letter-spacing: -0.02em;
-  color: var(--white);
+  color: var(--ink);
   margin-bottom: 32px;
   animation: fadeUp 1s 0.2s ease both;
 }
@@ -228,8 +219,8 @@ nav {
   align-items: center;
   gap: 10px;
   padding: 16px 32px;
-  background: linear-gradient(135deg, #16a34a, #4ade80);
-  color: #030508;
+  background: linear-gradient(135deg, var(--green), var(--green-mid));
+  color: #fff;
   font-family: 'Outfit', sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -240,27 +231,27 @@ nav {
   transition: all 0.3s;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(45,106,53,0.25);
 }
 .btn-primary::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #4ade80, #2dd4bf);
+  background: linear-gradient(135deg, var(--green-mid), var(--teal));
   opacity: 0;
   transition: opacity 0.3s;
 }
 .btn-primary:hover::before { opacity: 1; }
-.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 20px 40px rgba(74,222,128,0.3); }
-.btn-primary span { position: relative; z-index: 1; }
-.btn-primary svg { position: relative; z-index: 1; }
+.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 16px 40px rgba(45,106,53,0.28); }
+.btn-primary span, .btn-primary svg { position: relative; z-index: 1; }
 
 .btn-ghost {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   padding: 15px 32px;
-  background: transparent;
-  border: 1px solid rgba(226,232,240,0.15);
+  background: var(--glass);
+  border: 1px solid rgba(26,26,24,0.12);
   color: var(--text);
   font-size: 13px;
   font-weight: 500;
@@ -270,15 +261,17 @@ nav {
   border-radius: 6px;
   transition: all 0.3s;
   backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
 }
 .btn-ghost:hover {
   border-color: var(--green);
   color: var(--green);
-  background: var(--green-glow);
+  background: rgba(45,106,53,0.06);
   transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
 
-/* hero scroll indicator */
+/* scroll indicator */
 .hero-scroll {
   position: absolute;
   bottom: 40px; left: 50%;
@@ -299,51 +292,40 @@ nav {
   animation: scrollPulse 2s ease-in-out infinite;
 }
 @keyframes scrollPulse {
-  0%,100%{opacity:0.4; transform:scaleY(1)}
-  50%{opacity:1; transform:scaleY(1.2)}
+  0%,100%{opacity:0.4;transform:scaleY(1)}
+  50%{opacity:1;transform:scaleY(1.2)}
 }
 
 /* ─── STATS BAND ─── */
-.stats-band {
-  padding: 0 60px;
-  margin-bottom: 0;
-}
+.stats-band { padding: 0 60px; }
 .stats-inner {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
+  background: var(--white);
+  border: 1px solid rgba(45,106,53,0.1);
   border-radius: 20px;
-  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-md);
   overflow: hidden;
 }
 .stat-item {
   padding: 40px 36px;
-  border-right: 1px solid var(--glass-border);
+  border-right: 1px solid rgba(45,106,53,0.08);
   position: relative;
   transition: background 0.4s;
 }
 .stat-item:last-child { border-right: none; }
-.stat-item:hover { background: rgba(74,222,128,0.05); }
+.stat-item:hover { background: rgba(45,106,53,0.03); }
 .stat-num {
   font-family: 'Cormorant Garamond', serif;
   font-size: 52px;
   font-weight: 300;
-  color: var(--white);
+  color: var(--ink);
   line-height: 1;
   margin-bottom: 8px;
 }
 .stat-num span { color: var(--green); }
-.stat-label {
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.4;
-}
-.stat-icon {
-  position: absolute;
-  top: 28px; right: 28px;
-  color: rgba(74,222,128,0.2);
-}
+.stat-label { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.stat-icon { position: absolute; top: 28px; right: 28px; color: rgba(45,106,53,0.15); }
 
 /* ─── ABOUT ─── */
 .about {
@@ -355,8 +337,8 @@ nav {
   position: absolute;
   left: 0; top: 50%;
   transform: translateY(-50%);
-  width: 1px; height: 60%;
-  background: linear-gradient(to bottom, transparent, var(--green-dim), transparent);
+  width: 2px; height: 60%;
+  background: linear-gradient(to bottom, transparent, var(--green-mid), transparent);
 }
 
 .section-tag {
@@ -372,7 +354,7 @@ nav {
 }
 .section-tag::before {
   content: '';
-  width: 24px; height: 1px;
+  width: 24px; height: 1.5px;
   background: var(--green);
 }
 
@@ -390,7 +372,7 @@ nav {
   font-size: clamp(36px, 4vw, 58px);
   font-weight: 300;
   line-height: 1.15;
-  color: var(--white);
+  color: var(--ink);
   margin-bottom: 28px;
 }
 .about-headline em { font-style: italic; color: var(--green); }
@@ -406,14 +388,14 @@ nav {
   margin: 36px 0;
   padding: 24px 28px;
   border-left: 2px solid var(--green);
-  background: var(--green-glow);
+  background: rgba(45,106,53,0.04);
   border-radius: 0 10px 10px 0;
 }
 .about-quote p {
   font-family: 'Cormorant Garamond', serif;
   font-size: 22px;
   font-style: italic;
-  color: var(--white);
+  color: var(--ink);
   line-height: 1.5;
 }
 
@@ -425,23 +407,27 @@ nav {
 
 .about-card {
   padding: 28px 24px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
+  background: var(--white);
+  border: 1px solid rgba(45,106,53,0.08);
   border-radius: 14px;
-  backdrop-filter: blur(20px);
   position: relative;
   overflow: hidden;
   transition: all 0.4s;
+  box-shadow: var(--shadow-sm);
 }
 .about-card::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 0%, rgba(74,222,128,0.08) 0%, transparent 70%);
+  background: radial-gradient(circle at 50% 0%, rgba(45,106,53,0.05) 0%, transparent 70%);
   opacity: 0;
   transition: opacity 0.4s;
 }
-.about-card:hover { transform: translateY(-6px); border-color: rgba(74,222,128,0.3); box-shadow: 0 24px 60px rgba(0,0,0,0.4), 0 0 40px rgba(74,222,128,0.05); }
+.about-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(45,106,53,0.2);
+  box-shadow: var(--shadow-lg);
+}
 .about-card:hover::before { opacity: 1; }
 .about-card-num {
   font-family: 'Cormorant Garamond', serif;
@@ -451,22 +437,23 @@ nav {
   line-height: 1;
   margin-bottom: 8px;
 }
-.about-card-text {
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.5;
-}
-.about-card-icon {
-  position: absolute;
-  top: 20px; right: 20px;
-  color: rgba(74,222,128,0.15);
-}
+.about-card-text { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.about-card-icon { position: absolute; top: 20px; right: 20px; color: rgba(45,106,53,0.12); }
 
 /* ─── PRODUCTS ─── */
 .products {
   padding: 140px 60px;
+  background: var(--white);
   position: relative;
-  background: linear-gradient(180deg, transparent 0%, rgba(10,22,40,0.4) 50%, transparent 100%);
+}
+.products::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(45,106,53,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 10% 80%, rgba(140,198,63,0.04) 0%, transparent 60%);
+  pointer-events: none;
 }
 
 .products-header {
@@ -474,22 +461,15 @@ nav {
   max-width: 600px;
   margin: 0 auto 80px;
 }
-
 .products-headline {
   font-family: 'Cormorant Garamond', serif;
   font-size: clamp(40px, 5vw, 68px);
   font-weight: 300;
-  color: var(--white);
+  color: var(--ink);
   line-height: 1.1;
 }
 .products-headline em { font-style: italic; color: var(--green); }
-
-.products-sub {
-  font-size: 15px;
-  color: var(--muted);
-  margin-top: 16px;
-  line-height: 1.7;
-}
+.products-sub { font-size: 15px; color: var(--muted); margin-top: 16px; line-height: 1.7; }
 
 .products-grid {
   display: grid;
@@ -502,46 +482,46 @@ nav {
 .product-card {
   position: relative;
   padding: 40px 32px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
+  background: var(--bg);
+  border: 1px solid rgba(45,106,53,0.08);
   border-radius: 20px;
-  backdrop-filter: blur(20px);
   overflow: hidden;
   transition: all 0.5s cubic-bezier(.25,.46,.45,.94);
-  group: true;
+  box-shadow: var(--shadow-sm);
 }
 .product-card-glow {
   position: absolute;
   width: 200px; height: 200px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(74,222,128,0.15) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(45,106,53,0.08) 0%, transparent 70%);
   top: -60px; right: -60px;
   transition: all 0.5s;
   opacity: 0;
 }
 .product-card:hover .product-card-glow { opacity: 1; transform: scale(1.5); }
 .product-card:hover {
-  border-color: rgba(74,222,128,0.3);
+  border-color: rgba(45,106,53,0.2);
   transform: translateY(-8px) scale(1.01);
-  box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 60px rgba(74,222,128,0.06);
+  box-shadow: var(--shadow-lg);
+  background: var(--white);
 }
 
 .product-num {
   font-family: 'Cormorant Garamond', serif;
   font-size: 72px;
   font-weight: 300;
-  color: rgba(74,222,128,0.06);
+  color: rgba(45,106,53,0.05);
   position: absolute;
   top: 16px; right: 20px;
   line-height: 1;
   transition: color 0.4s;
 }
-.product-card:hover .product-num { color: rgba(74,222,128,0.12); }
+.product-card:hover .product-num { color: rgba(45,106,53,0.1); }
 
 .product-icon-wrap {
   width: 56px; height: 56px;
-  background: rgba(74,222,128,0.08);
-  border: 1px solid rgba(74,222,128,0.2);
+  background: rgba(45,106,53,0.07);
+  border: 1px solid rgba(45,106,53,0.15);
   border-radius: 14px;
   display: flex;
   align-items: center;
@@ -551,32 +531,25 @@ nav {
   color: var(--green);
 }
 .product-card:hover .product-icon-wrap {
-  background: rgba(74,222,128,0.15);
-  border-color: rgba(74,222,128,0.4);
-  box-shadow: 0 0 20px rgba(74,222,128,0.2);
+  background: var(--green);
+  border-color: var(--green);
+  color: white;
+  box-shadow: 0 8px 24px rgba(45,106,53,0.25);
+  transform: scale(1.08) rotate(-4deg);
 }
 
 .product-name {
-  font-family: 'Outfit', sans-serif;
   font-size: 17px;
   font-weight: 600;
-  color: var(--white);
+  color: var(--ink);
   margin-bottom: 12px;
-  letter-spacing: 0.02em;
 }
-
-.product-desc {
-  font-size: 14px;
-  line-height: 1.75;
-  color: var(--muted);
-  margin-bottom: 20px;
-}
-
+.product-desc { font-size: 14px; line-height: 1.75; color: var(--muted); margin-bottom: 20px; }
 .product-tag {
   display: inline-block;
   padding: 5px 12px;
-  background: rgba(74,222,128,0.08);
-  border: 1px solid rgba(74,222,128,0.2);
+  background: rgba(45,106,53,0.07);
+  border: 1px solid rgba(45,106,53,0.15);
   border-radius: 100px;
   font-size: 11px;
   font-weight: 600;
@@ -585,30 +558,30 @@ nav {
   transition: all 0.3s;
 }
 .product-card:hover .product-tag {
-  background: rgba(74,222,128,0.15);
+  background: var(--green);
   border-color: var(--green);
+  color: white;
 }
 
 /* ─── DIFFERENTIALS ─── */
-.differentials {
-  padding: 140px 60px;
-}
+.differentials { padding: 140px 60px; background: var(--bg); }
 
 .diff-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1px;
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgba(45,106,53,0.1);
   border-radius: 24px;
   overflow: hidden;
   max-width: 1200px;
   margin: 64px auto 0;
-  background: var(--glass-border);
+  background: rgba(45,106,53,0.08);
+  box-shadow: var(--shadow-md);
 }
 
 .diff-item {
   padding: 56px 48px;
-  background: var(--deep);
+  background: var(--white);
   position: relative;
   overflow: hidden;
   transition: background 0.4s;
@@ -617,46 +590,31 @@ nav {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 0% 100%, rgba(74,222,128,0.06) 0%, transparent 60%);
+  background: radial-gradient(circle at 0% 100%, rgba(45,106,53,0.04) 0%, transparent 60%);
   opacity: 0;
   transition: opacity 0.4s;
 }
-.diff-item:hover { background: rgba(10,22,40,0.9); }
+.diff-item:hover { background: rgba(245,250,245,1); }
 .diff-item:hover::after { opacity: 1; }
 
 .diff-counter {
   font-family: 'Cormorant Garamond', serif;
   font-size: 80px;
   font-weight: 300;
-  color: rgba(74,222,128,0.06);
+  color: rgba(45,106,53,0.05);
   position: absolute;
   top: 24px; right: 32px;
   line-height: 1;
 }
-
-.diff-icon {
-  color: var(--green);
-  margin-bottom: 20px;
-}
-
-.diff-title {
-  font-family: 'Outfit', sans-serif;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--white);
-  margin-bottom: 14px;
-}
-
-.diff-desc {
-  font-size: 15px;
-  line-height: 1.75;
-  color: var(--muted);
-}
+.diff-icon { color: var(--green); margin-bottom: 20px; }
+.diff-title { font-size: 20px; font-weight: 600; color: var(--ink); margin-bottom: 14px; }
+.diff-desc { font-size: 15px; line-height: 1.75; color: var(--muted); }
 
 /* ─── APPLICATIONS ─── */
 .applications {
   padding: 140px 60px;
   text-align: center;
+  background: var(--white);
   position: relative;
 }
 .applications::before {
@@ -665,7 +623,7 @@ nav {
   top: 50%; left: 50%;
   transform: translate(-50%,-50%);
   width: 600px; height: 600px;
-  background: radial-gradient(circle, rgba(74,222,128,0.04) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(45,106,53,0.04) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -679,24 +637,23 @@ nav {
 
 .app-item {
   padding: 32px 20px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
+  background: var(--bg);
+  border: 1px solid rgba(45,106,53,0.08);
   border-radius: 16px;
-  backdrop-filter: blur(20px);
   transition: all 0.4s;
   cursor: default;
+  box-shadow: var(--shadow-sm);
 }
 .app-item:hover {
-  border-color: rgba(74,222,128,0.4);
-  background: rgba(74,222,128,0.06);
+  border-color: var(--green);
+  background: var(--white);
   transform: translateY(-6px) scale(1.03);
-  box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 0 30px rgba(74,222,128,0.08);
+  box-shadow: var(--shadow-lg);
 }
-
 .app-icon-wrap {
   width: 48px; height: 48px;
   margin: 0 auto 16px;
-  background: rgba(74,222,128,0.08);
+  background: rgba(45,106,53,0.07);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -705,25 +662,16 @@ nav {
   transition: all 0.4s;
 }
 .app-item:hover .app-icon-wrap {
-  background: rgba(74,222,128,0.15);
-  box-shadow: 0 0 20px rgba(74,222,128,0.2);
+  background: var(--green);
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 8px 20px rgba(45,106,53,0.25);
 }
-
-.app-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--white);
-  margin-bottom: 4px;
-}
-.app-sub {
-  font-size: 12px;
-  color: var(--muted);
-}
+.app-name { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+.app-sub  { font-size: 12px; color: var(--muted); }
 
 /* ─── CONTACT ─── */
-.contact {
-  padding: 100px 60px 140px;
-}
+.contact { padding: 100px 60px 140px; background: var(--bg); }
 
 .contact-inner {
   max-width: 1200px;
@@ -731,15 +679,16 @@ nav {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2px;
-  background: var(--glass-border);
+  background: rgba(45,106,53,0.1);
   border-radius: 28px;
   overflow: hidden;
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgba(45,106,53,0.1);
+  box-shadow: var(--shadow-lg);
 }
 
 .contact-left {
   padding: 72px 64px;
-  background: var(--deep);
+  background: var(--white);
   position: relative;
   overflow: hidden;
 }
@@ -748,39 +697,29 @@ nav {
   position: absolute;
   top: -100px; left: -100px;
   width: 400px; height: 400px;
-  background: radial-gradient(circle, rgba(74,222,128,0.1) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(45,106,53,0.06) 0%, transparent 70%);
   pointer-events: none;
 }
 
 .contact-headline {
   font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(36px,4vw,56px);
+  font-size: clamp(36px, 4vw, 56px);
   font-weight: 300;
-  color: var(--white);
+  color: var(--ink);
   line-height: 1.15;
   margin-bottom: 20px;
 }
 .contact-headline em { font-style: italic; color: var(--green); }
+.contact-desc { font-size: 15px; color: var(--muted); line-height: 1.8; margin-bottom: 40px; }
 
-.contact-desc {
-  font-size: 15px;
-  color: var(--muted);
-  line-height: 1.8;
-  margin-bottom: 40px;
-}
-
-.contact-btns {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+.contact-btns { display: flex; flex-direction: column; gap: 14px; }
 
 .btn-wpp {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 18px 28px;
-  background: #16a34a;
+  background: var(--green);
   color: white;
   border-radius: 10px;
   text-decoration: none;
@@ -790,17 +729,18 @@ nav {
   transition: all 0.3s;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(45,106,53,0.25);
 }
 .btn-wpp::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #16a34a, #4ade80);
+  background: linear-gradient(135deg, var(--green), var(--green-light));
   opacity: 0;
   transition: opacity 0.3s;
 }
 .btn-wpp:hover::before { opacity: 1; }
-.btn-wpp:hover { transform: translateY(-3px); box-shadow: 0 16px 40px rgba(22,163,74,0.4); }
+.btn-wpp:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(45,106,53,0.3); }
 .btn-wpp span, .btn-wpp svg { position: relative; z-index: 1; }
 
 .btn-outline {
@@ -809,7 +749,7 @@ nav {
   gap: 12px;
   padding: 17px 28px;
   background: transparent;
-  border: 1px solid rgba(226,232,240,0.15);
+  border: 1px solid rgba(26,26,24,0.12);
   color: var(--text);
   border-radius: 10px;
   text-decoration: none;
@@ -820,27 +760,23 @@ nav {
 .btn-outline:hover {
   border-color: var(--green);
   color: var(--green);
-  background: var(--green-glow);
+  background: rgba(45,106,53,0.04);
   transform: translateY(-3px);
 }
 
 .contact-right {
   padding: 72px 64px;
-  background: rgba(6,13,20,0.8);
+  background: var(--bg2);
   display: flex;
   flex-direction: column;
   gap: 32px;
 }
 
-.contact-info-item {
-  display: flex;
-  gap: 18px;
-  align-items: flex-start;
-}
+.contact-info-item { display: flex; gap: 18px; align-items: flex-start; }
 .contact-info-icon {
   width: 44px; height: 44px;
-  background: rgba(74,222,128,0.08);
-  border: 1px solid rgba(74,222,128,0.2);
+  background: rgba(45,106,53,0.08);
+  border: 1px solid rgba(45,106,53,0.15);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -850,9 +786,10 @@ nav {
   transition: all 0.3s;
 }
 .contact-info-item:hover .contact-info-icon {
-  background: rgba(74,222,128,0.15);
+  background: var(--green);
   border-color: var(--green);
-  box-shadow: 0 0 20px rgba(74,222,128,0.2);
+  color: white;
+  box-shadow: 0 6px 20px rgba(45,106,53,0.25);
 }
 .contact-info-label {
   font-size: 10px;
@@ -862,16 +799,12 @@ nav {
   color: var(--green);
   margin-bottom: 6px;
 }
-.contact-info-value {
-  font-size: 15px;
-  color: var(--text);
-  line-height: 1.6;
-}
+.contact-info-value { font-size: 15px; color: var(--text); line-height: 1.6; }
 
 /* ─── FOOTER ─── */
 footer {
   padding: 32px 60px;
-  border-top: 1px solid rgba(74,222,128,0.08);
+  background: var(--ink);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -881,48 +814,33 @@ footer {
   font-size: 20px;
   font-weight: 600;
   letter-spacing: 0.15em;
-  color: var(--white);
+  color: rgba(255,255,255,0.9);
 }
-.footer-logo span { color: var(--green); }
-.footer-copy {
-  font-size: 13px;
-  color: var(--muted);
-}
-.footer-social {
-  display: flex;
-  gap: 16px;
-}
+.footer-logo span { color: var(--green-light); }
+.footer-copy { font-size: 13px; color: rgba(255,255,255,0.35); }
+.footer-social { display: flex; gap: 16px; }
 .footer-social a {
   width: 38px; height: 38px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--muted);
+  color: rgba(255,255,255,0.4);
   transition: all 0.3s;
   text-decoration: none;
 }
 .footer-social a:hover {
-  border-color: var(--green);
-  color: var(--green);
-  background: var(--green-glow);
+  border-color: var(--green-light);
+  color: var(--green-light);
+  background: rgba(140,198,63,0.1);
 }
 
-/* ─── REVEAL ANIMATIONS ─── */
-@keyframes fadeUp {
-  from { opacity:0; transform:translateY(30px); }
-  to { opacity:1; transform:translateY(0); }
-}
-@keyframes fadeDown {
-  from { opacity:0; transform:translateY(-20px); }
-  to { opacity:1; transform:translateY(0); }
-}
-@keyframes fadeIn {
-  from { opacity:0; }
-  to { opacity:1; }
-}
+/* ─── ANIMATIONS ─── */
+@keyframes fadeUp   { from{opacity:0;transform:translateY(30px)}  to{opacity:1;transform:translateY(0)} }
+@keyframes fadeDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn   { from{opacity:0} to{opacity:1} }
 
 .reveal {
   opacity: 0;
@@ -938,7 +856,7 @@ footer {
 
 /* ─── RESPONSIVE ─── */
 @media (max-width: 1024px) {
-  nav { padding: 16px 32px; }
+  nav, nav.scrolled { padding: 16px 32px; }
   .hero { padding: 120px 32px 80px; }
   .stats-band { padding: 0 32px; }
   .stats-inner { grid-template-columns: 1fr 1fr; }
@@ -947,7 +865,7 @@ footer {
   .diff-grid { grid-template-columns: 1fr; }
   .app-grid { grid-template-columns: 1fr 1fr; }
   .contact-inner { grid-template-columns: 1fr; }
-  .about, .products, .differentials, .applications, .contact { padding-left: 32px; padding-right: 32px; }
+  .about,.products,.differentials,.applications,.contact { padding-left: 32px; padding-right: 32px; }
 }
 @media (max-width: 600px) {
   .nav-links { display: none; }
@@ -961,17 +879,13 @@ footer {
 </head>
 <body>
 
-<!-- Cursor -->
-<div class="cursor" id="cursor"></div>
-<div class="cursor-ring" id="cursorRing"></div>
-
 <!-- Particles Canvas -->
 <canvas id="particle-canvas"></canvas>
 
 <div class="page">
 
 <!-- NAV -->
-<nav>
+<nav id="main-nav">
   <div class="nav-brand">UNI<span>BIOTECH</span></div>
   <ul class="nav-links">
     <li><a href="#sobre">Sobre</a></li>
@@ -1001,11 +915,9 @@ footer {
     <div class="hero-actions">
       <a href="https://unibiotechbrasil.com.br/produtos/" class="btn-primary" target="_blank">
         <span>Ver Produtos</span>
-        <!-- heroicon: arrow-right -->
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>
       <a href="#contato" class="btn-ghost">
-        <!-- heroicon: phone -->
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M2.25 6.338c0-1.162.98-2.113 2.144-2.087l3.5.084A1.5 1.5 0 019.26 5.49l.77 3.042a1.5 1.5 0 01-.714 1.686l-1.478.837a11.24 11.24 0 005.106 5.107l.837-1.478a1.5 1.5 0 011.685-.714l3.042.77a1.5 1.5 0 011.155 1.366l.084 3.5c.026 1.164-.925 2.145-2.087 2.145H18C9.716 21 2.25 13.534 2.25 5.25v-.912z"/></svg>
         Fale Conosco
       </a>
@@ -1021,23 +933,20 @@ footer {
 <div class="stats-band reveal">
   <div class="stats-inner">
     <div class="stat-item">
-      <!-- heroicon: building-office-2 -->
       <div class="stat-icon">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path fill-rule="evenodd" d="M3 2.25a.75.75 0 000 1.5v16.5h-.75a.75.75 0 000 1.5H15v-18a.75.75 0 000-1.5H3zM6.75 19.5v-2.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v2.25a.75.75 0 01-.75.75h-3a.75.75 0 01-.75-.75zM6 6.75A.75.75 0 016.75 6h.75a.75.75 0 010 1.5h-.75A.75.75 0 016 6.75zM6.75 9h.75a.75.75 0 010 1.5h-.75a.75.75 0 010-1.5zM6 12.75a.75.75 0 01.75-.75h.75a.75.75 0 010 1.5h-.75a.75.75 0 01-.75-.75zM10.5 6a.75.75 0 000 1.5h.75a.75.75 0 000-1.5h-.75zm-.75 3.75A.75.75 0 0110.5 9h.75a.75.75 0 010 1.5h-.75a.75.75 0 01-.75-.75zM10.5 12a.75.75 0 000 1.5h.75a.75.75 0 000-1.5h-.75zM16.5 6.75v15h5.25a.75.75 0 000-1.5H21v-12a.75.75 0 000-1.5h-4.5zm1.5 4.5a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75v-.008zm.75 2.25a.75.75 0 000 1.5h.008a.75.75 0 000-1.5h-.008zM18 17.25a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75v-.008z" clip-rule="evenodd"/></svg>
       </div>
-      <div class="stat-num">1<span>fábrica</span></div>
+      <div class="stat-num">1<span> fábrica</span></div>
       <div class="stat-label">Própria com laboratório de P&D integrado</div>
     </div>
     <div class="stat-item">
-      <!-- heroicon: map-pin -->
       <div class="stat-icon">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-2.083 3.918-5.099 3.918-9.573A8.25 8.25 0 002.25 12c0 4.474 1.974 7.49 3.918 9.573a19.58 19.58 0 002.683 2.282 16.975 16.975 0 001.144.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
       </div>
-      <div class="stat-num">+10<span>estados</span></div>
+      <div class="stat-num">+10<span> estados</span></div>
       <div class="stat-label">Centros de distribuição em todo o Brasil</div>
     </div>
     <div class="stat-item">
-      <!-- heroicon: clock -->
       <div class="stat-icon">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z" clip-rule="evenodd"/></svg>
       </div>
@@ -1045,11 +954,10 @@ footer {
       <div class="stat-label">Disponibilidade de atendimento contínuo</div>
     </div>
     <div class="stat-item">
-      <!-- heroicon: beaker -->
       <div class="stat-icon">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path fill-rule="evenodd" d="M10.5 3.798v5.02a3 3 0 01-.879 2.121l-2.377 2.377a9.845 9.845 0 015.091 1.013 8.315 8.315 0 005.713.636l.285-.071-3.954-3.955a3 3 0 01-.879-2.121v-5.02a23.614 23.614 0 00-3 0zm4.5.138a.75.75 0 00.093-1.495A24.837 24.837 0 0012 2.25a25.048 25.048 0 00-3.093.191A.75.75 0 009 3.936v4.882a1.5 1.5 0 01-.44 1.06l-6.293 6.294c-1.62 1.621-.903 4.475 1.471 4.88 2.686.46 5.447.698 8.262.698 2.816 0 5.576-.239 8.262-.697 2.373-.406 3.092-3.26 1.47-4.881L15.44 9.879A1.5 1.5 0 0115 8.818V3.936z" clip-rule="evenodd"/></svg>
       </div>
-      <div class="stat-num">∞<span>tipos</span></div>
+      <div class="stat-num">∞<span> tipos</span></div>
       <div class="stat-label">Variedades de queijos e lácteos atendidos</div>
     </div>
   </div>
@@ -1061,7 +969,7 @@ footer {
     <div class="reveal">
       <span class="section-tag">Quem somos</span>
       <h2 class="about-headline">Renovando produtos<br>e <em>criando soluções</em><br>para o setor lácteo</h2>
-      <p class="about-body">A <strong style="color:var(--white)">Unibiotech</strong> é uma empresa brasileira especializada no fornecimento de insumos de biotecnologia para a produção de queijos e lácteos — atendendo desde o pequeno produtor artesanal até grandes indústrias.</p>
+      <p class="about-body">A <strong>Unibiotech</strong> é uma empresa brasileira especializada no fornecimento de insumos de biotecnologia para a produção de queijos e lácteos — atendendo desde o pequeno produtor artesanal até grandes indústrias.</p>
       <div class="about-quote">
         <p>"Acompanhamento técnico adequado, atendimento comercial eficiente, produto de qualidade eficaz."</p>
       </div>
@@ -1069,36 +977,24 @@ footer {
     </div>
     <div class="about-cards reveal reveal-delay-2">
       <div class="about-card">
-        <!-- heroicon: building-storefront -->
-        <div class="about-card-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M5.223 2.25c-.497 0-.974.198-1.325.55l-1.3 1.298A3.75 3.75 0 007.5 9.75c.627.47 1.406.75 2.25.75.844 0 1.624-.28 2.25-.75.626.47 1.406.75 2.25.75.844 0 1.623-.28 2.25-.75a3.75 3.75 0 004.902-5.652l-1.3-1.299a1.875 1.875 0 00-1.325-.549H5.223z"/><path fill-rule="evenodd" d="M3 20.25v-8.755c1.42.674 3.08.673 4.5 0A5.234 5.234 0 009.75 12c.804 0 1.568-.182 2.25-.506a5.234 5.234 0 002.25.506c.804 0 1.567-.182 2.25-.506 1.42.674 3.08.675 4.5.001v8.755h.75a.75.75 0 010 1.5H2.25a.75.75 0 010-1.5H3zm3-6a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v3a.75.75 0 01-.75.75h-3a.75.75 0 01-.75-.75v-3zm8.25-.75a.75.75 0 00-.75.75v5.25c0 .414.336.75.75.75h3a.75.75 0 00.75-.75v-5.25a.75.75 0 00-.75-.75h-3z" clip-rule="evenodd"/></svg>
-        </div>
+        <div class="about-card-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M5.223 2.25c-.497 0-.974.198-1.325.55l-1.3 1.298A3.75 3.75 0 007.5 9.75c.627.47 1.406.75 2.25.75.844 0 1.624-.28 2.25-.75.626.47 1.406.75 2.25.75.844 0 1.623-.28 2.25-.75a3.75 3.75 0 004.902-5.652l-1.3-1.299a1.875 1.875 0 00-1.325-.549H5.223z"/><path fill-rule="evenodd" d="M3 20.25v-8.755c1.42.674 3.08.673 4.5 0A5.234 5.234 0 009.75 12c.804 0 1.568-.182 2.25-.506a5.234 5.234 0 002.25.506c.804 0 1.567-.182 2.25-.506 1.42.674 3.08.675 4.5.001v8.755h.75a.75.75 0 010 1.5H2.25a.75.75 0 010-1.5H3zm3-6a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v3a.75.75 0 01-.75.75h-3a.75.75 0 01-.75-.75v-3zm8.25-.75a.75.75 0 00-.75.75v5.25c0 .414.336.75.75.75h3a.75.75 0 00.75-.75v-5.25a.75.75 0 00-.75-.75h-3z" clip-rule="evenodd"/></svg></div>
         <div class="about-card-num">PR</div>
-        <div class="about-card-text">Sede em Alto Piquiri, Paraná — coração do agronegócio brasileiro</div>
+        <div class="about-card-text">Sede em Alto Piquiri, Paraná</div>
       </div>
       <div class="about-card">
-        <!-- heroicon: truck -->
-        <div class="about-card-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M3.375 4.5C2.339 4.5 1.5 5.34 1.5 6.375V13.5h12V6.375c0-1.036-.84-1.875-1.875-1.875h-8.25zM13.5 15h-12v2.625c0 1.035.84 1.875 1.875 1.875H3.75a3 3 0 106 0h2.25a.75.75 0 00.75-.75V15z"/><path d="M8.25 19.5a1.5 1.5 0 10-3 0 1.5 1.5 0 003 0zM15.75 6.75a.75.75 0 00-.75.75v11.25c0 .087.015.17.042.248a3 3 0 015.958.464c.853-.175 1.522-.935 1.464-1.883a18.845 18.845 0 00-3.464-9.579zM19.5 19.5a1.5 1.5 0 10-3 0 1.5 1.5 0 003 0z"/></svg>
-        </div>
+        <div class="about-card-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M3.375 4.5C2.339 4.5 1.5 5.34 1.5 6.375V13.5h12V6.375c0-1.036-.84-1.875-1.875-1.875h-8.25zM13.5 15h-12v2.625c0 1.035.84 1.875 1.875 1.875H3.75a3 3 0 106 0h2.25a.75.75 0 00.75-.75V15z"/><path d="M8.25 19.5a1.5 1.5 0 10-3 0 1.5 1.5 0 003 0zM15.75 6.75a.75.75 0 00-.75.75v11.25c0 .087.015.17.042.248a3 3 0 015.958.464c.853-.175 1.522-.935 1.464-1.883a18.845 18.845 0 00-3.464-9.579zM19.5 19.5a1.5 1.5 0 10-3 0 1.5 1.5 0 003 0z"/></svg></div>
         <div class="about-card-num">+10</div>
-        <div class="about-card-text">Estados com centros de distribuição e logística própria</div>
+        <div class="about-card-text">Estados com distribuição própria</div>
       </div>
       <div class="about-card">
-        <!-- heroicon: beaker -->
-        <div class="about-card-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path fill-rule="evenodd" d="M10.5 3.798v5.02a3 3 0 01-.879 2.121l-2.377 2.377a9.845 9.845 0 015.091 1.013 8.315 8.315 0 005.713.636l.285-.071-3.954-3.955a3 3 0 01-.879-2.121v-5.02a23.614 23.614 0 00-3 0zm4.5.138a.75.75 0 00.093-1.495A24.837 24.837 0 0012 2.25a25.048 25.048 0 00-3.093.191A.75.75 0 009 3.936v4.882a1.5 1.5 0 01-.44 1.06l-6.293 6.294c-1.62 1.621-.903 4.475 1.471 4.88 2.686.46 5.447.698 8.262.698 2.816 0 5.576-.239 8.262-.697 2.373-.406 3.092-3.26 1.47-4.881L15.44 9.879A1.5 1.5 0 0115 8.818V3.936z" clip-rule="evenodd"/></svg>
-        </div>
+        <div class="about-card-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path fill-rule="evenodd" d="M10.5 3.798v5.02a3 3 0 01-.879 2.121l-2.377 2.377a9.845 9.845 0 015.091 1.013 8.315 8.315 0 005.713.636l.285-.071-3.954-3.955a3 3 0 01-.879-2.121v-5.02a23.614 23.614 0 00-3 0zm4.5.138a.75.75 0 00.093-1.495A24.837 24.837 0 0012 2.25a25.048 25.048 0 00-3.093.191A.75.75 0 009 3.936v4.882a1.5 1.5 0 01-.44 1.06l-6.293 6.294c-1.62 1.621-.903 4.475 1.471 4.88 2.686.46 5.447.698 8.262.698 2.816 0 5.576-.239 8.262-.697 2.373-.406 3.092-3.26 1.47-4.881L15.44 9.879A1.5 1.5 0 0115 8.818V3.936z" clip-rule="evenodd"/></svg></div>
         <div class="about-card-num">Lab</div>
-        <div class="about-card-text">Laboratório e fábrica próprios com controle de qualidade rigoroso</div>
+        <div class="about-card-text">Fábrica e laboratório próprios</div>
       </div>
       <div class="about-card">
-        <!-- heroicon: users -->
-        <div class="about-card-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M4.5 6.375a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0zM14.25 8.625a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0zM1.5 19.125a7.125 7.125 0 0114.25 0v.003l-.001.119a.75.75 0 01-.363.63 13.067 13.067 0 01-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 01-.364-.63l-.001-.122zM17.25 19.128l-.001.144a2.25 2.25 0 01-.233.96 10.088 10.088 0 005.06-1.01.75.75 0 00.42-.643 4.875 4.875 0 00-6.957-4.611 8.586 8.586 0 011.71 5.157v.003z"/></svg>
-        </div>
+        <div class="about-card-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M4.5 6.375a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0zM14.25 8.625a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0zM1.5 19.125a7.125 7.125 0 0114.25 0v.003l-.001.119a.75.75 0 01-.363.63 13.067 13.067 0 01-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 01-.364-.63l-.001-.122zM17.25 19.128l-.001.144a2.25 2.25 0 01-.233.96 10.088 10.088 0 005.06-1.01.75.75 0 00.42-.643 4.875 4.875 0 00-6.957-4.611 8.586 8.586 0 011.71 5.157v.003z"/></svg></div>
         <div class="about-card-num">B2B</div>
-        <div class="about-card-text">Parceiros e clientes em todo o Brasil — artesanais e industriais</div>
+        <div class="about-card-text">Artesanais e industriais em todo o Brasil</div>
       </div>
     </div>
   </div>
@@ -1115,10 +1011,7 @@ footer {
     <div class="product-card reveal reveal-delay-1">
       <div class="product-card-glow"></div>
       <div class="product-num">01</div>
-      <div class="product-icon-wrap">
-        <!-- heroicon: beaker -->
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path fill-rule="evenodd" d="M10.5 3.798v5.02a3 3 0 01-.879 2.121l-2.377 2.377a9.845 9.845 0 015.091 1.013 8.315 8.315 0 005.713.636l.285-.071-3.954-3.955a3 3 0 01-.879-2.121v-5.02a23.614 23.614 0 00-3 0zm4.5.138a.75.75 0 00.093-1.495A24.837 24.837 0 0012 2.25a25.048 25.048 0 00-3.093.191A.75.75 0 009 3.936v4.882a1.5 1.5 0 01-.44 1.06l-6.293 6.294c-1.62 1.621-.903 4.475 1.471 4.88 2.686.46 5.447.698 8.262.698 2.816 0 5.576-.239 8.262-.697 2.373-.406 3.092-3.26 1.47-4.881L15.44 9.879A1.5 1.5 0 0115 8.818V3.936z" clip-rule="evenodd"/></svg>
-      </div>
+      <div class="product-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path fill-rule="evenodd" d="M10.5 3.798v5.02a3 3 0 01-.879 2.121l-2.377 2.377a9.845 9.845 0 015.091 1.013 8.315 8.315 0 005.713.636l.285-.071-3.954-3.955a3 3 0 01-.879-2.121v-5.02a23.614 23.614 0 00-3 0zm4.5.138a.75.75 0 00.093-1.495A24.837 24.837 0 0012 2.25a25.048 25.048 0 00-3.093.191A.75.75 0 009 3.936v4.882a1.5 1.5 0 01-.44 1.06l-6.293 6.294c-1.62 1.621-.903 4.475 1.471 4.88 2.686.46 5.447.698 8.262.698 2.816 0 5.576-.239 8.262-.697 2.373-.406 3.092-3.26 1.47-4.881L15.44 9.879A1.5 1.5 0 0115 8.818V3.936z" clip-rule="evenodd"/></svg></div>
       <div class="product-name">Quimosina & Coagulantes</div>
       <div class="product-desc">Enzimas de alta pureza para coagulação precisa do leite. Garantem textura superior, maior rendimento e padronização total do processo produtivo.</div>
       <span class="product-tag">Enzimas</span>
@@ -1126,10 +1019,7 @@ footer {
     <div class="product-card reveal reveal-delay-2">
       <div class="product-card-glow"></div>
       <div class="product-num">02</div>
-      <div class="product-icon-wrap">
-        <!-- heroicon: cpu-chip -->
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path d="M16.5 7.5h-9v9h9v-9z"/><path fill-rule="evenodd" d="M8.25 2.25A.75.75 0 019 3v.75h2.25V3a.75.75 0 011.5 0v.75H15V3a.75.75 0 011.5 0v.75h.75a3 3 0 013 3v.75H21A.75.75 0 0121 9h-.75v2.25H21a.75.75 0 010 1.5h-.75V15H21a.75.75 0 010 1.5h-.75v.75a3 3 0 01-3 3h-.75V21a.75.75 0 01-1.5 0v-.75h-2.25V21a.75.75 0 01-1.5 0v-.75H9V21a.75.75 0 01-1.5 0v-.75h-.75a3 3 0 01-3-3v-.75H3A.75.75 0 013 15h.75v-2.25H3a.75.75 0 010-1.5h.75V9H3a.75.75 0 010-1.5h.75v-.75a3 3 0 013-3h.75V3a.75.75 0 01.75-.75zM6 6.75A.75.75 0 016.75 6h10.5a.75.75 0 01.75.75v10.5a.75.75 0 01-.75.75H6.75a.75.75 0 01-.75-.75V6.75z" clip-rule="evenodd"/></svg>
-      </div>
+      <div class="product-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path fill-rule="evenodd" d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813A3.75 3.75 0 007.466 7.89l.813-2.846A.75.75 0 019 4.5zM18 1.5a.75.75 0 01.728.568l.258 1.036c.236.94.97 1.674 1.91 1.91l1.036.258a.75.75 0 010 1.456l-1.036.258c-.94.236-1.674.97-1.91 1.91l-.258 1.036a.75.75 0 01-1.456 0l-.258-1.036a2.625 2.625 0 00-1.91-1.91l-1.036-.258a.75.75 0 010-1.456l1.036-.258a2.625 2.625 0 001.91-1.91l.258-1.036A.75.75 0 0118 1.5z" clip-rule="evenodd"/></svg></div>
       <div class="product-name">Fermentos Lácteos</div>
       <div class="product-desc">Culturas starter e adjuntas para queijos maturados, frescos e mofados. Controlam acidez, sabor e aroma com precisão microbiológica.</div>
       <span class="product-tag">Culturas</span>
@@ -1137,10 +1027,7 @@ footer {
     <div class="product-card reveal reveal-delay-3">
       <div class="product-card-glow"></div>
       <div class="product-num">03</div>
-      <div class="product-icon-wrap">
-        <!-- heroicon: magnifying-glass -->
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path fill-rule="evenodd" d="M10.5 3.75a6.75 6.75 0 100 13.5 6.75 6.75 0 000-13.5zM2.25 10.5a8.25 8.25 0 1114.59 5.28l4.69 4.69a.75.75 0 11-1.06 1.06l-4.69-4.69A8.25 8.25 0 012.25 10.5z" clip-rule="evenodd"/></svg>
-      </div>
+      <div class="product-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path fill-rule="evenodd" d="M10.5 3.75a6.75 6.75 0 100 13.5 6.75 6.75 0 000-13.5zM2.25 10.5a8.25 8.25 0 1114.59 5.28l4.69 4.69a.75.75 0 11-1.06 1.06l-4.69-4.69A8.25 8.25 0 012.25 10.5z" clip-rule="evenodd"/></svg></div>
       <div class="product-name">Teste de Antibióticos</div>
       <div class="product-desc">Kits rápidos e confiáveis para detecção de resíduos de antibióticos no leite — conformidade com legislação vigente e segurança alimentar total.</div>
       <span class="product-tag">Diagnóstico</span>
@@ -1148,10 +1035,7 @@ footer {
     <div class="product-card reveal reveal-delay-1">
       <div class="product-card-glow"></div>
       <div class="product-num">04</div>
-      <div class="product-icon-wrap">
-        <!-- heroicon: sparkles -->
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path fill-rule="evenodd" d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813A3.75 3.75 0 007.466 7.89l.813-2.846A.75.75 0 019 4.5zM18 1.5a.75.75 0 01.728.568l.258 1.036c.236.94.97 1.674 1.91 1.91l1.036.258a.75.75 0 010 1.456l-1.036.258c-.94.236-1.674.97-1.91 1.91l-.258 1.036a.75.75 0 01-1.456 0l-.258-1.036a2.625 2.625 0 00-1.91-1.91l-1.036-.258a.75.75 0 010-1.456l1.036-.258a2.625 2.625 0 001.91-1.91l.258-1.036A.75.75 0 0118 1.5zM16.5 15a.75.75 0 01.712.513l.394 1.183c.15.447.5.799.948.948l1.183.395a.75.75 0 010 1.422l-1.183.395c-.447.15-.799.5-.948.948l-.395 1.183a.75.75 0 01-1.422 0l-.395-1.183a1.5 1.5 0 00-.948-.948l-1.183-.395a.75.75 0 010-1.422l1.183-.395c.447-.15.799-.5.948-.948l.395-1.183A.75.75 0 0116.5 15z" clip-rule="evenodd"/></svg>
-      </div>
+      <div class="product-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path fill-rule="evenodd" d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813A3.75 3.75 0 007.466 7.89l.813-2.846A.75.75 0 019 4.5z" clip-rule="evenodd"/></svg></div>
       <div class="product-name">Insumos Alimentícios</div>
       <div class="product-desc">Ingredientes e aditivos selecionados para aprimorar o processo produtivo: conservantes, corantes naturais, estabilizantes e muito mais.</div>
       <span class="product-tag">Insumos</span>
@@ -1159,23 +1043,17 @@ footer {
     <div class="product-card reveal reveal-delay-2">
       <div class="product-card-glow"></div>
       <div class="product-num">05</div>
-      <div class="product-icon-wrap">
-        <!-- heroicon: home-modern -->
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path d="M19.006 3.705a.75.75 0 00-.512-1.41L6 6.838V3a.75.75 0 00-.75-.75h-1.5A.75.75 0 003 3v4.93l-1.006.365a.75.75 0 00.512 1.41l16.5-6z"/><path fill-rule="evenodd" d="M3.019 11.115L18 5.667V9.09l4.006 1.456a.75.75 0 11-.512 1.41l-.494-.18v8.475h.75a.75.75 0 010 1.5H2.25a.75.75 0 010-1.5H3v-9.129l.019-.006zM18 20.25v-9.565l1.5.545v9.02H18zm-9-6a.75.75 0 00-.75.75v4.5c0 .414.336.75.75.75h3a.75.75 0 00.75-.75V15a.75.75 0 00-.75-.75H9z" clip-rule="evenodd"/></svg>
-      </div>
+      <div class="product-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path d="M19.006 3.705a.75.75 0 00-.512-1.41L6 6.838V3a.75.75 0 00-.75-.75h-1.5A.75.75 0 003 3v4.93l-1.006.365a.75.75 0 00.512 1.41l16.5-6z"/><path fill-rule="evenodd" d="M3.019 11.115L18 5.667V9.09l4.006 1.456a.75.75 0 11-.512 1.41l-.494-.18v8.475h.75a.75.75 0 010 1.5H2.25a.75.75 0 010-1.5H3v-9.129l.019-.006zM18 20.25v-9.565l1.5.545v9.02H18zm-9-6a.75.75 0 00-.75.75v4.5c0 .414.336.75.75.75h3a.75.75 0 00.75-.75V15a.75.75 0 00-.75-.75H9z" clip-rule="evenodd"/></svg></div>
       <div class="product-name">Linha Artesanal</div>
-      <div class="product-desc">Desenvolvida para pequenos e médios produtores. Queijos Canastra, Minas, Coalho e toda a tradição queijeira brasileira com suporte técnico dedicado.</div>
+      <div class="product-desc">Para pequenos e médios produtores. Queijos Canastra, Minas, Coalho e toda a tradição queijeira brasileira com suporte técnico dedicado.</div>
       <span class="product-tag">Artesanal</span>
     </div>
     <div class="product-card reveal reveal-delay-3">
       <div class="product-card-glow"></div>
       <div class="product-num">06</div>
-      <div class="product-icon-wrap">
-        <!-- heroicon: cog-6-tooth -->
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path fill-rule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 00-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 00-2.282.819l-.922 1.597a1.875 1.875 0 00.432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 000 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 00-.432 2.385l.922 1.597a1.875 1.875 0 002.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 002.28-.819l.923-1.597a1.875 1.875 0 00-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 000-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 00-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 00-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 00-1.85-1.567h-1.843zM12 15.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z" clip-rule="evenodd"/></svg>
-      </div>
+      <div class="product-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path fill-rule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 00-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 00-2.282.819l-.922 1.597a1.875 1.875 0 00.432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 000 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 00-.432 2.385l.922 1.597a1.875 1.875 0 002.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 002.28-.819l.923-1.597a1.875 1.875 0 00-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 000-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 00-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 00-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 00-1.85-1.567h-1.843zM12 15.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z" clip-rule="evenodd"/></svg></div>
       <div class="product-name">Linha Industrial</div>
-      <div class="product-desc">Soluções escaláveis para grandes laticínios: Mussarela, Provolone, Prato, Requeijão de Corte — performance e padronização em escala.</div>
+      <div class="product-desc">Soluções escaláveis para grandes laticínios: Mussarela, Provolone, Prato, Requeijão de Corte — performance em escala.</div>
       <span class="product-tag">Industrial</span>
     </div>
   </div>
@@ -1184,44 +1062,32 @@ footer {
 <!-- DIFFERENTIALS -->
 <section class="differentials" id="diferenciais">
   <div style="max-width:1200px;margin:0 auto">
-    <div class="reveal" style="text-align:center;max-width:600px;margin:0 auto 0">
+    <div class="reveal" style="text-align:center;max-width:600px;margin:0 auto">
       <span class="section-tag" style="justify-content:center">Por que a Unibiotech</span>
-      <h2 style="font-family:'Cormorant Garamond',serif;font-size:clamp(40px,5vw,64px);font-weight:300;color:var(--white);line-height:1.1">Conceitos que fazem a <em style="font-style:italic;color:var(--green)">diferença</em></h2>
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:clamp(40px,5vw,64px);font-weight:300;color:var(--ink);line-height:1.1">Conceitos que fazem a <em style="font-style:italic;color:var(--green)">diferença</em></h2>
     </div>
     <div class="diff-grid reveal reveal-delay-2">
       <div class="diff-item">
         <div class="diff-counter">01</div>
-        <div class="diff-icon">
-          <!-- heroicon: hand-raised -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M10.5 1.5a.75.75 0 00-1.5 0V4.5a.75.75 0 001.5 0V1.5zM5.636 4.136a.75.75 0 011.06 0l1.592 1.591a.75.75 0 01-1.061 1.06l-1.591-1.59a.75.75 0 010-1.061zm12.728 0a.75.75 0 010 1.06l-1.591 1.592a.75.75 0 01-1.06-1.061l1.59-1.591a.75.75 0 011.061 0zm-6.816 4.496a.75.75 0 01.82.311l5.228 7.917a.75.75 0 01-.777 1.148l-2.097-.43 1.045 3.9a.75.75 0 01-1.45.388l-1.044-3.899-1.601 1.42a.75.75 0 01-1.247-.606l.569-9.47a.75.75 0 01.554-.678zM3 10.5a.75.75 0 01.75-.75H6a.75.75 0 010 1.5H3.75A.75.75 0 013 10.5zm14.25 0a.75.75 0 01.75-.75h2.25a.75.75 0 010 1.5H18a.75.75 0 01-.75-.75zm-8.962 3.712a.75.75 0 010 1.061l-1.591 1.591a.75.75 0 11-1.061-1.06l1.591-1.592a.75.75 0 011.061 0z"/></svg>
-        </div>
+        <div class="diff-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M10.5 1.5a.75.75 0 00-1.5 0V4.5a.75.75 0 001.5 0V1.5zM5.636 4.136a.75.75 0 011.06 0l1.592 1.591a.75.75 0 01-1.061 1.06l-1.591-1.59a.75.75 0 010-1.061zm12.728 0a.75.75 0 010 1.06l-1.591 1.592a.75.75 0 01-1.06-1.061l1.59-1.591a.75.75 0 011.061 0zm-6.816 4.496a.75.75 0 01.82.311l5.228 7.917a.75.75 0 01-.777 1.148l-2.097-.43 1.045 3.9a.75.75 0 01-1.45.388l-1.044-3.899-1.601 1.42a.75.75 0 01-1.247-.606l.569-9.47a.75.75 0 01.554-.678zM3 10.5a.75.75 0 01.75-.75H6a.75.75 0 010 1.5H3.75A.75.75 0 013 10.5zm14.25 0a.75.75 0 01.75-.75h2.25a.75.75 0 010 1.5H18a.75.75 0 01-.75-.75zm-8.962 3.712a.75.75 0 010 1.061l-1.591 1.591a.75.75 0 11-1.061-1.06l1.591-1.592a.75.75 0 011.061 0z"/></svg></div>
         <div class="diff-title">Múltiplas Parcerias</div>
-        <div class="diff-desc">Centros de distribuição em diversos estados brasileiros. Transporte próprio e terceirizado garantem agilidade e confiabilidade em todo o território nacional.</div>
+        <div class="diff-desc">Centros de distribuição em diversos estados brasileiros. Transporte próprio e terceirizado garantem agilidade em todo o território nacional.</div>
       </div>
       <div class="diff-item">
         <div class="diff-counter">02</div>
-        <div class="diff-icon">
-          <!-- heroicon: building-office -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path fill-rule="evenodd" d="M4.5 2.25a.75.75 0 000 1.5v16.5h-.75a.75.75 0 000 1.5H20.25a.75.75 0 000-1.5h-.75V3.75a.75.75 0 000-1.5h-15zM9 6a.75.75 0 000 1.5h1.5a.75.75 0 000-1.5H9zm-.75 3.75A.75.75 0 019 9h1.5a.75.75 0 010 1.5H9a.75.75 0 01-.75-.75zM9 12a.75.75 0 000 1.5h1.5a.75.75 0 000-1.5H9zm3.75-5.25A.75.75 0 0113.5 6H15a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75zM13.5 9a.75.75 0 000 1.5H15A.75.75 0 0015 9h-1.5zm-.75 3.75a.75.75 0 01.75-.75H15a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75zM9 19.5v-2.25a.75.75 0 01.75-.75h4.5a.75.75 0 01.75.75v2.25a.75.75 0 01-.75.75h-4.5A.75.75 0 019 19.5z" clip-rule="evenodd"/></svg>
-        </div>
+        <div class="diff-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path fill-rule="evenodd" d="M4.5 2.25a.75.75 0 000 1.5v16.5h-.75a.75.75 0 000 1.5H20.25a.75.75 0 000-1.5h-.75V3.75a.75.75 0 000-1.5h-15zM9 6a.75.75 0 000 1.5h1.5a.75.75 0 000-1.5H9zm-.75 3.75A.75.75 0 019 9h1.5a.75.75 0 010 1.5H9a.75.75 0 01-.75-.75zM9 12a.75.75 0 000 1.5h1.5a.75.75 0 000-1.5H9zm3.75-5.25A.75.75 0 0113.5 6H15a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75zM13.5 9a.75.75 0 000 1.5H15A.75.75 0 0015 9h-1.5zm-.75 3.75a.75.75 0 01.75-.75H15a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75zM9 19.5v-2.25a.75.75 0 01.75-.75h4.5a.75.75 0 01.75.75v2.25a.75.75 0 01-.75.75h-4.5A.75.75 0 019 19.5z" clip-rule="evenodd"/></svg></div>
         <div class="diff-title">Fábrica e Laboratório Próprios</div>
-        <div class="diff-desc">Infraestrutura completa com tecnologia de ponta, segurança alimentar e controle de qualidade rigoroso em todas as etapas — da produção à entrega.</div>
+        <div class="diff-desc">Infraestrutura completa com tecnologia de ponta, segurança alimentar e controle de qualidade rigoroso em todas as etapas.</div>
       </div>
       <div class="diff-item">
         <div class="diff-counter">03</div>
-        <div class="diff-icon">
-          <!-- heroicon: academic-cap -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M11.7 2.805a.75.75 0 01.6 0A60.65 60.65 0 0122.83 8.72a.75.75 0 01-.231 1.337 49.949 49.949 0 00-9.902 3.912l-.003.002-.34.18a.75.75 0 01-.707 0A50.009 50.009 0 007.5 12.174v-.224c0-.131.067-.248.172-.311a54.614 54.614 0 014.653-2.52.75.75 0 00-.65-1.352 56.129 56.129 0 00-4.78 2.589 1.858 1.858 0 00-.859 1.228 49.803 49.803 0 00-4.634-1.527.75.75 0 01-.231-1.337A60.653 60.653 0 0111.7 2.805z"/><path d="M13.06 15.473a48.45 48.45 0 017.666-3.282c.134 1.414.22 2.843.255 4.285a.75.75 0 01-.46.71 47.878 47.878 0 00-8.105 4.342.75.75 0 01-.832 0 47.877 47.877 0 00-8.104-4.342.75.75 0 01-.461-.71c.035-1.442.121-2.87.255-4.286A48.4 48.4 0 016 13.18v1.27a1.5 1.5 0 00-.14 2.508c-.09.38-.222.753-.397 1.11.452.213.901.434 1.346.661a6.729 6.729 0 00.551-1.608 1.5 1.5 0 00.14-2.67v-.645a48.549 48.549 0 013.44 1.668 2.25 2.25 0 002.12 0z"/></svg>
-        </div>
+        <div class="diff-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M11.7 2.805a.75.75 0 01.6 0A60.65 60.65 0 0122.83 8.72a.75.75 0 01-.231 1.337 49.949 49.949 0 00-9.902 3.912l-.003.002-.34.18a.75.75 0 01-.707 0A50.009 50.009 0 007.5 12.174v-.224c0-.131.067-.248.172-.311a54.614 54.614 0 014.653-2.52.75.75 0 00-.65-1.352 56.129 56.129 0 00-4.78 2.589 1.858 1.858 0 00-.859 1.228 49.803 49.803 0 00-4.634-1.527.75.75 0 01-.231-1.337A60.653 60.653 0 0111.7 2.805z"/><path d="M13.06 15.473a48.45 48.45 0 017.666-3.282c.134 1.414.22 2.843.255 4.285a.75.75 0 01-.46.71 47.878 47.878 0 00-8.105 4.342.75.75 0 01-.832 0 47.877 47.877 0 00-8.104-4.342.75.75 0 01-.461-.71c.035-1.442.121-2.87.255-4.286A48.4 48.4 0 016 13.18v1.27a1.5 1.5 0 00-.14 2.508c-.09.38-.222.753-.397 1.11.452.213.901.434 1.346.661a6.729 6.729 0 00.551-1.608 1.5 1.5 0 00.14-2.67v-.645a48.549 48.549 0 013.44 1.668 2.25 2.25 0 002.12 0z"/></svg></div>
         <div class="diff-title">Suporte Técnico Especializado</div>
         <div class="diff-desc">Equipe de especialistas para identificar e resolver as necessidades da sua empresa — com acompanhamento técnico em campo e consultoria personalizada.</div>
       </div>
       <div class="diff-item">
         <div class="diff-counter">04</div>
-        <div class="diff-icon">
-          <!-- heroicon: signal -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path fill-rule="evenodd" d="M5.636 4.575a.75.75 0 010 1.06 9 9 0 000 12.729.75.75 0 01-1.06 1.06c-4.101-4.1-4.101-10.748 0-14.849a.75.75 0 011.06 0zm12.728 0a.75.75 0 011.06 0c4.101 4.1 4.101 10.749 0 14.85a.75.75 0 11-1.06-1.061 9 9 0 000-12.728.75.75 0 010-1.061zm-9.193 2.122a.75.75 0 010 1.06 6 6 0 000 8.486.75.75 0 11-1.061 1.06 7.5 7.5 0 010-10.606.75.75 0 011.06 0zm5.656 0a.75.75 0 011.061 0 7.5 7.5 0 010 10.607.75.75 0 01-1.06-1.061 6 6 0 000-8.486.75.75 0 010-1.06zM12 13.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" clip-rule="evenodd"/></svg>
-        </div>
+        <div class="diff-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path fill-rule="evenodd" d="M5.636 4.575a.75.75 0 010 1.06 9 9 0 000 12.729.75.75 0 01-1.06 1.06c-4.101-4.1-4.101-10.748 0-14.849a.75.75 0 011.06 0zm12.728 0a.75.75 0 011.06 0c4.101 4.1 4.101 10.749 0 14.85a.75.75 0 11-1.06-1.061 9 9 0 000-12.728.75.75 0 010-1.061zm-9.193 2.122a.75.75 0 010 1.06 6 6 0 000 8.486.75.75 0 11-1.061 1.06 7.5 7.5 0 010-10.606.75.75 0 011.06 0zm5.656 0a.75.75 0 011.061 0 7.5 7.5 0 010 10.607.75.75 0 01-1.06-1.061 6 6 0 000-8.486.75.75 0 010-1.06zM12 13.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" clip-rule="evenodd"/></svg></div>
         <div class="diff-title">24 Horas Conectada</div>
         <div class="diff-desc">Disponibilidade total a qualquer hora, em qualquer lugar do Brasil. Relações comerciais transparentes construídas sobre confiança e resultados.</div>
       </div>
@@ -1234,64 +1100,40 @@ footer {
   <div style="max-width:1000px;margin:0 auto">
     <div class="reveal">
       <span class="section-tag" style="justify-content:center">Aplicações</span>
-      <h2 style="font-family:'Cormorant Garamond',serif;font-size:clamp(40px,5vw,64px);font-weight:300;color:var(--white);line-height:1.1">Para cada tipo de <em style="font-style:italic;color:var(--green)">queijo</em> e lácteo</h2>
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:clamp(40px,5vw,64px);font-weight:300;color:var(--ink);line-height:1.1">Para cada tipo de <em style="font-style:italic;color:var(--green)">queijo</em> e lácteo</h2>
     </div>
     <div class="app-grid reveal reveal-delay-2">
       <div class="app-item">
-        <div class="app-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
-        </div>
-        <div class="app-name">Mussarela</div>
-        <div class="app-sub">Queijo Filado</div>
+        <div class="app-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path fill-rule="evenodd" d="M2.25 4.125c0-1.036.84-1.875 1.875-1.875h5.25c1.036 0 1.875.84 1.875 1.875V17.25a4.5 4.5 0 11-9 0V4.125zm4.5 14.25a1.125 1.125 0 100-2.25 1.125 1.125 0 000 2.25z" clip-rule="evenodd"/><path d="M10.719 21.75h9.156c1.036 0 1.875-.84 1.875-1.875v-5.25c0-1.036-.84-1.875-1.875-1.875h-.14l-8.742 8.743c-.09.089-.18.175-.274.257zM12.738 17.625l6.474-6.474a1.875 1.875 0 000-2.651L15.5 4.787a1.875 1.875 0 00-2.651 0l-.1.099V17.25c0 .126-.003.251-.01.375z"/></svg></div>
+        <div class="app-name">Mussarela</div><div class="app-sub">Queijo Filado</div>
       </div>
       <div class="app-item">
-        <div class="app-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path fill-rule="evenodd" d="M2.25 4.125c0-1.036.84-1.875 1.875-1.875h5.25c1.036 0 1.875.84 1.875 1.875V17.25a4.5 4.5 0 11-9 0V4.125zm4.5 14.25a1.125 1.125 0 100-2.25 1.125 1.125 0 000 2.25z" clip-rule="evenodd"/><path d="M10.719 21.75h9.156c1.036 0 1.875-.84 1.875-1.875v-5.25c0-1.036-.84-1.875-1.875-1.875h-.14l-8.742 8.743c-.09.089-.18.175-.274.257zM12.738 17.625l6.474-6.474a1.875 1.875 0 000-2.651L15.5 4.787a1.875 1.875 0 00-2.651 0l-.1.099V17.25c0 .126-.003.251-.01.375z"/></svg>
-        </div>
-        <div class="app-name">Requeijão</div>
-        <div class="app-sub">Corte & Cremoso</div>
+        <div class="app-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path fill-rule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clip-rule="evenodd"/></svg></div>
+        <div class="app-name">Requeijão</div><div class="app-sub">Corte & Cremoso</div>
       </div>
       <div class="app-item">
-        <div class="app-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path fill-rule="evenodd" d="M12.963 2.286a.75.75 0 00-1.071-.136 9.742 9.742 0 00-3.539 6.177A7.547 7.547 0 016.648 6.61a.75.75 0 00-1.152.082A9 9 0 1015.68 4.534a7.46 7.46 0 01-2.717-2.248zM15.75 14.25a3.75 3.75 0 11-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 011.925-3.545 3.75 3.75 0 013.255 3.717z" clip-rule="evenodd"/></svg>
-        </div>
-        <div class="app-name">Mofados</div>
-        <div class="app-sub">Gorgonzola, Brie</div>
+        <div class="app-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path fill-rule="evenodd" d="M12.963 2.286a.75.75 0 00-1.071-.136 9.742 9.742 0 00-3.539 6.177A7.547 7.547 0 016.648 6.61a.75.75 0 00-1.152.082A9 9 0 1015.68 4.534a7.46 7.46 0 01-2.717-2.248zM15.75 14.25a3.75 3.75 0 11-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 011.925-3.545 3.75 3.75 0 013.255 3.717z" clip-rule="evenodd"/></svg></div>
+        <div class="app-name">Mofados</div><div class="app-sub">Gorgonzola, Brie</div>
       </div>
       <div class="app-item">
-        <div class="app-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M19.006 3.705a.75.75 0 00-.512-1.41L6 6.838V3a.75.75 0 00-.75-.75h-1.5A.75.75 0 003 3v4.93l-1.006.365a.75.75 0 00.512 1.41l16.5-6z"/><path fill-rule="evenodd" d="M3.019 11.115L18 5.667V9.09l4.006 1.456a.75.75 0 11-.512 1.41l-.494-.18v8.475h.75a.75.75 0 010 1.5H2.25a.75.75 0 010-1.5H3v-9.129l.019-.006zM18 20.25v-9.565l1.5.545v9.02H18zm-9-6a.75.75 0 00-.75.75v4.5c0 .414.336.75.75.75h3a.75.75 0 00.75-.75V15a.75.75 0 00-.75-.75H9z" clip-rule="evenodd"/></svg>
-        </div>
-        <div class="app-name">Artesanais</div>
-        <div class="app-sub">Canastra, Minas</div>
+        <div class="app-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M19.006 3.705a.75.75 0 00-.512-1.41L6 6.838V3a.75.75 0 00-.75-.75h-1.5A.75.75 0 003 3v4.93l-1.006.365a.75.75 0 00.512 1.41l16.5-6z"/><path fill-rule="evenodd" d="M3.019 11.115L18 5.667V9.09l4.006 1.456a.75.75 0 11-.512 1.41l-.494-.18v8.475h.75a.75.75 0 010 1.5H2.25a.75.75 0 010-1.5H3v-9.129l.019-.006zM18 20.25v-9.565l1.5.545v9.02H18zm-9-6a.75.75 0 00-.75.75v4.5c0 .414.336.75.75.75h3a.75.75 0 00.75-.75V15a.75.75 0 00-.75-.75H9z" clip-rule="evenodd"/></svg></div>
+        <div class="app-name">Artesanais</div><div class="app-sub">Canastra, Minas</div>
       </div>
       <div class="app-item">
-        <div class="app-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path fill-rule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clip-rule="evenodd"/></svg>
-        </div>
-        <div class="app-name">Provolone</div>
-        <div class="app-sub">Defumado & Fresco</div>
+        <div class="app-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"/></svg></div>
+        <div class="app-name">Provolone</div><div class="app-sub">Defumado & Fresco</div>
       </div>
       <div class="app-item">
-        <div class="app-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"/></svg>
-        </div>
-        <div class="app-name">Prato</div>
-        <div class="app-sub">Maturado Clássico</div>
+        <div class="app-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path fill-rule="evenodd" d="M1.5 7.125c0-1.036.84-1.875 1.875-1.875h6c1.036 0 1.875.84 1.875 1.875v3.75c0 1.036-.84 1.875-1.875 1.875h-6A1.875 1.875 0 011.5 10.875v-3.75zm12 1.5c0-1.036.84-1.875 1.875-1.875h5.25c1.036 0 1.875.84 1.875 1.875v8.25c0 1.035-.84 1.875-1.875 1.875h-5.25a1.875 1.875 0 01-1.875-1.875v-8.25zM3 16.125c0-1.036.84-1.875 1.875-1.875h5.25c1.036 0 1.875.84 1.875 1.875v2.25c0 1.035-.84 1.875-1.875 1.875h-5.25A1.875 1.875 0 013 18.375v-2.25z" clip-rule="evenodd"/></svg></div>
+        <div class="app-name">Prato</div><div class="app-sub">Maturado Clássico</div>
       </div>
       <div class="app-item">
-        <div class="app-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path fill-rule="evenodd" d="M1.5 7.125c0-1.036.84-1.875 1.875-1.875h6c1.036 0 1.875.84 1.875 1.875v3.75c0 1.036-.84 1.875-1.875 1.875h-6A1.875 1.875 0 011.5 10.875v-3.75zm12 1.5c0-1.036.84-1.875 1.875-1.875h5.25c1.036 0 1.875.84 1.875 1.875v8.25c0 1.035-.84 1.875-1.875 1.875h-5.25a1.875 1.875 0 01-1.875-1.875v-8.25zM3 16.125c0-1.036.84-1.875 1.875-1.875h5.25c1.036 0 1.875.84 1.875 1.875v2.25c0 1.035-.84 1.875-1.875 1.875h-5.25A1.875 1.875 0 013 18.375v-2.25z" clip-rule="evenodd"/></svg>
-        </div>
-        <div class="app-name">Frescos</div>
-        <div class="app-sub">Ricota, Cottage</div>
+        <div class="app-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path fill-rule="evenodd" d="M1.5 7.125c0-1.036.84-1.875 1.875-1.875h6c1.036 0 1.875.84 1.875 1.875v3.75c0 1.036-.84 1.875-1.875 1.875h-6A1.875 1.875 0 011.5 10.875v-3.75zm12 1.5c0-1.036.84-1.875 1.875-1.875h5.25c1.036 0 1.875.84 1.875 1.875v8.25c0 1.035-.84 1.875-1.875 1.875h-5.25a1.875 1.875 0 01-1.875-1.875v-8.25zM3 16.125c0-1.036.84-1.875 1.875-1.875h5.25c1.036 0 1.875.84 1.875 1.875v2.25c0 1.035-.84 1.875-1.875 1.875h-5.25A1.875 1.875 0 013 18.375v-2.25z" clip-rule="evenodd"/></svg></div>
+        <div class="app-name">Frescos</div><div class="app-sub">Ricota, Cottage</div>
       </div>
       <div class="app-item">
-        <div class="app-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path fill-rule="evenodd" d="M10.5 3.798v5.02a3 3 0 01-.879 2.121l-2.377 2.377a9.845 9.845 0 015.091 1.013 8.315 8.315 0 005.713.636l.285-.071-3.954-3.955a3 3 0 01-.879-2.121v-5.02a23.614 23.614 0 00-3 0zm4.5.138a.75.75 0 00.093-1.495A24.837 24.837 0 0012 2.25a25.048 25.048 0 00-3.093.191A.75.75 0 009 3.936v4.882a1.5 1.5 0 01-.44 1.06l-6.293 6.294c-1.62 1.621-.903 4.475 1.471 4.88 2.686.46 5.447.698 8.262.698 2.816 0 5.576-.239 8.262-.697 2.373-.406 3.092-3.26 1.47-4.881L15.44 9.879A1.5 1.5 0 0115 8.818V3.936z" clip-rule="evenodd"/></svg>
-        </div>
-        <div class="app-name">Outros Lácteos</div>
-        <div class="app-sub">Iogurtes & Bebidas</div>
+        <div class="app-icon-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path fill-rule="evenodd" d="M10.5 3.798v5.02a3 3 0 01-.879 2.121l-2.377 2.377a9.845 9.845 0 015.091 1.013 8.315 8.315 0 005.713.636l.285-.071-3.954-3.955a3 3 0 01-.879-2.121v-5.02a23.614 23.614 0 00-3 0zm4.5.138a.75.75 0 00.093-1.495A24.837 24.837 0 0012 2.25a25.048 25.048 0 00-3.093.191A.75.75 0 009 3.936v4.882a1.5 1.5 0 01-.44 1.06l-6.293 6.294c-1.62 1.621-.903 4.475 1.471 4.88 2.686.46 5.447.698 8.262.698 2.816 0 5.576-.239 8.262-.697 2.373-.406 3.092-3.26 1.47-4.881L15.44 9.879A1.5 1.5 0 0115 8.818V3.936z" clip-rule="evenodd"/></svg></div>
+        <div class="app-name">Outros Lácteos</div><div class="app-sub">Iogurtes & Bebidas</div>
       </div>
     </div>
   </div>
@@ -1310,7 +1152,6 @@ footer {
           <span>Chamar no WhatsApp</span>
         </a>
         <a href="https://unibiotechbrasil.com.br" class="btn-outline" target="_blank">
-          <!-- heroicon: globe-alt -->
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M21.721 12.752a9.711 9.711 0 00-.945-5.003 12.754 12.754 0 01-4.339 2.708 18.991 18.991 0 01-.214 4.772 17.165 17.165 0 005.498-2.477zM14.634 15.55a17.324 17.324 0 00.332-4.647c-.952.227-1.945.347-2.966.347-1.021 0-2.014-.12-2.966-.347a17.515 17.515 0 00.332 4.647 17.385 17.385 0 005.268 0zM9.772 17.119a18.963 18.963 0 004.456 0A17.182 17.182 0 0112 21.724a17.18 17.18 0 01-2.228-4.605zM7.777 15.23a18.87 18.87 0 01-.214-4.774 12.753 12.753 0 01-4.34-2.708 9.711 9.711 0 00-.944 5.004 17.165 17.165 0 005.498 2.477zM21.356 14.752a9.765 9.765 0 01-7.478 6.817 18.64 18.64 0 001.988-4.718 18.627 18.627 0 005.49-2.098zM2.644 14.752c1.682.971 3.53 1.688 5.49 2.099a18.64 18.64 0 001.988 4.718 9.765 9.765 0 01-7.478-6.816zM13.878 2.43a9.755 9.755 0 016.116 3.986 11.267 11.267 0 01-3.746 2.504 18.63 18.63 0 00-2.37-6.49zM12 2.276a17.152 17.152 0 012.805 7.121c-.897.23-1.837.353-2.805.353-.968 0-1.908-.122-2.805-.353A17.151 17.151 0 0112 2.276zM10.122 2.43a18.629 18.629 0 00-2.37 6.49 11.266 11.266 0 01-3.746-2.504 9.754 9.754 0 016.116-3.985z"/></svg>
           Acessar o Site Oficial
         </a>
@@ -1318,37 +1159,28 @@ footer {
     </div>
     <div class="contact-right">
       <div class="contact-info-item">
-        <div class="contact-info-icon">
-          <!-- heroicon: map-pin -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-2.083 3.918-5.099 3.918-9.573A8.25 8.25 0 002.25 12c0 4.474 1.974 7.49 3.918 9.573a19.58 19.58 0 002.683 2.282 16.975 16.975 0 001.144.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
-        </div>
+        <div class="contact-info-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-2.083 3.918-5.099 3.918-9.573A8.25 8.25 0 002.25 12c0 4.474 1.974 7.49 3.918 9.573a19.58 19.58 0 002.683 2.282 16.975 16.975 0 001.144.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg></div>
         <div>
           <div class="contact-info-label">Endereço</div>
           <div class="contact-info-value">Rodovia PR 681, S/N KM 1,7 — Zona Rural<br>Alto Piquiri - PR, 87580-000</div>
         </div>
       </div>
       <div class="contact-info-item">
-        <div class="contact-info-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" d="M1.5 4.5a3 3 0 013-3h1.372c.86 0 1.61.586 1.819 1.42l1.105 4.423a1.875 1.875 0 01-.694 1.955l-1.293.97c-.135.101-.164.249-.126.352a11.285 11.285 0 006.697 6.697c.103.038.25.009.352-.126l.97-1.293a1.875 1.875 0 011.955-.694l4.423 1.105c.834.209 1.42.959 1.42 1.82V19.5a3 3 0 01-3 3h-2.25C8.552 22.5 1.5 15.448 1.5 6.75V4.5z" clip-rule="evenodd"/></svg>
-        </div>
+        <div class="contact-info-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" d="M1.5 4.5a3 3 0 013-3h1.372c.86 0 1.61.586 1.819 1.42l1.105 4.423a1.875 1.875 0 01-.694 1.955l-1.293.97c-.135.101-.164.249-.126.352a11.285 11.285 0 006.697 6.697c.103.038.25.009.352-.126l.97-1.293a1.875 1.875 0 011.955-.694l4.423 1.105c.834.209 1.42.959 1.42 1.82V19.5a3 3 0 01-3 3h-2.25C8.552 22.5 1.5 15.448 1.5 6.75V4.5z" clip-rule="evenodd"/></svg></div>
         <div>
           <div class="contact-info-label">Telefone</div>
           <div class="contact-info-value">(44) 3656-2670<br>(44) 9 8455-6886</div>
         </div>
       </div>
       <div class="contact-info-item">
-        <div class="contact-info-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z"/><path d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z"/></svg>
-        </div>
+        <div class="contact-info-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z"/><path d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z"/></svg></div>
         <div>
           <div class="contact-info-label">E-mail</div>
           <div class="contact-info-value">contato@unibiotechbrasil.com.br</div>
         </div>
       </div>
       <div class="contact-info-item">
-        <div class="contact-info-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" d="M9.315 7.584C12.195 3.883 16.695 1.5 21.75 1.5a.75.75 0 01.75.75c0 5.056-2.383 9.555-6.084 12.436A6.75 6.75 0 019.75 22.5a.75.75 0 01-.75-.75v-4.131A15.838 15.838 0 016.382 15H2.25a.75.75 0 01-.75-.75 6.75 6.75 0 017.815-6.666zM15 6.75a2.25 2.25 0 100 4.5 2.25 2.25 0 000-4.5z" clip-rule="evenodd"/><path d="M5.26 17.242a.75.75 0 10-.897-1.203 5.243 5.243 0 00-2.05 5.022.75.75 0 00.625.627 5.243 5.243 0 005.022-2.051.75.75 0 10-1.202-.897 3.744 3.744 0 01-3.008 1.51c0-1.23.592-2.323 1.51-3.008z"/></svg>
-        </div>
+        <div class="contact-info-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" d="M9.315 7.584C12.195 3.883 16.695 1.5 21.75 1.5a.75.75 0 01.75.75c0 5.056-2.383 9.555-6.084 12.436A6.75 6.75 0 019.75 22.5a.75.75 0 01-.75-.75v-4.131A15.838 15.838 0 016.382 15H2.25a.75.75 0 01-.75-.75 6.75 6.75 0 017.815-6.666zM15 6.75a2.25 2.25 0 100 4.5 2.25 2.25 0 000-4.5z" clip-rule="evenodd"/></svg></div>
         <div>
           <div class="contact-info-label">Redes Sociais</div>
           <div class="contact-info-value">Instagram · Facebook · @unibiotechbrasil</div>
@@ -1372,11 +1204,10 @@ footer {
   </div>
 </footer>
 
-</div><!-- .page -->
+</div>
 
 <script>
-
-// ─── PARTICLES ───
+// ─── PARTICLES (light-adapted) ───
 const canvas = document.getElementById('particle-canvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
@@ -1388,17 +1219,15 @@ window.addEventListener('resize', () => {
 });
 
 const particles = [];
-const PARTICLE_COUNT = 80;
-
-for (let i = 0; i < PARTICLE_COUNT; i++) {
+for (let i = 0; i < 70; i++) {
   particles.push({
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
-    r: Math.random() * 1.5 + 0.3,
-    vx: (Math.random() - 0.5) * 0.3,
-    vy: (Math.random() - 0.5) * 0.3,
-    alpha: Math.random() * 0.4 + 0.1,
-    hue: Math.random() > 0.7 ? 160 : 180
+    r: Math.random() * 1.8 + 0.4,
+    vx: (Math.random() - 0.5) * 0.25,
+    vy: (Math.random() - 0.5) * 0.25,
+    alpha: Math.random() * 0.2 + 0.06,
+    hue: Math.random() > 0.6 ? 130 : 150
   });
 }
 
@@ -1413,22 +1242,21 @@ function drawParticles() {
     if (p.y > canvas.height) p.y = 0;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fillStyle = `hsla(${p.hue}, 70%, 60%, ${p.alpha})`;
+    ctx.fillStyle = `hsla(${p.hue}, 55%, 35%, ${p.alpha})`;
     ctx.fill();
   });
 
-  // Connect nearby particles
   for (let i = 0; i < particles.length; i++) {
     for (let j = i + 1; j < particles.length; j++) {
       const dx = particles[i].x - particles[j].x;
       const dy = particles[i].y - particles[j].y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 120) {
+      if (dist < 110) {
         ctx.beginPath();
         ctx.moveTo(particles[i].x, particles[i].y);
         ctx.lineTo(particles[j].x, particles[j].y);
-        ctx.strokeStyle = `rgba(74,222,128,${0.04 * (1 - dist / 120)})`;
-        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = `rgba(45,106,53,${0.05 * (1 - dist / 110)})`;
+        ctx.lineWidth = 0.6;
         ctx.stroke();
       }
     }
@@ -1439,7 +1267,7 @@ drawParticles();
 
 // ─── SCROLL REVEAL ───
 const revealEls = document.querySelectorAll('.reveal');
-const revealObserver = new IntersectionObserver((entries) => {
+const revealObserver = new IntersectionObserver(entries => {
   entries.forEach(e => {
     if (e.isIntersecting) {
       e.target.classList.add('visible');
@@ -1450,15 +1278,9 @@ const revealObserver = new IntersectionObserver((entries) => {
 revealEls.forEach(el => revealObserver.observe(el));
 
 // ─── NAV SCROLL ───
+const nav = document.getElementById('main-nav');
 window.addEventListener('scroll', () => {
-  const nav = document.querySelector('nav');
-  if (window.scrollY > 50) {
-    nav.style.background = 'rgba(3,5,8,0.9)';
-    nav.style.padding = '14px 60px';
-  } else {
-    nav.style.background = 'rgba(3,5,8,0.5)';
-    nav.style.padding = '20px 60px';
-  }
+  nav.classList.toggle('scrolled', window.scrollY > 50);
 });
 </script>
 </body>
