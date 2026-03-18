@@ -1,0 +1,81 @@
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: laravel-app-gestao-edu
+    container_name: laravel-app-gestao-edu
+    working_dir: /var/www
+    env_file:
+      - .env
+    ports:
+      - "${DOCKER_APP_PORT}:${APP_PORT}"
+    volumes:
+      - .:/var/www
+      - ./vendor:/var/www/vendor
+      - ./node_modules:/var/www/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - laravel_gestao-edu
+
+  cron:
+    image: laravel-app-gestao-edu
+    container_name: laravel-cron-gestao-edu
+    working_dir: /var/www
+    env_file:
+      - .env
+    entrypoint: []
+    command: sh -c "while true; do php artisan schedule:run; sleep 60; done"
+    volumes:
+      - .:/var/www
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - laravel_gestao-edu
+
+  db:
+    image: mysql:8.0
+    container_name: laravel-db-gestao-edu
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+    volumes:
+      - ./db_data:/var/lib/mysql
+    ports:
+      - "${DOCKER_DB_PORT}:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - laravel_gestao-edu
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: laravel-phpmyadmin-gestao-edu
+    env_file:
+      - .env
+    environment:
+      PMA_HOST: db
+      PMA_USER: ${DB_USERNAME}
+      PMA_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DOCKER_PHPMYADMIN_PORT}:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - laravel_gestao-edu
+
+volumes: {}
+
+networks:
+  laravel_gestao-edu:
+    driver: bridge
