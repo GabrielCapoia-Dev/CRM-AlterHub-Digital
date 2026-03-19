@@ -75,7 +75,6 @@ class PainelPanelProvider extends PanelProvider
                 AuthDesignerPlugin::make()
                     ->login(
                         fn(AuthPageConfig $config) => $config
-                            ->media(asset('images/background.png'))
                             ->mediaPosition(MediaPosition::Left)
                             ->renderHook(AuthDesignerRenderHook::MediaOverlay, fn() => view('background-page'))
                             ->usingPage(LoginPage::class)
