@@ -194,7 +194,7 @@
             letter-spacing: 0.06em;
         }
 
-        /* ── FORM WRAPPER ── */
+        /* ── FORM STYLES ── */
         .fi-sc-form {
             animation: none !important;
         }
@@ -273,51 +273,7 @@
             accent-color: var(--green) !important;
         }
 
-        /* ── REMEMBER & FORGOT ── */
-        .login-form-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 28px;
-            font-size: 12px;
-            animation: fadeUp 0.8s ease 0.5s both;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .checkbox-wrap {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-
-        .checkbox-label {
-            color: var(--muted);
-            margin: 0;
-            cursor: pointer;
-            transition: color 0.3s;
-            font-size: 12px;
-        }
-
-        .checkbox-wrap:hover .checkbox-label {
-            color: var(--text);
-        }
-
-        .forgot-link {
-            color: var(--green);
-            text-decoration: none;
-            font-weight: 500;
-            transition: all 0.3s;
-            font-size: 12px;
-        }
-
-        .forgot-link:hover {
-            color: var(--green-mid);
-            text-decoration: underline;
-        }
-
-        /* ── FILAMENT BUTTONS ── */
+        /* ── BUTTON ── */
         .fi-btn {
             width: 100% !important;
             padding: 14px 24px !important;
@@ -371,62 +327,6 @@
             color: inherit !important;
         }
 
-        /* ── FORM ACTIONS ── */
-        .fi-form-actions {
-            display: flex;
-            gap: 12px;
-            padding: 0 !important;
-            animation: fadeUp 0.8s ease 0.55s both;
-        }
-
-        .fi-form-actions .fi-btn {
-            animation: none !important;
-        }
-
-        /* ── DIVIDER ── */
-        .divider-or {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 32px 0;
-            opacity: 0;
-            animation: fadeUp 0.8s ease 0.6s both;
-        }
-
-        .divider-or::before,
-        .divider-or::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: rgba(45, 106, 53, 0.1);
-        }
-
-        .divider-or span {
-            font-size: 12px;
-            color: var(--muted);
-            font-weight: 500;
-        }
-
-        /* ── SIGNUP PROMPT ── */
-        .signup-prompt {
-            text-align: center;
-            font-size: 13px;
-            color: var(--muted);
-            opacity: 0;
-            animation: fadeUp 0.8s ease 0.65s both;
-        }
-
-        .signup-prompt a {
-            color: var(--green);
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .signup-prompt a:hover {
-            color: var(--green-mid);
-        }
-
         /* ── ANIMATIONS ── */
         @keyframes fadeUp {
             from {
@@ -474,16 +374,6 @@
                 padding: 12px 20px !important;
                 font-size: 11px !important;
             }
-
-            .login-form-footer {
-                flex-direction: column;
-                gap: 12px;
-                align-items: flex-start;
-            }
-
-            .forgot-link {
-                align-self: flex-end;
-            }
         }
     </style>
 
@@ -511,48 +401,8 @@
             </div>
         </div>
 
-        <!-- FILAMENT FORM - RENDERIZADO AQUI -->
-        <div class="form-wrapper">
-            @livewire('filament-forms::form', [
-                'formId' => $this->id,
-                'model' => $this,
-                'formClass' => 'space-y-6',
-                'statePath' => 'data',
-            ])
-        </div>
-
-        <!-- REMEMBER & FORGOT -->
-        <div class="login-form-footer">
-            <div class="checkbox-wrap">
-                <input 
-                    type="checkbox" 
-                    id="remember" 
-                    name="data[remember]"
-                    wire:model="data.remember"
-                    class="fi-checkbox"
-                >
-                <label for="remember" class="checkbox-label">Lembrar-me</label>
-            </div>
-            @if (filament()->hasPasswordReset())
-                <a href="{{ filament()->getRequestPasswordResetUrl() }}" class="forgot-link">
-                    Esqueceu a senha?
-                </a>
-            @endif
-        </div>
-
-        <!-- SIGNUP -->
-        @if (filament()->hasRegistration())
-            <div class="divider-or">
-                <span>Novo por aqui?</span>
-            </div>
-
-            <div class="signup-prompt">
-                {{ __('filament-panels::auth/pages/login.actions.register.before') }}
-                <a href="{{ filament()->getRegistrationUrl() }}">
-                    {{ __('filament-panels::auth/pages/login.actions.register.label') }}
-                </a>
-            </div>
-        @endif
+        <!-- FILAMENT FORM - V5 COMPATIBLE -->
+        {{ $this->form }}
     </div>
 
     <script>
