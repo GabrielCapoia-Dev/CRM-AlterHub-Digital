@@ -84,7 +84,6 @@ class PainelPanelProvider extends PanelProvider
                     )
                     ->profile(
                         fn($config) => $config
-                            ->media(asset('images/background.png'))
                             ->mediaPosition(MediaPosition::Cover)
                     )
             ]);

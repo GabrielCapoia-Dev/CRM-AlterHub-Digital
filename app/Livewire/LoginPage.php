@@ -12,7 +12,6 @@ class LoginPage extends BaseLogin
 {
     protected static string $layout = 'layouts.login-page';
 
-
     public function form(Schema $schema): Schema
     {
         return $schema->components([
@@ -31,7 +30,10 @@ class LoginPage extends BaseLogin
                 ->autocomplete('current-password'),
         ]);
     }
-
+    protected function getAuthDesignerPageKey(): string
+    {
+        return 'login';
+    }
 
     protected function getFormActions(): array
     {
