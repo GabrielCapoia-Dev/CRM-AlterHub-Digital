@@ -10,11 +10,9 @@
             --green-light: #8CC63F;
             --teal: #0D9488;
             --bg: #F6F4F0;
-            --bg2: #EDEAE4;
             --surface: #FFFFFF;
             --text: #1A1A18;
             --muted: rgba(26, 26, 24, 0.48);
-            --shadow-sm: 0 2px 8px rgba(26, 26, 24, 0.06);
             --shadow-md: 0 8px 32px rgba(26, 26, 24, 0.10);
         }
 
@@ -513,28 +511,34 @@
             </div>
         </div>
 
-        <!-- FILAMENT FORM -->
-        {{ $this->form }}
+        <!-- FILAMENT FORM - RENDERIZADO AQUI -->
+        <div class="form-wrapper">
+            @livewire('filament-forms::form', [
+                'formId' => $this->id,
+                'model' => $this,
+                'formClass' => 'space-y-6',
+                'statePath' => 'data',
+            ])
+        </div>
 
         <!-- REMEMBER & FORGOT -->
-        @if ($this->form->getComponents())
-            <div class="login-form-footer">
-                <div class="checkbox-wrap">
-                    <input 
-                        type="checkbox" 
-                        id="remember" 
-                        name="data[remember]"
-                        wire:model="data.remember"
-                    >
-                    <label for="remember" class="checkbox-label">Lembrar-me</label>
-                </div>
-                @if (filament()->hasPasswordReset())
-                    <a href="{{ filament()->getRequestPasswordResetUrl() }}" class="forgot-link">
-                        Esqueceu a senha?
-                    </a>
-                @endif
+        <div class="login-form-footer">
+            <div class="checkbox-wrap">
+                <input 
+                    type="checkbox" 
+                    id="remember" 
+                    name="data[remember]"
+                    wire:model="data.remember"
+                    class="fi-checkbox"
+                >
+                <label for="remember" class="checkbox-label">Lembrar-me</label>
             </div>
-        @endif
+            @if (filament()->hasPasswordReset())
+                <a href="{{ filament()->getRequestPasswordResetUrl() }}" class="forgot-link">
+                    Esqueceu a senha?
+                </a>
+            @endif
+        </div>
 
         <!-- SIGNUP -->
         @if (filament()->hasRegistration())
@@ -554,63 +558,65 @@
     <script>
         // ─── PARTICLES ───
         const canvas = document.getElementById('particle-canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
-        window.addEventListener('resize', () => {
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-        });
 
-        const particles = [];
-        for (let i = 0; i < 50; i++) {
-            particles.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                r: Math.random() * 1.5 + 0.3,
-                vx: (Math.random() - 0.5) * 0.15,
-                vy: (Math.random() - 0.5) * 0.15,
-                alpha: Math.random() * 0.12 + 0.03,
-                hue: Math.random() > 0.5 ? 130 : 165
-            });
-        }
-
-        function drawParticles() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach(p => {
-                p.x += p.vx;
-                p.y += p.vy;
-                if (p.x < 0) p.x = canvas.width;
-                if (p.x > canvas.width) p.x = 0;
-                if (p.y < 0) p.y = canvas.height;
-                if (p.y > canvas.height) p.y = 0;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fillStyle = `hsla(${p.hue}, 55%, 35%, ${p.alpha})`;
-                ctx.fill();
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
             });
 
-            // Conexões
-            for (let i = 0; i < particles.length; i++) {
-                for (let j = i + 1; j < particles.length; j++) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < 120) {
-                        ctx.beginPath();
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.strokeStyle = `rgba(45,106,53,${0.03 * (1 - dist / 120)})`;
-                        ctx.lineWidth = 0.5;
-                        ctx.stroke();
-                    }
-                }
+            const particles = [];
+            for (let i = 0; i < 50; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    r: Math.random() * 1.5 + 0.3,
+                    vx: (Math.random() - 0.5) * 0.15,
+                    vy: (Math.random() - 0.5) * 0.15,
+                    alpha: Math.random() * 0.12 + 0.03,
+                    hue: Math.random() > 0.5 ? 130 : 165
+                });
             }
 
-            requestAnimationFrame(drawParticles);
-        }
+            function drawParticles() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < 0) p.x = canvas.width;
+                    if (p.x > canvas.width) p.x = 0;
+                    if (p.y < 0) p.y = canvas.height;
+                    if (p.y > canvas.height) p.y = 0;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fillStyle = `hsla(${p.hue}, 55%, 35%, ${p.alpha})`;
+                    ctx.fill();
+                });
 
-        drawParticles();
+                // Conexões
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 120) {
+                            ctx.beginPath();
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.strokeStyle = `rgba(45,106,53,${0.03 * (1 - dist / 120)})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                requestAnimationFrame(drawParticles);
+            }
+
+            drawParticles();
+        }
     </script>
 </x-filament-panels::page.simple>

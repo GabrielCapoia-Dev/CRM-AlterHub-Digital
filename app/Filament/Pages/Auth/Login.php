@@ -9,9 +9,12 @@ use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\SimplePage;
+use Filament\Schemas\Schema;
 use Illuminate\Auth\Events\Failed;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +25,9 @@ class Login extends SimplePage
 {
     use WithRateLimiting;
 
+    /**
+     * @var array<string, mixed> | null
+     */
     public ?array $data = [];
 
     #[Locked]
@@ -42,10 +48,12 @@ class Login extends SimplePage
             $this->rateLimit(5);
         } catch (TooManyRequestsException $exception) {
             $this->getRateLimitedNotification($exception)?->send();
+
             return null;
         }
 
         $data = $this->form->getState();
+
         $authGuard = Filament::auth();
         $authProvider = $authGuard->getProvider();
         $credentials = $this->getCredentialsFromFormData($data);
@@ -54,66 +62,85 @@ class Login extends SimplePage
 
         if ((! $user) || (! $authProvider->validateCredentials($user, $credentials))) {
             $this->userUndertakingMultiFactorAuthentication = null;
+
             $this->fireFailedEvent($authGuard, $user, $credentials);
             $this->throwFailureValidationException();
         }
 
-        if (! $authGuard->attemptWhen($credentials, function ($user): bool {
-            return true;
+        if (! $authGuard->attemptWhen($credentials, function (Authenticatable $user): bool {
+            if (! method_exists($user, 'canAccessPanel')) {
+                return true;
+            }
+
+            return $user->canAccessPanel(Filament::getCurrentOrDefaultPanel());
         }, $data['remember'] ?? false)) {
             $this->fireFailedEvent($authGuard, $user, $credentials);
             $this->throwFailureValidationException();
         }
 
         session()->regenerate();
+
         return app(LoginResponse::class);
     }
 
     protected function getRateLimitedNotification(TooManyRequestsException $exception): ?Notification
     {
         return Notification::make()
-            ->title('Muitas tentativas de login')
-            ->body('Tente novamente em ' . $exception->minutesUntilAvailable . ' minutos.')
+            ->title(__('filament-panels::auth/pages/login.notifications.throttled.title', [
+                'seconds' => $exception->secondsUntilAvailable,
+                'minutes' => $exception->minutesUntilAvailable,
+            ]))
+            ->body(array_key_exists('body', __('filament-panels::auth/pages/login.notifications.throttled') ?: []) ? __('filament-panels::auth/pages/login.notifications.throttled.body', [
+                'seconds' => $exception->secondsUntilAvailable,
+                'minutes' => $exception->minutesUntilAvailable,
+            ]) : null)
             ->danger();
     }
 
-    protected function fireFailedEvent(Guard $guard, $user, #[SensitiveParameter] array $credentials): void
+    /**
+     * @param  array<string, mixed>  $credentials
+     */
+    protected function fireFailedEvent(Guard $guard, ?Authenticatable $user, #[SensitiveParameter] array $credentials): void
     {
         event(app(Failed::class, [
             'guard' => property_exists($guard, 'name') ? $guard->name : '',
             'user' => $user,
-            'credentials' => $credentials
+            'credentials' => $credentials,
         ]));
     }
 
     protected function throwFailureValidationException(): never
     {
         throw ValidationException::withMessages([
-            'data.email' => 'Credenciais inválidas.',
+            'data.email' => __('filament-panels::auth/pages/login.messages.failed'),
         ]);
     }
 
-    public function form(\Filament\Schemas\Schema $schema): \Filament\Schemas\Schema
+    public function form(Form $form): Form
     {
-        return $schema
-            ->components([
+        return $form
+            ->schema([
                 TextInput::make('email')
-                    ->label('E-mail')
+                    ->label(__('filament-panels::auth/pages/login.form.email.label'))
                     ->email()
                     ->required()
                     ->autocomplete()
                     ->autofocus(),
                 TextInput::make('password')
-                    ->label('Senha')
+                    ->label(__('filament-panels::auth/pages/login.form.password.label'))
                     ->password()
-                    ->revealable()
+                    ->revealable(filament()->arePasswordsRevealable())
                     ->required(),
                 Checkbox::make('remember')
-                    ->label('Lembrar-me'),
+                    ->label(__('filament-panels::auth/pages/login.form.remember.label')),
             ])
             ->statePath('data');
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
     protected function getCredentialsFromFormData(#[SensitiveParameter] array $data): array
     {
         return [
@@ -122,23 +149,31 @@ class Login extends SimplePage
         ];
     }
 
-    public function getTitle(): string
+    public function getTitle(): string | HtmlString
     {
-        return 'Login';
+        return __('filament-panels::auth/pages/login.title');
     }
 
-    public function getHeading(): string
+    public function getHeading(): string | HtmlString | null
     {
-        return 'Bem-vindo';
+        return __('filament-panels::auth/pages/login.heading');
     }
 
+    /**
+     * @return array<Action>
+     */
     protected function getFormActions(): array
     {
         return [
-            Action::make('authenticate')
-                ->label('Entrar')
-                ->submit('authenticate'),
+            $this->getAuthenticateFormAction(),
         ];
+    }
+
+    protected function getAuthenticateFormAction(): Action
+    {
+        return Action::make('authenticate')
+            ->label(__('filament-panels::auth/pages/login.form.actions.authenticate.label'))
+            ->submit('authenticate');
     }
 
     protected function hasFullWidthFormActions(): bool
