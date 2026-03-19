@@ -40,7 +40,7 @@ class PainelPanelProvider extends PanelProvider
         return $panel
             ->id('painel')
             ->path('painel')
-            ->login()
+            ->login(LoginPage::class)
             ->profile()
             ->spa()
             ->sidebarCollapsibleOnDesktop()
@@ -70,22 +70,6 @@ class PainelPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ])
-            ->plugins([
-                AuthDesignerPlugin::make()
-                    ->login(
-                        fn(AuthPageConfig $config) => $config
-                            ->mediaPosition(MediaPosition::Left)
-                            ->renderHook(AuthDesignerRenderHook::MediaOverlay, fn() => view('background-page'))
-                            ->usingPage(LoginPage::class)
-                            ->mediaSize('70%')
-                            ->themeToggle()
-
-                    )
-                    ->profile(
-                        fn($config) => $config
-                            ->mediaPosition(MediaPosition::Cover)
-                    )
             ]);
     }
 }
