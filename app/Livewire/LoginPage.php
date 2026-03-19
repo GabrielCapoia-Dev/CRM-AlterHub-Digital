@@ -10,8 +10,6 @@ use Filament\Schemas\Schema;
 
 class LoginPage extends BaseLogin
 {
-
-
     protected static string $layout = 'layouts.login-page';
 
 
