@@ -30,7 +30,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-
+use App\Filament\Pages\Auth\Login;
 class PainelPanelProvider extends PanelProvider
 {
 
@@ -39,7 +39,7 @@ class PainelPanelProvider extends PanelProvider
         return $panel
             ->id('painel')
             ->path('painel')
-            ->login()
+            ->login(Login::class)
             ->profile()
             ->spa()
             ->sidebarCollapsibleOnDesktop()
