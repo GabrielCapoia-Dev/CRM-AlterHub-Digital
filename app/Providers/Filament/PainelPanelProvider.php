@@ -3,7 +3,6 @@
 namespace App\Providers\Filament;
 
 use Illuminate\Support\Facades\Auth;
-use App\Livewire\LoginPage;
 use App\Services\UserService;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LaudoArquivoController;
@@ -40,13 +39,14 @@ class PainelPanelProvider extends PanelProvider
         return $panel
             ->id('painel')
             ->path('painel')
-            ->login(LoginPage::class)
+            ->login()
             ->profile()
             ->spa()
             ->sidebarCollapsibleOnDesktop()
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Emerald,
             ])
+            ->font('Outfit')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
