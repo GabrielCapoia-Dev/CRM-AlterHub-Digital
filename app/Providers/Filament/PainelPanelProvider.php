@@ -43,6 +43,7 @@ class PainelPanelProvider extends PanelProvider
             ->login()
             ->profile()
             ->spa()
+            ->darkMode(false)
             ->sidebarCollapsibleOnDesktop()
             ->colors([
                 'primary' => Color::Blue,
@@ -80,8 +81,6 @@ class PainelPanelProvider extends PanelProvider
                             ->media(asset('images/background.webp'))
                             ->mediaPosition(MediaPosition::Left)
                             ->mediaSize('70%')
-                            ->themeToggle()
-
                     )
             ]);
     }
