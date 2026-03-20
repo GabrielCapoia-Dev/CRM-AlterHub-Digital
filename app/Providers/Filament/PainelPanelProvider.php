@@ -46,7 +46,7 @@ class PainelPanelProvider extends PanelProvider
             ->darkMode(false)
             ->sidebarCollapsibleOnDesktop()
             ->colors([
-                'primary' => Color::Blue,
+                'primary' => Color::Sky,
                 'gray' => Color::Sky,
             ])
             ->font('Outfit')
