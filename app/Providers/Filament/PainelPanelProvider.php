@@ -46,6 +46,7 @@ class PainelPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->colors([
                 'primary' => Color::Emerald,
+                'gray' => Color::Slate,
             ])
             ->font('Outfit')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
