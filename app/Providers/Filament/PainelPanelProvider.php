@@ -82,11 +82,6 @@ class PainelPanelProvider extends PanelProvider
                             ->themeToggle()
 
                     )
-                    ->profile(
-                        fn($config) => $config
-                            ->media(asset('images/background.webp'))
-                            ->mediaPosition(MediaPosition::Cover)
-                    )
             ]);
     }
 }
