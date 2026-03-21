@@ -31,7 +31,7 @@ class UsersTable
             ->checkIfRecordIsSelectableUsing(fn(User $record) => $userService->podeSelecionarRegistro($user, $record))
             ->columns(self::columns($userService, $user))
             ->recordActions(self::recordActions($userService, $roleService, $user))
-            ->toolbarActions(self::bulkActions($userService, $roleService, $user))
+            ->recordBulkActions(self::bulkActions($userService, $roleService, $user))
             ->defaultSort('updated_at', 'desc')
             ->striped();
     }
