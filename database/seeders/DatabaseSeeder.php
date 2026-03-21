@@ -8,7 +8,7 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
-use App\Console\Commands\CriarPermissoes;
+use Illuminate\Support\Facades\Artisan;
 
 
 class DatabaseSeeder extends Seeder
@@ -43,7 +43,7 @@ class DatabaseSeeder extends Seeder
 
 
         // 4. Criar permissões
-        $this->call(CriarPermissoes::class);
+        Artisan::call('permissoes:criar');
 
 
         // 3. Atribuir role
