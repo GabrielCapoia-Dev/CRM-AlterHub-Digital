@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Enum\PermissoesEnum;
 use App\Models\Acesso\User;
 use App\Services\Acesso\RoleService;
 use App\Services\Acesso\UserService;
@@ -111,7 +112,7 @@ class UsersTable
                     if ($record->id === $user->id) return false;
                     if ($roleService->ehAdmin($record)) return false;
                     if ($roleService->ehSuperAdmin($record)) return false;
-                    return $user->hasPermissionTo('Aplicar Permissoes');
+                    return $user->hasPermissionTo(PermissoesEnum::AplicarPermissoes->value);
                 })
                 ->modalHeading(fn(User $record) => 'Permissões do usuário')
                 ->modalDescription(fn(User $record) => "{$record->name} • {$record->email}")
@@ -185,7 +186,7 @@ class UsersTable
                 ->icon('heroicon-o-key')
                 ->color('warning')
                 ->slideOver()
-                ->visible(fn() => $user->hasPermissionTo('Aplicar Permissoes'))
+                ->visible(fn() => $user->hasPermissionTo(PermissoesEnum::AplicarPermissoes->value))
                 ->closeModalByClickingAway(false)
                 ->closeModalByEscaping(false)
                 ->modalCloseButton(false)

@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Enum\PermissoesEnum;
+use App\Enum\RolesEnum;
 use Illuminate\Console\Command;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -11,40 +13,34 @@ class CriarPermissoes extends Command
 {
     protected $signature = 'permissoes:criar';
 
-    protected $description = 'Cria permissões vincular à role';
+    protected $description = 'Cria permissões e vincula à role Super Admin';
 
     public function handle(): int
     {
-        // Limpa cache de permissões
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-
-        $permissoes = [
-            'Aplicar Permissoes',
-            'Editar Níveis de Acesso',
-        ];
 
         $this->info('Criando permissões...');
 
-        foreach ($permissoes as $nome) {
-
-            $permission = Permission::firstOrCreate(['name' => $nome]);
+        foreach (PermissoesEnum::cases() as $permissao) {
+            $permission = Permission::firstOrCreate(['name' => $permissao->value, 'guard_name' => 'web']);
 
             if ($permission->wasRecentlyCreated) {
-                $this->line("✔ Criada: {$nome}");
+                $this->line("✔ Criada: {$permissao->value}");
             }
         }
 
+        $superAdminRole = Role::where('name', RolesEnum::SuperAdmin->value)->first();
 
-        $adminRole = Role::where('name', 'Super Admin')->first();
-
-        if (!$adminRole) {
-            $this->error('Role Admin não encontrada.');
+        if (! $superAdminRole) {
+            $this->error('Role Super Admin não encontrada.');
             return Command::FAILURE;
         }
 
-        $adminRole->givePermissionTo($permissoes);
+        $superAdminRole->givePermissionTo(
+            collect(PermissoesEnum::cases())->map(fn($p) => $p->value)->toArray()
+        );
 
-        $this->info('Permissões vinculadas à role Admin com sucesso ✅');
+        $this->info('Permissões vinculadas à role Super Admin com sucesso ✅');
 
         return Command::SUCCESS;
     }

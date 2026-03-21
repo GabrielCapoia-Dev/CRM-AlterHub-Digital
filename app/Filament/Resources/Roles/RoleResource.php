@@ -20,6 +20,8 @@ use Spatie\Permission\Models\Permission;
 use Filament\Schemas\Components\Utilities\Get;
 use App\Filament\Resources\Roles\Pages\ManageRoles;
 use UnitEnum;
+use App\Enum\PermissoesEnum;
+
 
 class RoleResource extends Resource
 {
@@ -122,7 +124,7 @@ class RoleResource extends Resource
                     ->visible(function () {
                         /** @var \App\Models\Acesso\User */
                         $user = Auth::user();
-                        return $user->hasPermissionTo('Aplicar Permissoes') && $user->hasPermissionTo('Editar Níveis de Acesso');
+                        return $user->hasPermissionTo(PermissoesEnum::AplicarPermissoes->value) && $user->hasPermissionTo(PermissoesEnum::EditarNiveisDeAcesso->value);
                     })
                     ->disabled(fn($record) => app(RoleService::class)->roleEhBloqueadaParaEdicao($record, 'edit'))
                     ->modalHeading(fn($record) => 'Editar nível de acesso')

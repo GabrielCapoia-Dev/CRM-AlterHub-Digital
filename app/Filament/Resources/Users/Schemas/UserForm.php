@@ -64,7 +64,8 @@ class UserForm
                 ->helperText('Necessário para delimitar as ações do usuário no sistema.')
                 ->relationship('roles', 'name', fn(Builder $query) => $userService->opcoesDeRoles($query, $user))
                 ->preload()
-                ->required(),
+                ->required()
+                ->disabled(fn(?User $record, string $context) => $userService->desabilitarCampoRole($user, $record, $context)),
 
             Toggle::make('email_approved')
                 ->label('Verificação de acesso')

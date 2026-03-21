@@ -4,6 +4,7 @@ namespace App\Services\Acesso;
 
 use App\Models\Acesso\User;
 use App\Enum\RolesEnum;
+use App\Enum\PermissoesEnum;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Database\Eloquent\Builder;
@@ -36,9 +37,18 @@ class UserService
     public function desabilitarCampoRole(?User $user, ?User $record, string $context): bool
     {
         if ($context === 'create' || ! $record) return false;
-        if ($record->hasRole(RolesEnum::Admin->value) && $user?->id == 1) return false;
-        if ($record->hasRole(RolesEnum::Admin->value)) return true;
+
+        // Super Admin nunca pode ter a role alterada
+        if ($record->hasRole(RolesEnum::SuperAdmin->value)) return true;
+
+        // Admin só pode ser editado por Super Admin ou quem tiver a permissão específica
+        if ($record->hasRole(RolesEnum::Admin->value)) {
+            return ! ($this->roleService->ehSuperAdmin($user) || $user?->hasPermissionTo('Editar Nivel de Acesso: Admin'));
+        }
+
+        // Ninguém edita a própria role
         if ($user && $record->id === $user->id) return true;
+
         return false;
     }
 
@@ -106,7 +116,7 @@ class UserService
         $todas = $permissoesDisponiveis
             ->orderBy('name')
             ->when($busca, fn($q) => $q->whereRaw('LOWER(name) LIKE ?', ["%{$busca}%"]))
-            ->when(! $this->roleService->ehAdmin($userLogado), fn($q) => $q->where('name', '!=', 'Aplicar Permissoes'))
+            ->when(! $this->roleService->ehAdmin($userLogado), fn($q) => $q->where('name', '!=', PermissoesEnum::AplicarPermissoes->value))
             ->get();
 
         $permissoesDaRole = $record->roles
@@ -162,7 +172,7 @@ class UserService
         $todas = $permissoesDoUsuario
             ->orderBy('name')
             ->when($busca, fn($q) => $q->whereRaw('LOWER(name) LIKE ?', ["%{$busca}%"]))
-            ->when(! $this->roleService->ehAdmin($userLogado), fn($q) => $q->where('name', '!=', 'Aplicar Permissoes'))
+            ->when(! $this->roleService->ehAdmin($userLogado), fn($q) => $q->where('name', '!=', PermissoesEnum::AplicarPermissoes->value))
             ->get();
 
         $porGrupo = $todas->groupBy(fn($p) => explode(' ', $p->name)[0]);
