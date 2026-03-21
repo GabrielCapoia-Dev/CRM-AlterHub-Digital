@@ -110,6 +110,7 @@ class UsersTable
                 ->visible(function (User $record) use ($userService, $roleService, $user) {
                     if ($record->id === $user->id) return false;
                     if ($roleService->ehAdmin($record)) return false;
+                    if ($roleService->ehSuperAdmin($record)) return false;
                     return $user->hasPermissionTo('Aplicar Permissoes');
                 })
                 ->modalHeading(fn(User $record) => 'Permissões do usuário')
@@ -180,7 +181,7 @@ class UsersTable
     {
         return [
             BulkAction::make('permissoes_em_massa')
-                ->label('')         
+                ->label('')
                 ->icon('heroicon-o-key')
                 ->color('warning')
                 ->slideOver()

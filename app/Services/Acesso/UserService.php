@@ -61,10 +61,11 @@ class UserService
 
     public function podeSelecionarRegistro(?User $user, User $record): bool
     {
+        if ($record->id === $user?->id) return false;
+        if ($record->hasRole(RolesEnum::SuperAdmin->value)) return false;
         if ($record->hasRole(RolesEnum::Admin->value)) return false;
         return true;
     }
-
     public function podeDeletar(?User $user, User $record): bool
     {
         if (! $user) return false;
