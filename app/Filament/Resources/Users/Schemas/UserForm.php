@@ -86,6 +86,13 @@ class UserForm
                 ->onIcon('heroicon-s-lock-open')
                 ->offIcon('heroicon-s-lock-closed')
                 ->disabled(fn() => ! $roleService->ehSuperAdmin($user))
+                ->visible(function (?User $record) use ($roleService, $user) {
+                    if (! $roleService->ehSuperAdmin($user)) return false;
+                    if (! $record) return true;
+                    if ($record->id === $user->id) return false;
+                    if ($roleService->ehSuperAdmin($record)) return false;
+                    return true;
+                })
                 ->live(),
 
             Components\Section::make('Permissões específicas')
@@ -95,6 +102,8 @@ class UserForm
                 ->visible(fn(Get $get) => $get('usar_permissoes_extras') === true)
                 ->schema(function (?User $record) use ($roleService, $user) {
                     if (! $user || ! $roleService->ehSuperAdmin($user)) return [];
+                    if ($record && $record->id === $user->id) return [];
+                    if ($record && $roleService->ehSuperAdmin($record)) return [];
 
                     $todasPermissoes = Permission::orderBy('name')->get();
 
