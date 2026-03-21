@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\Users\Tables;
 
 use App\Models\Acesso\User;
-use App\RolesEnum;
 use App\Services\Acesso\RoleService;
 use App\Services\Acesso\UserService;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
@@ -31,7 +31,7 @@ class UsersTable
             ->checkIfRecordIsSelectableUsing(fn(User $record) => $userService->podeSelecionarRegistro($user, $record))
             ->columns(self::columns($userService, $user))
             ->recordActions(self::recordActions($userService, $roleService, $user))
-            ->recordBulkActions(self::bulkActions($userService, $roleService, $user))
+            ->toolbarActions(self::bulkActions($userService, $roleService, $user))
             ->defaultSort('updated_at', 'desc')
             ->striped();
     }
@@ -179,7 +179,7 @@ class UsersTable
     private static function bulkActions(UserService $userService, RoleService $roleService, User $user): array
     {
         return [
-            Action::make('permissoes_em_massa')
+            BulkAction::make('permissoes_em_massa')
                 ->label('')         
                 ->icon('heroicon-o-key')
                 ->color('warning')
