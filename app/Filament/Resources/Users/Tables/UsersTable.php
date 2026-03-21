@@ -31,7 +31,7 @@ class UsersTable
             ->checkIfRecordIsSelectableUsing(fn(User $record) => $userService->podeSelecionarRegistro($user, $record))
             ->columns(self::columns($userService, $user))
             ->recordActions(self::recordActions($userService, $roleService, $user))
-            ->groupedBulkActions(self::bulkActions($userService, $roleService, $user))
+            ->toolbarActions(self::bulkActions($userService, $roleService, $user))
             ->defaultSort('updated_at', 'desc')
             ->striped();
     }
@@ -180,7 +180,7 @@ class UsersTable
     {
         return [
             Action::make('permissoes_em_massa')
-                ->label('Editar permissões')
+                ->label('')         
                 ->icon('heroicon-o-key')
                 ->color('warning')
                 ->slideOver()
@@ -230,6 +230,7 @@ class UsersTable
                 }),
 
             DeleteBulkAction::make()
+                ->label('')
                 ->before(function ($records, $action) use ($userService, $user) {
                     if (! $userService->podeDeletarEmLote($user, $records)) {
                         $action->halt();

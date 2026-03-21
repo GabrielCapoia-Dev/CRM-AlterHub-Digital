@@ -68,19 +68,27 @@ class UserService
     public function podeDeletar(?User $user, User $record): bool
     {
         if (! $user) return false;
-        if ($record->id === 1) return false;
         if ($record->id === $user->id) return false;
-        return $this->roleService->ehSuperAdmin($user);
+        if ($record->hasRole(RolesEnum::SuperAdmin->value)) return false;
+        if ($record->hasRole(RolesEnum::Admin->value)) return $this->roleService->ehSuperAdmin($user);
+        return true;
     }
+
 
     public function podeDeletarEmLote(?User $user, iterable $records): bool
     {
-        if (! $this->roleService->ehSuperAdmin($user)) return false;
+        if (! $user) return false;
         foreach ($records as $record) {
-            if ($record instanceof User && $record->hasRole(RolesEnum::Admin->value)) return false;
+            if (! $record instanceof User) continue;
+            if ($record->id === $user->id) return false;
+            if ($record->hasRole(RolesEnum::SuperAdmin->value)) return false;
+            if ($record->hasRole(RolesEnum::Admin->value) && ! $this->roleService->ehSuperAdmin($user)) return false;
         }
         return true;
     }
+
+
+
 
     // =========================================================================
     // Helpers de checkboxes de permissão
