@@ -1,31 +1,21 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Acesso;
 
-use Filament\Facades\Filament;
 use Filament\Models\Contracts\FilamentUser;
-use Filament\Notifications\Notification;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Support\Facades\Auth;
 
 class User extends Authenticatable implements FilamentUser
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory;
     use Notifiable;
     use HasRoles;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'uuid',
         'name',
@@ -47,8 +37,22 @@ class User extends Authenticatable implements FilamentUser
         ];
     }
 
+    protected static function booting(): void
+    {
+        static::creating(function (User $user) {
+            if (empty($user->uuid)) {
+                $user->uuid = Str::uuid();
+            }
+        });
+    }
+
+    private function emailAprovado(): bool
+    {
+        return (bool) $this->email_approved;
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->hasVerifiedEmail() && $this->hasPermissionTo('Acessar Painel');
+        return $this->hasVerifiedEmail() && $this->emailAprovado();
     }
 }

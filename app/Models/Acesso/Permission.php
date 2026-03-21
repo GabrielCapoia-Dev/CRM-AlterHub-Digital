@@ -1,6 +1,7 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Acesso;
+
 
 use Spatie\Permission\Models\Permission as ModelsPermission;
 

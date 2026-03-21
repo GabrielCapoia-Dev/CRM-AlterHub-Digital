@@ -19,7 +19,6 @@ class CriarPermissoes extends Command
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $permissoes = [
-            'Acessar Painel'
         ];
 
         $this->info('Criando permissões...');
