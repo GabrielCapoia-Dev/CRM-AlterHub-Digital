@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
         $adminUser = User::firstOrCreate(
             ['email' => 'admin@admin.com'],
             [
+                'uuid' => \Illuminate\Support\Str::uuid(),
                 'name' => 'Admin',
                 'password' => bcrypt($senhaAdmin),
                 'email_verified_at' => now(),
