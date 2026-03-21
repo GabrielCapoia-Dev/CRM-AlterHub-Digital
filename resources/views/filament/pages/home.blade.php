@@ -41,6 +41,7 @@
 
             <div class="ub-grid">
 
+                @can(\App\Enum\PermissoesEnum::ListarUsuarios->value)
                 <a href="{{ route('filament.painel.resources.usuarios.index') }}" class="ub-card ub-card--blue">
                     <div class="ub-card-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -53,7 +54,9 @@
                     </div>
                     <span class="ub-card-arrow">→</span>
                 </a>
+                @endcan
 
+                @can(\App\Enum\PermissoesEnum::ListarNiveisDeAcesso->value)
                 <a href="{{ route('filament.painel.resources.niveis-de-acesso.index') }}" class="ub-card ub-card--purple">
                     <div class="ub-card-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -66,6 +69,7 @@
                     </div>
                     <span class="ub-card-arrow">→</span>
                 </a>
+                @endcan
 
             </div>
         </div>
