@@ -29,11 +29,14 @@ class UserService
 
     public function opcoesDeRoles(Builder $base, ?User $user): Builder
     {
-        return $this->roleService->ehSuperAdmin($user)
-            ? $base
-            : $base->where('name', '!=', RolesEnum::Admin->value);
+        return $base
+            ->where('name', '!=', RolesEnum::SuperAdmin->value)
+            ->when(
+                ! $this->roleService->ehSuperAdmin($user),
+                fn($q) => $q->where('name', '!=', RolesEnum::Admin->value)
+            );
     }
-
+    
     public function desabilitarCampoRole(?User $user, ?User $record, string $context): bool
     {
         if ($context === 'create' || ! $record) return false;
