@@ -22,6 +22,8 @@ class RoleService
     {
         return in_array($record->name, [
             RolesEnum::Admin->value,
+            RolesEnum::SuperAdmin->value,
+            RolesEnum::Usuario->value,
         ]);
     }
 
