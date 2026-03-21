@@ -3,7 +3,7 @@
 namespace App\Services\Acesso;
 
 use App\Models\Acesso\User;
-use App\RolesEnum;
+use App\Enum\RolesEnum;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Database\Eloquent\Builder;

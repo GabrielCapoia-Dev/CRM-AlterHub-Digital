@@ -4,7 +4,7 @@ namespace App\Services\Acesso;
 
 use App\Models\Acesso\Role;
 use App\Models\Acesso\User;
-use App\RolesEnum;
+use App\Enum\RolesEnum;
 
 class RoleService
 {
