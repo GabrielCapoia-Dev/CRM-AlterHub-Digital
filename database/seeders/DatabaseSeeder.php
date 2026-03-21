@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
         // 1. Criar roles
         $this->command->info('Criando roles...');
         foreach (RolesEnum::cases() as $role) {
-            Role::firstOrCreate(['name' => $role->value]);
+            Role::firstOrCreate(['name' => $role->value, 'guard_name' => 'web']);
             $this->command->line("✔ Role criada: {$role->value}");
         }
 
