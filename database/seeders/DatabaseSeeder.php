@@ -8,6 +8,8 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
+use App\Console\Commands\CriarPermissoes;
+
 
 class DatabaseSeeder extends Seeder
 {
@@ -39,6 +41,11 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+
+        // 4. Criar permissões
+        $this->call(CriarPermissoes::class);
+
+
         // 3. Atribuir role
         $this->command->info('Atribuindo role Super Admin...');
         $adminUser->assignRole(RolesEnum::SuperAdmin->value);
@@ -55,5 +62,7 @@ class DatabaseSeeder extends Seeder
                 ['UUID', 'gerado automaticamente'],
             ]
         );
+
+
     }
 }
