@@ -60,13 +60,13 @@ class UserSeeder extends Seeder
             $user = User::firstOrCreate(
                 ['email' => $dados['email']],
                 [
+                    'uuid'               => \Illuminate\Support\Str::uuid(),
                     'name'               => $dados['name'],
                     'password'           => bcrypt($senha),
                     'email_verified_at'  => now(),
                     'email_approved'     => true,
                 ]
             );
-
             $user->syncRoles([$dados['role']->value]);
 
             $this->command->line("✔ {$dados['role']->value} — {$dados['name']}");
