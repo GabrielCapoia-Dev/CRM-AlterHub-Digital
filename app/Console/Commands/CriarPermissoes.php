@@ -19,7 +19,8 @@ class CriarPermissoes extends Command
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $permissoes = [
-            'Aplicar Permissoes'
+            'Aplicar Permissoes',
+            'Editar Níveis de Acesso',
         ];
 
         $this->info('Criando permissões...');
