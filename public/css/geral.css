@@ -1,17 +1,1456 @@
-/* Header */
-.fi-topbar {
-    background: linear-gradient(to right, #d1e3ff, #88a8ff);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.377);
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  UNIBIOTECH · DESIGN SYSTEM · geral.css                     ║
+   ║  Filament PHP v5 + Tailwind CSS v4.2                        ║
+   ║  Carregado via FilamentAsset::register() no AppServiceProvider ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* ─────────────────────────────────────────────────────────────────
+   IMPORTS — Fontes
+   ───────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 1 — CSS CUSTOM PROPERTIES DO FILAMENT
+   Sobrescreve as variáveis --primary-*, --gray-*, --danger-*,
+   --success-*, --warning-*, --info-* que o Filament injeta via
+   FilamentColor. Usa OKLCH (padrão do Tailwind v4 / Filament v5).
+   ───────────────────────────────────────────────────────────────── */
+:root {
+  /* ── PRIMARY — Navy Blue Unibiotech ──────────────────────────── */
+  --primary-50:  oklch(0.9564 0.0178 261.34);   /* #eaf1fd */
+  --primary-100: oklch(0.9028 0.0397 260.15);   /* #d0e0fa */
+  --primary-200: oklch(0.8188 0.0750 260.40);   /* #a8c5f5 */
+  --primary-300: oklch(0.7303 0.1149 260.80);   /* #7ea8f0 */
+  --primary-400: oklch(0.6446 0.1468 261.77);   /* #5a8be6 */
+  --primary-500: oklch(0.5570 0.1708 262.69);   /* #3a6dd6 */
+  --primary-600: oklch(0.4910 0.1713 263.43);   /* #2a58c0 */
+  --primary-700: oklch(0.4279 0.1654 264.18);   /* #1e45a8 */
+  --primary-800: oklch(0.3706 0.1490 264.84);   /* #17368D — BRAND */
+  --primary-900: oklch(0.2833 0.1143 266.12);   /* #0f2261 */
+  --primary-950: oklch(0.2402 0.0919 265.67);   /* #0a1a4a */
+
+  /* ── GRAY — Neutral Unibiotech (substitui Zinc do Filament) ─── */
+  --gray-50:  oklch(0.9705 0.0054 274.97);      /* #f4f5f9 */
+  --gray-100: oklch(0.9398 0.0100 267.36);      /* #e8ebf2 */
+  --gray-200: oklch(0.8833 0.0197 273.21);      /* #d4d8e6 */
+  --gray-300: oklch(0.7905 0.0291 272.43);      /* #b4bace */
+  --gray-400: oklch(0.6813 0.0366 270.83);      /* #9098b0 */
+  --gray-500: oklch(0.5679 0.0484 269.11);      /* #6b7694 */
+  --gray-600: oklch(0.4384 0.0497 269.58);      /* #47516e */
+  --gray-700: oklch(0.3428 0.0563 269.66);      /* #2d3756 */
+  --gray-800: oklch(0.2638 0.0559 269.30);      /* #1a2340 */
+  --gray-900: oklch(0.2070 0.0380 265.07);      /* #0f1729 */
+  --gray-950: oklch(0.1594 0.0157 266.59);      /* #0a0d14 */
+
+  /* ── DANGER — Error/Destructive ─────────────────────────────── */
+  --danger-50:  oklch(0.9705 0.0129 17.38);     /* #fef2f2 */
+  --danger-100: oklch(0.9356 0.0309 17.72);     /* #fee2e2 */
+  --danger-200: oklch(0.8845 0.0593 18.33);     /* #fecaca */
+  --danger-300: oklch(0.8077 0.1035 19.57);     /* #fca5a5 */
+  --danger-400: oklch(0.7106 0.1661 22.22);     /* #f87171 */
+  --danger-500: oklch(0.6221 0.2035 9.72);      /* #e53e6b — BRAND */
+  --danger-600: oklch(0.5771 0.2152 27.33);     /* #dc2626 */
+  --danger-700: oklch(0.5054 0.1905 27.52);     /* #b91c1c */
+  --danger-800: oklch(0.4437 0.1613 26.90);     /* #991b1b */
+  --danger-900: oklch(0.3958 0.1331 25.72);     /* #7f1d1d */
+  --danger-950: oklch(0.2575 0.0886 26.04);     /* #450a0a */
+
+  /* ── SUCCESS ─────────────────────────────────────────────────── */
+  --success-50:  oklch(0.9793 0.0207 166.11);   /* #ecfdf5 */
+  --success-100: oklch(0.9505 0.0507 163.05);   /* #d1fae5 */
+  --success-200: oklch(0.9049 0.0895 164.15);   /* #a7f3d0 */
+  --success-300: oklch(0.8452 0.1299 164.98);   /* #6ee7b7 */
+  --success-400: oklch(0.7729 0.1535 163.22);   /* #34d399 */
+  --success-500: oklch(0.7356 0.1753 156.96);   /* #00c97b — BRAND */
+  --success-600: oklch(0.5960 0.1274 163.23);   /* #059669 */
+  --success-700: oklch(0.5081 0.1049 165.61);   /* #047857 */
+  --success-800: oklch(0.4318 0.0865 166.91);   /* #065f46 */
+  --success-900: oklch(0.3780 0.0730 168.94);   /* #064e3b */
+  --success-950: oklch(0.2621 0.0487 172.55);   /* #022c22 */
+
+  /* ── WARNING ─────────────────────────────────────────────────── */
+  --warning-50:  oklch(0.9869 0.0214 95.28);    /* #fffbeb */
+  --warning-100: oklch(0.9619 0.0580 95.62);    /* #fef3c7 */
+  --warning-200: oklch(0.9243 0.1151 95.75);    /* #fde68a */
+  --warning-300: oklch(0.8790 0.1534 91.61);    /* #fcd34d */
+  --warning-400: oklch(0.8369 0.1644 84.43);    /* #fbbf24 */
+  --warning-500: oklch(0.7837 0.1587 72.99);    /* #f5a623 — BRAND */
+  --warning-600: oklch(0.6658 0.1574 58.32);    /* #d97706 */
+  --warning-700: oklch(0.5553 0.1455 49.00);    /* #b45309 */
+  --warning-800: oklch(0.4732 0.1247 46.20);    /* #92400e */
+  --warning-900: oklch(0.4137 0.1054 45.90);    /* #78350f */
+  --warning-950: oklch(0.2791 0.0742 45.64);    /* #451a03 */
+
+  /* ── INFO ────────────────────────────────────────────────────── */
+  --info-50:  oklch(0.9705 0.0142 254.60);      /* #eff6ff */
+  --info-100: oklch(0.9319 0.0316 255.59);      /* #dbeafe */
+  --info-200: oklch(0.8823 0.0571 254.13);      /* #bfdbfe */
+  --info-300: oklch(0.8091 0.0956 251.81);      /* #93c5fd */
+  --info-400: oklch(0.7137 0.1434 254.62);      /* #60a5fa */
+  --info-500: oklch(0.5570 0.1708 262.69);      /* #3a6dd6 — BRAND */
+  --info-600: oklch(0.5461 0.2152 262.88);      /* #2563eb */
+  --info-700: oklch(0.4882 0.2172 264.38);      /* #1d4ed8 */
+  --info-800: oklch(0.4244 0.1809 265.64);      /* #1e40af */
+  --info-900: oklch(0.3791 0.1378 265.52);      /* #1e3a8a */
+  --info-950: oklch(0.2823 0.0874 267.94);      /* #172554 */
+
+  /* ── TOKENS INTERNOS DO DESIGN SYSTEM ───────────────────────── */
+  /* Secondary — Sky Blue */
+  --c-secondary-50:  #eef6fc;
+  --c-secondary-100: #d8ecf7;
+  --c-secondary-200: #b8d8f0;
+  --c-secondary-300: #9CC7E7;
+  --c-secondary-400: #93C0E7;
+
+  /* Accent — Teal */
+  --c-accent-50:  #effdf9;
+  --c-accent-100: #d4fbf4;
+  --c-accent-200: #a0f5ea;
+  --c-accent-400: #2ee8c8;
+  --c-accent-500: #00c9a7;
+  --c-accent-600: #00a88a;
+
+  /* Surfaces */
+  --surface-primary:   #FEFEFE;
+  --surface-secondary: #f4f5f9;
+  --surface-tertiary:  #e8ebf2;
+  --surface-container: #ffffff;
+  --surface-overlay:   rgba(10, 26, 74, 0.6);
+  --surface-inverse:   #0f1729;
+
+  /* Shadows com matiz do navy */
+  --shadow-xs: 0 1px 2px rgba(15, 34, 97, 0.05);
+  --shadow-sm: 0 1px 3px rgba(15, 34, 97, 0.06), 0 1px 2px rgba(15, 34, 97, 0.04);
+  --shadow-md: 0 4px 6px rgba(15, 34, 97, 0.07), 0 2px 4px rgba(15, 34, 97, 0.04);
+  --shadow-lg: 0 10px 15px rgba(15, 34, 97, 0.10), 0 4px 6px rgba(15, 34, 97, 0.05);
+  --shadow-xl: 0 20px 25px rgba(15, 34, 97, 0.12), 0 8px 10px rgba(15, 34, 97, 0.04);
+  --shadow-2xl: 0 25px 50px rgba(15, 34, 97, 0.18);
+  --shadow-focus: 0 0 0 3px rgba(23, 54, 141, 0.15);
+  --shadow-focus-danger: 0 0 0 3px rgba(229, 62, 107, 0.15);
+  --shadow-glow: 0 0 40px rgba(156, 199, 231, 0.35);
+
+  /* Border Radius */
+  --radius-none: 0;
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-2xl:  24px;
+  --radius-full: 9999px;
+
+  /* Motion */
+  --ease:        cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:    cubic-bezier(0, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast:   100ms;
+  --duration-normal: 200ms;
+  --duration-slow:   300ms;
+
+  /* Layout */
+  --sidebar-w:         260px;
+  --sidebar-collapsed: 68px;
+  --header-h:          64px;
 }
 
 
-/* NavBar */
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 2 — BASE GLOBAL
+   Tipografia, body, reset complementar
+   ───────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body,
+.fi-body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  background-color: var(--surface-secondary) !important;
+  color: #1a2340;
+}
+
+/* Monospace global */
+code,
+pre,
+kbd,
+samp,
+.fi-fo-field [class*="mono"],
+[class*="font-mono"] {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 3 — LAYOUT PRINCIPAL (fi-layout, fi-main-ctn)
+   ───────────────────────────────────────────────────────────────── */
+.fi-layout {
+  background-color: var(--surface-secondary) !important;
+}
+
+.fi-main-ctn {
+  background-color: var(--surface-secondary) !important;
+}
+
+.fi-main {
+  background-color: var(--surface-secondary) !important;
+}
+
+/* Página de recurso */
+.fi-page {
+  background-color: var(--surface-secondary) !important;
+}
+
+.fi-page-header-main-ctn {
+  background-color: var(--surface-primary);
+  border-bottom: 1px solid var(--surface-tertiary);
+  box-shadow: var(--shadow-sm);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 4 — SIDEBAR (fi-sidebar)
+   Design system: fundo navy-900, items com destaque sky
+   ───────────────────────────────────────────────────────────────── */
+.fi-sidebar,
+.fi-main-sidebar {
+  background-color: #0f1729 !important; /* --gray-900 / navy dark */
+  border-right: 1px solid rgba(156, 199, 231, 0.06) !important;
+  width: var(--sidebar-w) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Header da sidebar — logo */
+.fi-sidebar-header-ctn,
+.fi-sidebar-header {
+  background-color: #0a1a4a !important; /* --primary-950 */
+  border-bottom: 1px solid rgba(156, 199, 231, 0.08) !important;
+  padding: 16px 20px !important;
+  min-height: var(--header-h) !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Logo */
+.fi-logo {
+  display: flex;
+  align-items: center;
+}
+
+/* Nav da sidebar */
 .fi-sidebar-nav {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.377);
-    background-color: #d1e3ff81;
-
+  padding: 12px 8px !important;
 }
 
-.fi-ta-ctn.fi-ta-ctn-with-footer.fi-ta-ctn-with-header {
-    box-shadow: 1px 3px 6px rgba(0, 0, 0, 0.377);
+/* Rótulo de seção */
+.fi-sidebar-group-label {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: rgba(255, 255, 255, 0.25) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  padding: 16px 12px 6px !important;
+}
+
+/* Item da sidebar */
+.fi-sidebar-item-btn {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 12px !important;
+  border-radius: var(--radius-md) !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+  transition: all var(--duration-normal) var(--ease) !important;
+  margin-bottom: 2px !important;
+}
+
+.fi-sidebar-item-btn:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Item ativo */
+.fi-sidebar-item-btn.fi-active,
+.fi-sidebar-item.fi-active .fi-sidebar-item-btn {
+  background-color: rgba(156, 199, 231, 0.12) !important;
+  color: #9CC7E7 !important; /* --c-secondary-300 */
+  font-weight: 600 !important;
+}
+
+/* Ícone do item */
+.fi-sidebar-item-icon {
+  width: 20px !important;
+  height: 20px !important;
+  flex-shrink: 0 !important;
+  color: inherit !important;
+}
+
+/* Badge no item */
+.fi-sidebar-item-badge-ctn {
+  margin-left: auto;
+}
+
+/* Sidebar colapsada */
+.fi-sidebar.fi-collapsed {
+  width: var(--sidebar-collapsed) !important;
+}
+
+/* Overlay mobile */
+.fi-sidebar-close-overlay {
+  background-color: var(--surface-overlay) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 5 — TOPBAR (fi-topbar)
+   ───────────────────────────────────────────────────────────────── */
+.fi-topbar-ctn,
+.fi-topbar {
+  background-color: var(--surface-primary) !important;
+  border-bottom: 1px solid var(--surface-tertiary) !important;
+  box-shadow: var(--shadow-sm) !important;
+  min-height: var(--header-h) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Botões de colapso da sidebar no topbar */
+.fi-topbar-open-collapse-sidebar-btn,
+.fi-topbar-close-collapse-sidebar-btn,
+.fi-topbar-open-sidebar-btn,
+.fi-topbar-close-sidebar-btn {
+  color: #6b7694 !important;
+  border-radius: var(--radius-md) !important;
+  transition: all var(--duration-normal) var(--ease) !important;
+}
+
+.fi-topbar-open-collapse-sidebar-btn:hover,
+.fi-topbar-close-collapse-sidebar-btn:hover,
+.fi-topbar-open-sidebar-btn:hover,
+.fi-topbar-close-sidebar-btn:hover {
+  background-color: var(--surface-secondary) !important;
+  color: #2d3756 !important;
+}
+
+/* Menu do usuário */
+.fi-user-menu-trigger {
+  border-radius: var(--radius-full) !important;
+  transition: all var(--duration-normal) var(--ease) !important;
+}
+
+.fi-user-menu-trigger:hover {
+  background-color: var(--surface-secondary) !important;
+}
+
+/* Avatar */
+.fi-avatar,
+.fi-user-avatar {
+  border-radius: 50% !important;
+  border: 2px solid var(--surface-tertiary) !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 700 !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 6 — HEADER DE PÁGINA + BREADCRUMB
+   ───────────────────────────────────────────────────────────────── */
+.fi-header {
+  padding: 20px 24px !important;
+}
+
+.fi-header-heading {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 800 !important;
+  font-size: 24px !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.01em !important;
+  color: #1a2340 !important; /* --gray-800 */
+}
+
+/* Breadcrumbs */
+.fi-breadcrumbs {
+  font-size: 13px !important;
+}
+
+.fi-breadcrumbs-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fi-breadcrumbs-item-label {
+  color: #6b7694 !important; /* --gray-500 */
+  text-decoration: none !important;
+  transition: color var(--duration-normal) !important;
+}
+
+.fi-breadcrumbs-item-label:hover {
+  color: #17368D !important; /* primary-800 */
+}
+
+.fi-breadcrumbs-item:last-child .fi-breadcrumbs-item-label {
+  color: #2d3756 !important;
+  font-weight: 600 !important;
+}
+
+.fi-breadcrumbs-item-separator {
+  color: #b4bace !important; /* --gray-300 */
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 7 — BOTÕES (fi-btn)
+   ───────────────────────────────────────────────────────────────── */
+.fi-btn {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 600 !important;
+  border-radius: var(--radius-md) !important;
+  transition: all var(--duration-normal) var(--ease) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  letter-spacing: 0 !important;
+}
+
+.fi-btn:active {
+  transform: scale(0.97) !important;
+}
+
+/* Tamanhos */
+.fi-btn.fi-size-xs {
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.fi-btn.fi-size-sm {
+  padding: 7px 16px !important;
+  font-size: 13px !important;
+}
+
+.fi-btn.fi-size-md {
+  padding: 10px 22px !important;
+  font-size: 14px !important;
+}
+
+.fi-btn.fi-size-lg {
+  padding: 14px 28px !important;
+  font-size: 16px !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+/* PRIMARY — Navy */
+.fi-btn.fi-color-primary {
+  background-color: #17368D !important;
+  color: #ffffff !important;
+  border-color: #17368D !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.fi-btn.fi-color-primary:hover {
+  background-color: #1e45a8 !important;
+  box-shadow: 0 6px 20px rgba(23, 54, 141, 0.35) !important;
+}
+
+/* SUCCESS */
+.fi-btn.fi-color-success {
+  background-color: #00c97b !important;
+  color: #0f1729 !important;
+  border-color: #00c97b !important;
+}
+
+.fi-btn.fi-color-success:hover {
+  background-color: #059669 !important;
+  box-shadow: 0 6px 20px rgba(0, 201, 123, 0.30) !important;
+}
+
+/* DANGER */
+.fi-btn.fi-color-danger {
+  background-color: #e53e6b !important;
+  color: #ffffff !important;
+  border-color: #e53e6b !important;
+}
+
+.fi-btn.fi-color-danger:hover {
+  background-color: #dc2626 !important;
+  box-shadow: 0 6px 20px rgba(229, 62, 107, 0.35) !important;
+}
+
+/* WARNING */
+.fi-btn.fi-color-warning {
+  background-color: #f5a623 !important;
+  color: #0f1729 !important;
+  border-color: #f5a623 !important;
+}
+
+.fi-btn.fi-color-warning:hover {
+  background-color: #d97706 !important;
+}
+
+/* INFO */
+.fi-btn.fi-color-info {
+  background-color: #3a6dd6 !important;
+  color: #ffffff !important;
+  border-color: #3a6dd6 !important;
+}
+
+/* GHOST / OUTLINED */
+.fi-btn.fi-color-gray {
+  background-color: transparent !important;
+  color: #2d3756 !important;
+  border: 1.5px solid #d4d8e6 !important;
+  box-shadow: none !important;
+}
+
+.fi-btn.fi-color-gray:hover {
+  background-color: #f4f5f9 !important;
+  border-color: #b4bace !important;
+}
+
+/* Estado desabilitado */
+.fi-btn.fi-disabled,
+.fi-btn:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+/* Estado processando */
+.fi-btn.fi-processing {
+  pointer-events: none !important;
+  opacity: 0.75 !important;
+}
+
+/* Icon button */
+.fi-icon-btn {
+  border-radius: var(--radius-md) !important;
+  transition: all var(--duration-normal) var(--ease) !important;
+  color: #6b7694 !important;
+}
+
+.fi-icon-btn:hover {
+  background-color: var(--surface-secondary) !important;
+  color: #2d3756 !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 8 — FORM CONTROLS (fi-input-wrp, fi-input, fi-select)
+   ───────────────────────────────────────────────────────────────── */
+/* Wrapper do input */
+.fi-input-wrp {
+  border: 1.5px solid #d4d8e6 !important; /* --gray-200 */
+  border-radius: var(--radius-md) !important;
+  background-color: var(--surface-container) !important;
+  transition: border-color var(--duration-normal), box-shadow var(--duration-normal) !important;
+  overflow: hidden !important;
+}
+
+.fi-input-wrp:focus-within {
+  border-color: #2a58c0 !important; /* --primary-600 */
+  box-shadow: var(--shadow-focus) !important;
+}
+
+.fi-input-wrp:hover:not(:focus-within) {
+  border-color: #b4bace !important; /* --gray-300 */
+}
+
+/* Input em si */
+.fi-input {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: 14px !important;
+  color: #1a2340 !important;
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  padding: 10px 14px !important;
+  width: 100% !important;
+}
+
+.fi-input::placeholder {
+  color: #9098b0 !important; /* --gray-400 */
+}
+
+/* Prefixo / Sufixo */
+.fi-input-wrp-prefix,
+.fi-input-wrp-suffix {
+  color: #9098b0 !important;
+  padding: 0 12px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.fi-input-wrp-label {
+  font-size: 13px !important;
+  color: #6b7694 !important;
+  font-weight: 500 !important;
+}
+
+/* Select */
+.fi-select-input {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: 14px !important;
+  color: #1a2340 !important;
+  background-color: var(--surface-container) !important;
+  border: 1.5px solid #d4d8e6 !important;
+  border-radius: var(--radius-md) !important;
+  padding: 10px 36px 10px 14px !important;
+  outline: none !important;
+  appearance: none !important;
+  width: 100% !important;
+  transition: border-color var(--duration-normal), box-shadow var(--duration-normal) !important;
+}
+
+.fi-select-input:focus {
+  border-color: #2a58c0 !important;
+  box-shadow: var(--shadow-focus) !important;
+}
+
+/* Textarea */
+.fi-fo-field textarea {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: 14px !important;
+  color: #1a2340 !important;
+  border: 1.5px solid #d4d8e6 !important;
+  border-radius: var(--radius-md) !important;
+  padding: 10px 14px !important;
+  resize: vertical !important;
+  transition: border-color var(--duration-normal), box-shadow var(--duration-normal) !important;
+  outline: none !important;
+  width: 100% !important;
+  background-color: var(--surface-container) !important;
+  min-height: 100px !important;
+}
+
+.fi-fo-field textarea:focus {
+  border-color: #2a58c0 !important;
+  box-shadow: var(--shadow-focus) !important;
+}
+
+/* Labels */
+.fi-fo-field-label {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #2d3756 !important; /* --gray-700 */
+  margin-bottom: 6px !important;
+}
+
+.fi-fo-field-label-required-mark {
+  color: #e53e6b !important; /* --danger-500 */
+  margin-left: 2px !important;
+}
+
+/* Helper text */
+.fi-fo-field-helper-text,
+[class*="fi-fo"] [class*="helper"] {
+  font-size: 12px !important;
+  color: #6b7694 !important;
+  margin-top: 4px !important;
+}
+
+/* Checkbox */
+.fi-checkbox-input {
+  width: 18px !important;
+  height: 18px !important;
+  border: 2px solid #b4bace !important;
+  border-radius: var(--radius-sm) !important;
+  accent-color: #17368D !important;
+  cursor: pointer !important;
+  transition: all var(--duration-normal) !important;
+}
+
+.fi-checkbox-input:checked {
+  background-color: #17368D !important;
+  border-color: #17368D !important;
+}
+
+.fi-checkbox-input.fi-valid {
+  border-color: #00c97b !important;
+}
+
+/* Toggle/Switch */
+.fi-toggle {
+  transition: background-color var(--duration-normal) var(--ease-bounce) !important;
+  border-radius: var(--radius-full) !important;
+}
+
+.fi-toggle.fi-toggle-on,
+.fi-toggle.fi-color-success {
+  background-color: #00c97b !important; /* success */
+}
+
+.fi-toggle.fi-toggle-off,
+.fi-toggle.fi-color-danger {
+  background-color: #b4bace !important; /* gray-300 */
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 9 — TABELA (fi-ta)
+   ───────────────────────────────────────────────────────────────── */
+/* Container da tabela */
+.fi-ta {
+  border-radius: var(--radius-xl) !important;
+  overflow: hidden !important;
+  border: 1px solid #d4d8e6 !important; /* --gray-200 */
+  box-shadow: var(--shadow-sm) !important;
+  background-color: var(--surface-container) !important;
+}
+
+/* Toolbar (busca/filtros) */
+.fi-ta-header-toolbar {
+  padding: 16px 20px !important;
+  border-bottom: 1px solid #e8ebf2 !important;
+  background-color: var(--surface-container) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+}
+
+/* Campo de busca da tabela */
+.fi-ta-search-field {
+  max-width: 300px !important;
+}
+
+.fi-ta-search-field .fi-input-wrp {
+  border-radius: var(--radius-md) !important;
+}
+
+/* Elemento <table> */
+.fi-ta-table {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 14px !important;
+}
+
+/* Cabeçalho da tabela */
+.fi-ta-header-cell {
+  padding: 12px 16px !important;
+  text-align: left !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #6b7694 !important; /* --gray-500 */
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  background-color: #f4f5f9 !important; /* --gray-50 */
+  border-bottom: 2px solid #e8ebf2 !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  cursor: pointer !important;
+}
+
+.fi-ta-header-cell:hover {
+  color: #1a2340 !important;
+}
+
+/* Botão de ordenação */
+.fi-ta-header-cell-sort-btn {
+  color: inherit !important;
+  opacity: 0.4 !important;
+  margin-left: 4px !important;
+}
+
+.fi-ta-header-cell.fi-sorted .fi-ta-header-cell-sort-btn {
+  opacity: 1 !important;
+  color: #17368D !important;
+}
+
+/* Célula do body */
+.fi-ta-cell {
+  padding: 14px 16px !important;
+  border-bottom: 1px solid #e8ebf2 !important;
+  color: #2d3756 !important; /* --gray-700 */
+  vertical-align: middle !important;
+  font-size: 14px !important;
+}
+
+/* Linha */
+.fi-ta-row {
+  transition: background-color var(--duration-fast) !important;
+  background-color: var(--surface-container) !important;
+}
+
+.fi-ta-row:hover {
+  background-color: #eaf1fd !important; /* --primary-50 */
+}
+
+.fi-ta-row.fi-striped:nth-child(even) {
+  background-color: #f4f5f9 !important;
+}
+
+.fi-ta-row.fi-selected {
+  background-color: #d0e0fa !important; /* --primary-100 */
+}
+
+.fi-ta-row.fi-clickable {
+  cursor: pointer !important;
+}
+
+/* Linha sem borda no último item */
+.fi-ta-row:last-child .fi-ta-cell {
+  border-bottom: none !important;
+}
+
+/* Footer da tabela */
+.fi-ta-ctn [class*="footer"],
+.fi-ta > div:last-child {
+  padding: 14px 20px !important;
+  border-top: 1px solid #e8ebf2 !important;
+  background-color: var(--surface-container) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+}
+
+/* Paginação */
+.fi-pagination {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.fi-pagination-overview {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #6b7694 !important;
+}
+
+.fi-pagination-item-btn {
+  width: 36px !important;
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: var(--radius-md) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #6b7694 !important;
+  border: 1px solid transparent !important;
+  transition: all var(--duration-normal) !important;
+  cursor: pointer !important;
+  background: none !important;
+}
+
+.fi-pagination-item-btn:hover {
+  background-color: #f4f5f9 !important;
+  border-color: #d4d8e6 !important;
+  color: #1a2340 !important;
+}
+
+.fi-pagination-item.fi-active .fi-pagination-item-btn {
+  background-color: #17368D !important;
+  color: #ffffff !important;
+  border-color: #17368D !important;
+}
+
+/* Records per page select */
+.fi-pagination-records-per-page-select {
+  font-size: 13px !important;
+  border: 1.5px solid #d4d8e6 !important;
+  border-radius: var(--radius-md) !important;
+  padding: 6px 28px 6px 10px !important;
+  color: #2d3756 !important;
+  background-color: var(--surface-container) !important;
+  outline: none !important;
+}
+
+/* Badge dentro de célula */
+.fi-ta .fi-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 3px 10px !important;
+  border-radius: var(--radius-full) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 10 — MODAL (fi-modal)
+   ───────────────────────────────────────────────────────────────── */
+/* Overlay */
+.fi-modal-close-overlay {
+  background-color: var(--surface-overlay) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+/* Painel do modal */
+.fi-modal-window {
+  background-color: var(--surface-container) !important;
+  border-radius: var(--radius-2xl) !important;
+  box-shadow: var(--shadow-2xl) !important;
+  border: 1px solid #e8ebf2 !important;
+  overflow: hidden !important;
+}
+
+/* Header do modal */
+.fi-modal-header {
+  padding: 24px 32px 0 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+.fi-modal-heading {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: #1a2340 !important;
+  line-height: 1.3 !important;
+}
+
+.fi-modal-description {
+  font-size: 14px !important;
+  color: #6b7694 !important;
+  margin-top: 6px !important;
+  line-height: 1.6 !important;
+}
+
+/* Botão fechar */
+.fi-modal-close-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background-color: #e8ebf2 !important;
+  color: #6b7694 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all var(--duration-normal) !important;
+  border: none !important;
+  cursor: pointer !important;
+}
+
+.fi-modal-close-btn:hover {
+  background-color: #fee2e2 !important;
+  color: #e53e6b !important;
+}
+
+/* Ícone do modal */
+.fi-modal-icon-bg {
+  border-radius: 50% !important;
+  width: 56px !important;
+  height: 56px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Corpo */
+.fi-modal-content {
+  padding: 20px 32px !important;
+}
+
+/* Rodapé */
+.fi-modal-footer {
+  padding: 16px 32px 24px !important;
+  border-top: 1px solid #e8ebf2 !important;
+}
+
+.fi-modal-footer-actions {
+  display: flex !important;
+  gap: 10px !important;
+  justify-content: flex-end !important;
+}
+
+/* Slide-over (Drawer) */
+.fi-modal-slide-over .fi-modal-window {
+  border-radius: 0 !important;
+  max-width: 480px !important;
+  width: 90vw !important;
+  height: 100vh !important;
+  margin-left: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.fi-modal-slide-over .fi-modal-content {
+  flex: 1 !important;
+  overflow-y: auto !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 11 — DROPDOWN (fi-dropdown)
+   ───────────────────────────────────────────────────────────────── */
+.fi-dropdown-panel {
+  background-color: var(--surface-container) !important;
+  border: 1px solid #e8ebf2 !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-xl) !important;
+  overflow: hidden !important;
+  min-width: 180px !important;
+}
+
+.fi-dropdown-list-item {
+  padding: 10px 16px !important;
+  font-size: 14px !important;
+  color: #2d3756 !important;
+  cursor: pointer !important;
+  transition: background-color var(--duration-fast) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.fi-dropdown-list-item:hover {
+  background-color: #f4f5f9 !important;
+}
+
+.fi-dropdown-list-item.fi-color-danger {
+  color: #e53e6b !important;
+}
+
+.fi-dropdown-list-item.fi-color-danger:hover {
+  background-color: #fee2e2 !important;
+}
+
+.fi-dropdown-list-item-label {
+  font-weight: 500 !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 12 — BADGE / TAG (fi-badge)
+   ───────────────────────────────────────────────────────────────── */
+.fi-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 3px 10px !important;
+  border-radius: var(--radius-full) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  letter-spacing: 0 !important;
+}
+
+/* Badge primary */
+.fi-badge.fi-color-primary {
+  background-color: #eaf1fd !important;
+  color: #17368D !important;
+}
+
+/* Badge success */
+.fi-badge.fi-color-success {
+  background-color: #d1fae5 !important;
+  color: #059669 !important;
+}
+
+/* Badge warning */
+.fi-badge.fi-color-warning {
+  background-color: #fef3c7 !important;
+  color: #d97706 !important;
+}
+
+/* Badge danger */
+.fi-badge.fi-color-danger {
+  background-color: #fee2e2 !important;
+  color: #e53e6b !important;
+}
+
+/* Badge info */
+.fi-badge.fi-color-info {
+  background-color: #dbeafe !important;
+  color: #2563eb !important;
+}
+
+/* Badge gray/neutro */
+.fi-badge.fi-color-gray {
+  background-color: #e8ebf2 !important;
+  color: #47516e !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 13 — NOTIFICAÇÕES (fi-no)
+   ───────────────────────────────────────────────────────────────── */
+.fi-no {
+  z-index: 1090 !important;
+}
+
+/* Toast/Notification card */
+.fi-no > * {
+  background-color: var(--surface-container) !important;
+  border: 1px solid #d4d8e6 !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-xl) !important;
+  padding: 16px 20px !important;
+  min-width: 340px !important;
+  max-width: 420px !important;
+  font-size: 14px !important;
+  color: #1a2340 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 14 — CARDS / PANELS (section containers)
+   ───────────────────────────────────────────────────────────────── */
+/* Card padrão do Filament (seções, widgets) */
+.fi-section,
+.fi-card,
+[class*="fi-wi"] {
+  background-color: var(--surface-container) !important;
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid #d4d8e6 !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: box-shadow var(--duration-slow) !important;
+  overflow: hidden !important;
+}
+
+/* Header de seção/card */
+.fi-section-header,
+[class*="fi-wi-header"],
+[class*="fi-section-header"] {
+  padding: 20px 24px !important;
+  border-bottom: 1px solid #e8ebf2 !important;
+}
+
+.fi-section-header-heading,
+[class*="fi-section-heading"],
+[class*="fi-wi-heading"] {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #1a2340 !important;
+}
+
+/* Corpo da seção */
+.fi-section-content,
+[class*="fi-wi-content"],
+[class*="fi-section-content"] {
+  padding: 24px !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 15 — SCHEMA / GRID DE FORMULÁRIOS (fi-sc, fi-grid)
+   ───────────────────────────────────────────────────────────────── */
+.fi-sc {
+  width: 100% !important;
+}
+
+.fi-sc.fi-sc-has-gap {
+  gap: 20px !important;
+}
+
+.fi-grid {
+  display: grid !important;
+  gap: 20px !important;
+}
+
+.fi-fo-field {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+.fi-fo-field-label-col {
+  min-width: 160px !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 16 — AUTH LAYOUT (fi-auth-layout)
+   Design especial: navy escuro com visual de produto
+   ───────────────────────────────────────────────────────────────── */
+.fi-auth-layout {
+  background: linear-gradient(160deg, #060e2a 0%, #0a1a4a 30%, #0f2261 70%, #17368D 100%) !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.fi-simple-page {
+  background: transparent !important;
+}
+
+.fi-simple-page-content {
+  background-color: var(--surface-container) !important;
+  border-radius: var(--radius-2xl) !important;
+  box-shadow: 0 25px 50px rgba(10, 26, 74, 0.4) !important;
+  padding: 40px !important;
+  max-width: 440px !important;
+  width: 90vw !important;
+  border: 1px solid rgba(156, 199, 231, 0.1) !important;
+}
+
+.fi-simple-header-heading {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  color: #1a2340 !important;
+  letter-spacing: -0.015em !important;
+  margin-bottom: 8px !important;
+}
+
+.fi-auth-form-container {
+  width: 100% !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 17 — ESTADOS DO SISTEMA
+   Empty, Error, Loading, Success
+   ───────────────────────────────────────────────────────────────── */
+/* Estado vazio */
+.fi-ta-empty-state,
+[class*="fi-empty"] {
+  text-align: center !important;
+  padding: 64px 32px !important;
+}
+
+.fi-ta-empty-state-heading,
+[class*="fi-empty-heading"] {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #1a2340 !important;
+  margin-bottom: 8px !important;
+}
+
+.fi-ta-empty-state-description,
+[class*="fi-empty-description"] {
+  font-size: 14px !important;
+  color: #6b7694 !important;
+  margin-bottom: 24px !important;
+}
+
+/* Loading spinner — herda cor primary */
+[class*="fi-loading"],
+[class*="fi-spinner"] {
+  color: #17368D !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 18 — FOCUS RING GLOBAL
+   Garante consistência de acessibilidade
+   ───────────────────────────────────────────────────────────────── */
+*:focus-visible {
+  outline: none !important;
+  box-shadow: var(--shadow-focus) !important;
+}
+
+.fi-btn:focus-visible,
+.fi-input-wrp:focus-within,
+.fi-checkbox-input:focus-visible,
+.fi-select-input:focus-visible {
+  box-shadow: var(--shadow-focus) !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 19 — ANIMAÇÕES / TRANSITIONS
+   Consistência com o design system (motion tokens)
+   ───────────────────────────────────────────────────────────────── */
+@keyframes fi-ds-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes fi-ds-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fi-ds-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Entrada de modal */
+.fi-modal-window {
+  animation: fi-ds-scale-in var(--duration-slow) var(--ease) !important;
+}
+
+/* Entrada de notificações */
+.fi-no > * {
+  animation: fi-ds-fade-in var(--duration-slow) var(--ease) !important;
+}
+
+/* Transições do modal (fi-transition) */
+.fi-transition-enter {
+  transition: opacity var(--duration-slow) var(--ease),
+              transform var(--duration-slow) var(--ease) !important;
+}
+
+.fi-transition-enter-start,
+.fi-transition-leave-end {
+  opacity: 0 !important;
+  transform: scale(0.95) translateY(8px) !important;
+}
+
+.fi-transition-enter-end,
+.fi-transition-leave-start {
+  opacity: 1 !important;
+  transform: scale(1) translateY(0) !important;
+}
+
+.fi-opacity-0 {
+  opacity: 0 !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 20 — RESPONSIVIDADE
+   ───────────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .fi-sidebar {
+    width: var(--sidebar-w) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .fi-sidebar {
+    box-shadow: var(--shadow-2xl) !important;
+  }
+
+  .fi-simple-page-content {
+    padding: 28px 20px !important;
+  }
+
+  .fi-modal-window {
+    border-radius: var(--radius-xl) !important;
+  }
+
+  .fi-modal-slide-over .fi-modal-window {
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+
+  .fi-ta-header-toolbar {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  .fi-ta-search-field {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 21 — SCROLLBAR CUSTOMIZADA
+   Mantém identidade visual no webkit
+   ───────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b4bace; /* --gray-300 */
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9098b0; /* --gray-400 */
+}
+
+/* Sidebar scrollbar mais sutil */
+.fi-sidebar ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.fi-sidebar ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   CAMADA 22 — UTILIDADES COMPLEMENTARES
+   Classes auxiliares que podem ser usadas em Blade views
+   ───────────────────────────────────────────────────────────────── */
+/* Tipografia */
+.ds-display   { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 48px; line-height: 1.1; letter-spacing: -0.02em; }
+.ds-h1        { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 40px; line-height: 1.1; letter-spacing: -0.015em; }
+.ds-h2        { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 32px; line-height: 1.2; letter-spacing: -0.01em; }
+.ds-h3        { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 24px; line-height: 1.35; }
+.ds-h4        { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 20px; line-height: 1.35; }
+.ds-h5        { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 18px; line-height: 1.5; }
+.ds-body-lg   { font-size: 18px; line-height: 1.65; }
+.ds-body      { font-size: 16px; line-height: 1.65; }
+.ds-body-sm   { font-size: 14px; line-height: 1.5; }
+.ds-caption   { font-weight: 500; font-size: 12px; line-height: 1.5; }
+.ds-overline  { font-weight: 600; font-size: 11px; line-height: 1.4; letter-spacing: 0.08em; text-transform: uppercase; }
+.ds-mono      { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+/* Cores de texto rápidos */
+.ds-tx-primary  { color: #17368D; }
+.ds-tx-sky      { color: #9CC7E7; }
+.ds-tx-accent   { color: #00c9a7; }
+.ds-tx-muted    { color: #6b7694; }
+.ds-tx-subtle   { color: #9098b0; }
+.ds-tx-inverse  { color: #FEFEFE; }
+
+/* Tag/Badge standalone (para uso fora do Filament) */
+.ds-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.ds-tag-primary { background: #eaf1fd; color: #17368D; }
+.ds-tag-sky     { background: #eef6fc; color: #17368D; }
+.ds-tag-accent  { background: #d4fbf4; color: #00a88a; }
+.ds-tag-success { background: #d1fae5; color: #059669; }
+.ds-tag-warning { background: #fef3c7; color: #d97706; }
+.ds-tag-danger  { background: #fee2e2; color: #e53e6b; }
+.ds-tag-neutral { background: #e8ebf2; color: #47516e; }
+
+/* KPI Card — uso em dashboards */
+.ds-kpi-card {
+  background: var(--surface-container);
+  border-radius: var(--radius-xl);
+  border: 1px solid #d4d8e6;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--duration-slow);
+}
+
+.ds-kpi-card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.ds-kpi-value {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  color: #17368D;
+  line-height: 1;
+}
+
+.ds-kpi-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7694;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
 }
