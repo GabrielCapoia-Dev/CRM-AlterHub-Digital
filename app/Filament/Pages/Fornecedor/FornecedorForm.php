@@ -29,7 +29,7 @@ class FornecedorForm extends Page
     // ─────────────────────────────────────────────────────────────────────────
 
     protected static bool   $shouldRegisterNavigation = false;
-    protected static string $view = 'filament.pages.fornecedor-form';
+    protected string $view = 'filament.pages.fornecedor-form';
 
     // ─────────────────────────────────────────────────────────────────────────
     // Estado do modal
