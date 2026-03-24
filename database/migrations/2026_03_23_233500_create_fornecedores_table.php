@@ -48,8 +48,6 @@ return new class extends Migration
         Schema::create('fornecedores', function (Blueprint $table) {
             $table->uuid('uuid')->primary();
 
-            // Identificação
-            $table->uuid('uuid')->unique();
             $table->string('codigo_interno')->nullable()->index();
 
             // Relacionamentos
