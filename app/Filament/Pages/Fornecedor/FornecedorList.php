@@ -5,7 +5,7 @@ namespace App\Filament\Pages\Fornecedor;
 use App\Models\Categorias\CategoriaFornecimento;
 use App\Models\Empresas\Fornecedor;
 use App\Models\Status\StatusHomologacao;
-use App\Services\FornecedorService;
+use App\Services\Empresas\FornecedorService;
 use BackedEnum;
 use Filament\Support\Icons\Heroicon;
 use Filament\Pages\Page;

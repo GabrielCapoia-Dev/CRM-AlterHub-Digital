@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Empresas;
 
 use App\Models\Empresas\Fornecedor;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
