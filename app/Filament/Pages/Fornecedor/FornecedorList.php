@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Pages;
+namespace App\Filament\Pages\Fornecedor;
 
 use App\Models\Categorias\CategoriaFornecimento;
 use App\Models\Empresas\Fornecedor;
