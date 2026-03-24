@@ -33,6 +33,7 @@ class FornecedorResource extends Resource
 
                 Section::make('Dados da Empresa')
                     ->columns(2)
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('razao_social')
                             ->required()
@@ -53,6 +54,7 @@ class FornecedorResource extends Resource
 
                 Section::make('Relacionamentos')
                     ->columns(2)
+                    ->columnSpanFull()
                     ->schema([
                         Select::make('id_categoria_fornecimento')
                             ->relationship('categoriaFornecimento', 'nome')
@@ -81,6 +83,7 @@ class FornecedorResource extends Resource
 
                 Section::make('Contato')
                     ->columns(2)
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('nome_completo')->required(),
                         TextInput::make('cargo'),
@@ -90,6 +93,7 @@ class FornecedorResource extends Resource
 
                 Section::make('Endereço')
                     ->columns(3)
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('cep'),
                         TextInput::make('uf')->maxLength(2),
@@ -102,6 +106,7 @@ class FornecedorResource extends Resource
                     ]),
 
                 Section::make('Observações')
+                    ->columnSpanFull()
                     ->schema([
                         Textarea::make('observacoes')
                             ->rows(3)
