@@ -497,6 +497,6 @@
 </div>{{-- /x-data --}}
 
 {{-- ── Modal de formulário (Livewire embutido) ─────────────────────── --}}
-@livewire('filament.pages.fornecedor.fornecedor-form')
+@livewire('filament.pages.fornecedor-form')
 
 </x-filament-panels::page>
