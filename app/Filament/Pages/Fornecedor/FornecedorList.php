@@ -30,7 +30,7 @@ class FornecedorList extends Page
     protected static string|BackedEnum|null $navigationIcon  = Heroicon::BuildingOffice2;
     protected static ?string $navigationLabel = 'Fornecedores';
     protected static ?int    $navigationSort  = 10;
-    protected static string  $view            = 'filament.pages.fornecedor-list';
+    protected string  $view = 'filament.pages.fornecedor-list';
 
     // ─────────────────────────────────────────────────────────────────────────
     // Propriedades reativas (Livewire)
@@ -77,12 +77,12 @@ class FornecedorList extends Page
     public function getFornecedoresProperty(): LengthAwarePaginator
     {
         return app(FornecedorService::class)->listar(
-            search:    $this->search,
+            search: $this->search,
             categoria: $this->filtroCategoria ?: null,
-            status:    $this->filtroStatus    ?: null,
-            sortCol:   $this->sortCol,
-            sortDir:   $this->sortDir,
-            perPage:   $this->perPage,
+            status: $this->filtroStatus    ?: null,
+            sortCol: $this->sortCol,
+            sortDir: $this->sortDir,
+            perPage: $this->perPage,
         );
     }
 
@@ -172,9 +172,18 @@ class FornecedorList extends Page
     // Reset de página ao mudar filtros
     // ─────────────────────────────────────────────────────────────────────────
 
-    public function updatedSearch(): void          { $this->resetPage(); }
-    public function updatedFiltroCategoria(): void { $this->resetPage(); }
-    public function updatedFiltroStatus(): void    { $this->resetPage(); }
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+    public function updatedFiltroCategoria(): void
+    {
+        $this->resetPage();
+    }
+    public function updatedFiltroStatus(): void
+    {
+        $this->resetPage();
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Dados passados para a view
