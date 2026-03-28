@@ -17,7 +17,11 @@ php artisan storage:link --force 2>/dev/null || true
 
 # ── Build dos assets ───────────────────────────────────────────────────────
 if [ ! -d "public/build" ]; then
-    npm ci
+    if [ -f "package-lock.json" ]; then
+        npm ci
+    else
+        npm install
+    fi
     npm run build
 fi
 
