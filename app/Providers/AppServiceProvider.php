@@ -5,30 +5,20 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Filament\Support\Facades\FilamentAsset;
 use Filament\Support\Assets\Css;
-use Filament\Support\Assets\Js;
 use Illuminate\Support\Facades\URL;
-
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
-    {
-        FilamentAsset::register([
+    public function register(): void {}
 
-            Css::make('geral', asset('css/geral.css')),
-        ]);
-    }
-
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        if (config('app.env') === 'production') {
+        if (app()->environment('production')) {
             URL::forceScheme('https');
         }
+
+        FilamentAsset::register([
+            Css::make('geral', secure_asset('css/geral.css')),
+        ]);
     }
 }
