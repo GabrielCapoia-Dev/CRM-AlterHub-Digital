@@ -3,11 +3,11 @@
 namespace App\Providers\Filament;
 
 use Illuminate\Support\Facades\Auth;
-use App\Services\UserService;
+use App\Services\Acesso\UserService;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LaudoArquivoController;
 use Filament\Actions\Action as GlobalAction;
-use App\Models\User;
+use App\Models\Acesso\User;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Support\Facades\Blade;
 use Caresome\FilamentAuthDesigner\AuthDesignerPlugin;
