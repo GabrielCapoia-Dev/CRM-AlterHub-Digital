@@ -506,7 +506,7 @@ html.dark {
 /* Overlay do modal */
 .fi-modal-backdrop,
 .fi-overlay-backdrop {
-    background: rgba(10, 26, 74, 0.92) !important;
+    background: rgba(10, 26, 74, 0.97) !important;
     backdrop-filter: none !important;
 }
 
