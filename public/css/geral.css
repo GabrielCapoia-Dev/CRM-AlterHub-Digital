@@ -571,3 +571,27 @@ html.dark {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--ub-neutral-400);
 }
+
+
+/* ── Modal Filament: altura máxima + scroll interno + footer fixo ── */
+.fi-modal-window {
+    max-height: 90vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+/* Corpo scrollável */
+.fi-modal-window .fi-modal-content {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+}
+
+/* Footer fixo na base */
+.fi-modal-window .fi-modal-footer {
+    flex-shrink: 0 !important;
+    border-top: 1px solid var(--ub-neutral-100);
+    background: var(--ub-white);
+    padding: 1rem 1.5rem;
+}
