@@ -1,0 +1,538 @@
+/* ═══════════════════════════════════════════════
+   UNIBIOTECH — Filament Custom Theme
+   Design System v1.0 | Light Mode Only
+   ═══════════════════════════════════════════════ */
+
+/* ── TOKENS ────────────────────────────────────── */
+:root {
+    /* Primary Navy */
+    --ub-primary-950: #11192D;
+    --ub-primary-900: #0f2261;
+    --ub-primary-800: #17368D;
+    --ub-primary-700: #1e45a8;
+    --ub-primary-600: #2a58c0;
+    --ub-primary-500: #3a6dd6;
+    --ub-primary-400: #5a8be6;
+    --ub-primary-300: #7ea8f0;
+    --ub-primary-200: #a8c5f5;
+    --ub-primary-100: #d0e0fa;
+    --ub-primary-50:  #eaf1fd;
+
+    /* Secondary Sky */
+    --ub-sky-400: #93C0E7;
+    --ub-sky-300: #9CC7E7;
+    --ub-sky-200: #b8d8f0;
+    --ub-sky-100: #d8ecf7;
+    --ub-sky-50:  #eef6fc;
+
+    /* Accent Teal */
+    --ub-teal-500: #00c9a7;
+    --ub-teal-100: #d4fbf4;
+
+    /* Neutral */
+    --ub-neutral-900: #0f1729;
+    --ub-neutral-800: #1a2340;
+    --ub-neutral-700: #2d3756;
+    --ub-neutral-600: #47516e;
+    --ub-neutral-500: #6b7694;
+    --ub-neutral-400: #9098b0;
+    --ub-neutral-300: #b4bace;
+    --ub-neutral-200: #d4d8e6;
+    --ub-neutral-100: #e8ebf2;
+    --ub-neutral-50:  #f4f5f9;
+    --ub-white:       #fefefe;
+
+    /* Shadows */
+    --ub-shadow-sm: 0 1px 3px rgba(15, 34, 97, 0.06), 0 1px 2px rgba(15, 34, 97, 0.04);
+    --ub-shadow-md: 0 4px 6px rgba(15, 34, 97, 0.07), 0 2px 4px rgba(15, 34, 97, 0.04);
+    --ub-shadow-lg: 0 10px 15px rgba(15, 34, 97, 0.10), 0 4px 6px rgba(15, 34, 97, 0.05);
+    --ub-shadow-sidebar: 2px 0 16px rgba(10, 26, 74, 0.12);
+}
+
+/* ── RESET DARK MODE ───────────────────────────── */
+/* Garante que nunca aplique tema escuro */
+.dark,
+[data-theme="dark"],
+html.dark {
+    color-scheme: light !important;
+}
+
+/* ═══════════════════════════════════════════════
+   TOPBAR / HEADER
+   ═══════════════════════════════════════════════ */
+.fi-topbar {
+    background: var(--ub-primary-900);
+    border-bottom: 1px solid rgba(156, 199, 231, 0.10);
+    box-shadow: 0 2px 12px rgba(10, 26, 74, 0.20);
+    backdrop-filter: blur(12px);
+}
+
+/* Logo no topbar */
+.fi-logo {
+    color: var(--ub-white);
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+    opacity: 0.92;
+}
+
+/* Ícones do topbar (hambúrguer, chevron) */
+.fi-topbar .fi-icon-btn {
+    color: rgba(255, 255, 255, 0.55);
+    transition: color 0.2s, background 0.2s;
+}
+.fi-topbar .fi-icon-btn:hover {
+    color: var(--ub-white);
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+
+/* Global search no topbar */
+.fi-global-search .fi-input-wrp {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1.5px solid rgba(156, 199, 231, 0.15);
+    border-radius: 8px;
+    transition: border-color 0.2s, background 0.2s;
+}
+.fi-global-search .fi-input-wrp:focus-within {
+    background: rgba(255, 255, 255, 0.11);
+    border-color: rgba(156, 199, 231, 0.35);
+    box-shadow: 0 0 0 3px rgba(23, 54, 141, 0.20);
+}
+.fi-global-search .fi-input {
+    background: transparent;
+    color: var(--ub-white);
+    font-size: 0.875rem;
+}
+.fi-global-search .fi-input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+.fi-global-search .fi-input-wrp-prefix svg {
+    color: rgba(255, 255, 255, 0.40);
+}
+
+/* Avatar do usuário no topbar */
+.fi-user-menu-trigger {
+    border: 2px solid rgba(156, 199, 231, 0.25);
+    border-radius: 50%;
+    transition: border-color 0.2s;
+}
+.fi-user-menu-trigger:hover {
+    border-color: var(--ub-sky-400);
+}
+
+/* ═══════════════════════════════════════════════
+   SIDEBAR
+   ═══════════════════════════════════════════════ */
+.fi-sidebar,
+.fi-main-sidebar {
+    background: var(--ub-primary-950);
+    border-right: 1px solid rgba(156, 199, 231, 0.06);
+    box-shadow: var(--ub-shadow-sidebar);
+}
+
+/* Header da sidebar (logo) */
+.fi-sidebar-header {
+    background: var(--ub-primary-900);
+    border-bottom: 1px solid rgba(156, 199, 231, 0.08);
+    padding: 1rem 1.25rem;
+}
+.fi-sidebar-header .fi-logo {
+    color: var(--ub-white);
+}
+
+/* Nav da sidebar */
+.fi-sidebar-nav {
+    background: transparent;
+    background-color: red;
+    box-shadow: none;
+    padding: 0.75rem 0.625rem;
+}
+
+/* Group label */
+.fi-sidebar-group-label {
+    color: rgba(255, 255, 255, 0.28);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+/* Botão de colapso do grupo */
+.fi-sidebar-group-collapse-btn {
+    color: rgba(255, 255, 255, 0.28);
+}
+.fi-sidebar-group-collapse-btn:hover {
+    color: rgba(255, 255, 255, 0.60);
+    background: transparent;
+}
+
+/* Item da sidebar */
+.fi-sidebar-item-btn {
+    color: rgba(255, 255, 255, 0.48);
+    border-radius: 8px;
+    padding: 0.625rem 0.75rem;
+    gap: 0.75rem;
+    transition: background 0.18s, color 0.18s;
+}
+.fi-sidebar-item-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.80);
+}
+
+/* Item ativo */
+.fi-sidebar-item.fi-active .fi-sidebar-item-btn,
+.fi-sidebar-item-btn[data-current] {
+    background: rgba(156, 199, 231, 0.12) !important;
+    color: var(--ub-sky-300) !important;
+}
+
+/* Ícones dos itens */
+.fi-sidebar-item-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+}
+
+/* Label dos itens */
+.fi-sidebar-item-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Overlay de fechar sidebar (mobile) */
+.fi-sidebar-close-overlay {
+    background: rgba(10, 26, 74, 0.55);
+    backdrop-filter: blur(4px);
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN CONTENT AREA
+   ═══════════════════════════════════════════════ */
+.fi-main {
+    background: var(--ub-neutral-50);
+}
+
+.fi-page-content {
+    padding: 1.5rem;
+}
+
+/* ═══════════════════════════════════════════════
+   DROPDOWN (User menu, filtros, etc.)
+   ═══════════════════════════════════════════════ */
+.fi-dropdown-panel {
+    background: var(--ub-white);
+    border: 1px solid var(--ub-neutral-200);
+    border-radius: 12px;
+    box-shadow: var(--ub-shadow-lg);
+    overflow: hidden;
+}
+
+.fi-dropdown-list-item {
+    color: var(--ub-neutral-700);
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.625rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    transition: background 0.15s, color 0.15s;
+    text-decoration: none;
+    border: none;
+    background: transparent;
+    width: 100%;
+    cursor: pointer;
+}
+.fi-dropdown-list-item:hover {
+    background: var(--ub-primary-50);
+    color: var(--ub-primary-800);
+}
+.fi-dropdown-list-item .fi-icon {
+    color: var(--ub-neutral-500);
+    width: 1.125rem;
+    height: 1.125rem;
+}
+.fi-dropdown-list-item:hover .fi-icon {
+    color: var(--ub-primary-600);
+}
+
+.fi-dropdown-list {
+    padding: 0.375rem;
+}
+.fi-dropdown-list + .fi-dropdown-list {
+    border-top: 1px solid var(--ub-neutral-100);
+}
+
+/* ═══════════════════════════════════════════════
+   TABLES
+   ═══════════════════════════════════════════════ */
+.fi-ta-ctn,
+.fi-ta-ctn.fi-ta-ctn-with-footer.fi-ta-ctn-with-header {
+    background: var(--ub-white);
+    border: 1px solid var(--ub-neutral-200);
+    border-radius: 16px;
+    box-shadow: var(--ub-shadow-md);
+    overflow: hidden;
+}
+
+/* Header da tabela (toolbar: busca, filtros, botões) */
+.fi-ta-header-toolbar {
+    background: var(--ub-white);
+    border-bottom: 1px solid var(--ub-neutral-100);
+    padding: 1rem 1.25rem;
+}
+
+/* Cabeçalho das colunas */
+.fi-ta-header-cell {
+    background: var(--ub-neutral-50);
+    color: var(--ub-neutral-500);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid var(--ub-neutral-100);
+}
+.fi-ta-header-cell:hover {
+    color: var(--ub-neutral-800);
+}
+
+/* Células do corpo */
+.fi-ta-cell {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--ub-neutral-100);
+    color: var(--ub-neutral-700);
+    font-size: 0.875rem;
+    vertical-align: middle;
+}
+
+/* Hover na linha */
+.fi-ta-row:hover .fi-ta-cell {
+    background: var(--ub-primary-50);
+}
+
+/* Última linha sem borda */
+.fi-ta-row:last-child .fi-ta-cell {
+    border-bottom: none;
+}
+
+/* Footer da tabela (paginação) */
+.fi-ta-footer {
+    background: var(--ub-white);
+    border-top: 1px solid var(--ub-neutral-100);
+    padding: 0.75rem 1.25rem;
+}
+
+/* ═══════════════════════════════════════════════
+   PAGINAÇÃO
+   ═══════════════════════════════════════════════ */
+.fi-pagination-item button,
+.fi-pagination-item a {
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--ub-neutral-600);
+    border: 1px solid transparent;
+    transition: all 0.15s;
+}
+.fi-pagination-item button:hover,
+.fi-pagination-item a:hover {
+    background: var(--ub-neutral-50);
+    border-color: var(--ub-neutral-200);
+    color: var(--ub-neutral-800);
+}
+.fi-pagination-item--active button,
+.fi-pagination-item--active a {
+    background: var(--ub-primary-800) !important;
+    color: #fff !important;
+    border-color: var(--ub-primary-800) !important;
+}
+
+/* ═══════════════════════════════════════════════
+   BADGES / TAGS
+   ═══════════════════════════════════════════════ */
+.fi-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    padding: 3px 10px;
+}
+
+/* ═══════════════════════════════════════════════
+   BOTÕES
+   ═══════════════════════════════════════════════ */
+.fi-btn {
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+/* Primary button */
+.fi-btn-color-primary {
+    background: var(--ub-primary-800);
+    border-color: var(--ub-primary-800);
+    color: #fff;
+}
+.fi-btn-color-primary:hover {
+    background: var(--ub-primary-50);
+    box-shadow: 0 6px 20px rgba(23, 54, 141, 0.30);
+}
+
+/* Gray/Secondary button */
+.fi-btn-color-gray {
+    background: var(--ub-white);
+    border-color: var(--ub-neutral-200);
+    color: var(--ub-neutral-700);
+}
+.fi-btn-color-gray:hover {
+    background: var(--ub-neutral-50);
+    border-color: var(--ub-neutral-300);
+}
+
+/* ═══════════════════════════════════════════════
+   INPUTS / FORMS
+   ═══════════════════════════════════════════════ */
+.fi-input-wrp {
+    border-radius: 8px;
+    border: 1.5px solid var(--ub-neutral-200);
+    background: var(--ub-white);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.fi-input-wrp:focus-within {
+    border-color: var(--ub-primary-600);
+    box-shadow: 0 0 0 3px rgba(23, 54, 141, 0.12);
+}
+
+.fi-input,
+.fi-select-input,
+.fi-textarea-input {
+    background: transparent;
+    color: var(--ub-neutral-800);
+    font-size: 0.875rem;
+}
+.fi-input::placeholder,
+.fi-textarea-input::placeholder {
+    color: var(--ub-neutral-400);
+}
+
+.fi-fo-field-wrp-label label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ub-neutral-700);
+}
+
+.fi-fo-field-wrp-helper-text {
+    font-size: 0.75rem;
+    color: var(--ub-neutral-500);
+}
+
+/* ═══════════════════════════════════════════════
+   SECTION / PAGE HEADER
+   ═══════════════════════════════════════════════ */
+.fi-header-heading {
+    color: var(--ub-neutral-900);
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: -0.015em;
+}
+
+.fi-header-subheading {
+    color: var(--ub-neutral-500);
+    font-size: 0.9rem;
+}
+
+/* ═══════════════════════════════════════════════
+   MODALS
+   ═══════════════════════════════════════════════ */
+.fi-modal-window {
+    background: var(--ub-white);
+    border-radius: 20px;
+    box-shadow: 0 25px 50px rgba(10, 26, 74, 0.18);
+    border: 1px solid var(--ub-neutral-200);
+}
+
+.fi-modal-header {
+    border-bottom: 1px solid var(--ub-neutral-100);
+    padding: 1.25rem 1.5rem;
+}
+
+.fi-modal-heading {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ub-neutral-900);
+}
+
+.fi-modal-footer {
+    border-top: 1px solid var(--ub-neutral-100);
+    padding: 1rem 1.5rem;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+/* Overlay do modal */
+.fi-modal-backdrop,
+.fi-overlay-backdrop {
+    background: rgba(10, 26, 74, 0.55);
+    backdrop-filter: blur(6px);
+}
+
+/* ═══════════════════════════════════════════════
+   NOTIFICATIONS / TOASTS
+   ═══════════════════════════════════════════════ */
+.fi-no-notification {
+    background: var(--ub-white);
+    border: 1px solid var(--ub-neutral-200);
+    border-radius: 12px;
+    box-shadow: var(--ub-shadow-lg);
+}
+
+/* ═══════════════════════════════════════════════
+   SECTION CONTAINER (cards de seção no conteúdo)
+   ═══════════════════════════════════════════════ */
+.fi-section {
+    background: var(--ub-white);
+    border: 1px solid var(--ub-neutral-200);
+    border-radius: 16px;
+    box-shadow: var(--ub-shadow-sm);
+}
+
+.fi-section-header {
+    border-bottom: 1px solid var(--ub-neutral-100);
+    padding: 1rem 1.25rem;
+}
+
+.fi-section-header-heading {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ub-neutral-800);
+}
+
+/* ═══════════════════════════════════════════════
+   WIDGETS (AccountWidget, FilamentInfoWidget)
+   ═══════════════════════════════════════════════ */
+.fi-wi-account {
+    background: var(--ub-white);
+    border: 1px solid var(--ub-neutral-200);
+    border-radius: 16px;
+    box-shadow: var(--ub-shadow-sm);
+}
+
+/* ═══════════════════════════════════════════════
+   SCROLLBAR (estilo minimalista)
+   ═══════════════════════════════════════════════ */
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--ub-neutral-300);
+    border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--ub-neutral-400);
+}
