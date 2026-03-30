@@ -374,7 +374,7 @@ html.dark {
     color: #fff;
 }
 .fi-btn-color-primary:hover {
-    background: var(--ub-primary-700);
+    background: var(--ub-primary-50);
     box-shadow: 0 6px 20px rgba(23, 54, 141, 0.30);
 }
 
