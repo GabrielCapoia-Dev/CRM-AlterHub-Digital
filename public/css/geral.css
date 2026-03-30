@@ -595,3 +595,9 @@ html.dark {
     background: var(--ub-white);
     padding: 1rem 1.5rem;
 }
+
+/* ── Backdrop do modal opaco ── */
+.fi-modal-backdrop {
+    background: rgba(10, 26, 74, 0.85) !important;
+    backdrop-filter: none !important;
+}
