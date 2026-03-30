@@ -18,7 +18,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         FilamentAsset::register([
-            Css::make('geral', secure_asset('css/geral.css')),
+            Css::make('geral', secure_asset('css/geral.css?v=' . filemtime(public_path('css/geral.css')))),
         ]);
     }
 }
