@@ -3,40 +3,43 @@ set -e
 
 cd /var/www
 
+# Permissões (após mount do volume)
+chown -R www-data:www-data \
+    /var/www/storage \
+    /var/www/bootstrap/cache
+
+chmod -R 775 \
+    /var/www/storage \
+    /var/www/bootstrap/cache
+
+# Dependências PHP
 if [ ! -f "vendor/autoload.php" ]; then
     composer install --no-interaction --prefer-dist --optimize-autoloader
 fi
 
+# APP_KEY
 if [ -z "$APP_KEY" ] || [ "$APP_KEY" = "base64:" ]; then
     php artisan key:generate --force
 fi
 
+# Migrations
 php artisan migrate --force --seed
 
+# Storage link
 php artisan storage:link --force 2>/dev/null || true
 
-# ── Build dos assets ───────────────────────────────────────────────────────
-if [ ! -d "public/build" ]; then
-    if [ -f "package-lock.json" ]; then
-        npm ci
-    else
-        npm install
-    fi
-    npm run build
-fi
-
-# ── Limpa caches antigos antes de reconstruir ──────────────────────────────
+# Limpa caches
 php artisan config:clear
 php artisan route:clear
 php artisan event:clear
 php artisan view:clear
 
-# ── Reconstrói cache com variáveis de ambiente corretas do runtime ──────────
+# Recria caches
 php artisan config:cache
 php artisan route:cache
 php artisan event:cache
 php artisan filament:cache-components
 
-# ── Inicia php-fpm em background e nginx em foreground ─────────────────────
+# Start
 php-fpm -D
 nginx -g "daemon off;"
