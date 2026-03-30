@@ -92,6 +92,10 @@ html.dark {
     color: var(--ub-primary-50) !important;
 }
 
+.fi-sidebar-item-btn>.fi-icon {
+    color: var(--ub-primary-50) !important;
+}
+
 .fi-sidebar-item-label {
     color: var(--ub-primary-50) !important;
 }
