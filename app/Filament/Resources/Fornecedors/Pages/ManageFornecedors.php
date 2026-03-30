@@ -18,7 +18,8 @@ class ManageFornecedors extends ManageRecords
                 ->modalWidth('4xl')
                 ->modalHeading('Novo fornecedor')
                 ->modalDescription('Preencha os dados fiscais, classificação e contato do fornecedor.')
-                ->slideOver(false),
+                ->slideOver(false)
+                ->createAnother(false),
         ];
     }
 }
