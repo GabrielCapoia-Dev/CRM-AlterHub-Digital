@@ -34,7 +34,6 @@ class GerenciarDependenciasAction extends Action
             ->modalDescription('Cadastre e edite as opções disponíveis nos selects do formulário de fornecedores.')
             ->modalIcon(Heroicon::OutlinedCog6Tooth)
             ->slideOver(false)
-            ->createAnother(false)
             ->fillForm(function (): array {
                 return [
                     'categorias'      => CategoriaFornecimento::orderBy('nome')->get(['id', 'nome'])->toArray(),
