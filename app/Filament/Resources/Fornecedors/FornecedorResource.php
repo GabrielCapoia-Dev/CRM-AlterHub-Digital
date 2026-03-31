@@ -89,7 +89,6 @@ class FornecedorResource extends Resource
                             ->mask('99.999.999/9999-99')
                             ->placeholder('00.000.000/0001-00')
                             ->unique(table: 'fornecedores', column: 'cnpj', ignoreRecord: true)
-                            ->rules(['required', 'cnpj']) // pacote LaravelBr/BrazilianForms ou regra customizada
                             ->rule(function () {
                                 return function (string $attribute, $value, \Closure $fail) {
                                     $cnpj = preg_replace('/\D/', '', $value);
