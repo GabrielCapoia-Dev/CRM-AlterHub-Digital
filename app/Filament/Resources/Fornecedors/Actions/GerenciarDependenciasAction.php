@@ -29,7 +29,7 @@ class GerenciarDependenciasAction extends Action
             ->label('Gerenciar dependências')
             ->icon(Heroicon::OutlinedCog6Tooth)
             ->color('gray')
-            ->modalWidth('2xl')
+            ->modalWidth('5xl')
             ->modalHeading('Gerenciar dependências')
             ->modalDescription('Cadastre e edite as opções disponíveis nos selects do formulário de fornecedores.')
             ->modalIcon(Heroicon::OutlinedCog6Tooth)
