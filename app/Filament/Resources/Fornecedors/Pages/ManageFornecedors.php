@@ -4,7 +4,7 @@ namespace App\Filament\Resources\Fornecedors\Pages;
 
 use App\Filament\Resources\Fornecedors\FornecedorResource;
 use Filament\Actions\CreateAction;
-use Filament\Actions\EditAction;
+use App\Filament\Resources\Fornecedors\Actions\GerenciarDependenciasAction;
 use Filament\Resources\Pages\ManageRecords;
 
 class ManageFornecedors extends ManageRecords
@@ -14,6 +14,10 @@ class ManageFornecedors extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
+            
+            GerenciarDependenciasAction::make(),
+
+
             CreateAction::make()
                 ->modalWidth('4xl')
                 ->modalHeading('Novo fornecedor')
