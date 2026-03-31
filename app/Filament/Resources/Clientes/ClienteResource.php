@@ -14,7 +14,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Filament\Schemas\Components\Section;
-use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Forms\Components\TextInput;
@@ -130,11 +129,15 @@ class ClienteResource extends Resource
                                 'unique'   => 'Este CNPJ já está cadastrado.',
                             ]),
 
-                        TextInput::make('segmento')
+                        Select::make('id_categoria_segmento')
                             ->label('Segmento')
-                            ->maxLength(100)
-                            ->placeholder('Ex.: Laboratório clínico, Hospital, Clínica')
-                            ->helperText('Segmento de atuação do cliente.'),
+                            ->relationship('categoriaSegmento', 'nome')
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->validationMessages([
+                                'required' => 'Selecione o segmento do cliente.',
+                            ]),
 
                         Select::make('id_status_cliente')
                             ->label('Status do cliente')
@@ -325,7 +328,7 @@ class ClienteResource extends Resource
                     ->searchable()
                     ->fontFamily('mono'),
 
-                TextColumn::make('segmento')
+                TextColumn::make('categoriaSegmento.nome')
                     ->label('Segmento')
                     ->sortable()
                     ->badge()
@@ -360,6 +363,12 @@ class ClienteResource extends Resource
             ->searchPlaceholder('Buscar por razão social, CNPJ ou código…')
 
             ->filters([
+                SelectFilter::make('id_categoria_segmento')
+                    ->label('Segmento')
+                    ->relationship('categoriaSegmento', 'nome')
+                    ->searchable()
+                    ->preload(),
+
                 SelectFilter::make('id_status_cliente')
                     ->label('Status do cliente')
                     ->relationship('statusCliente', 'nome')

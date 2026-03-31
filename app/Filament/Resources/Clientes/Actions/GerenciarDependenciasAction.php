@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Clientes\Actions;
 
+use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Status\StatusCliente;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
@@ -26,19 +27,43 @@ class GerenciarDependenciasAction extends Action
             ->label('Gerenciar dependências')
             ->icon(Heroicon::OutlinedCog6Tooth)
             ->color('gray')
-            ->modalWidth('2xl')
+            ->modalWidth('3xl')
             ->modalHeading('Gerenciar dependências')
             ->modalDescription('Cadastre e edite as opções disponíveis nos selects do formulário de clientes.')
             ->modalIcon(Heroicon::OutlinedCog6Tooth)
             ->slideOver(false)
             ->fillForm(function (): array {
                 return [
-                    'status' => StatusCliente::orderBy('nome')->get(['id', 'nome'])->toArray(),
+                    'segmentos' => CategoriaSegmento::orderBy('nome')->get(['id', 'nome'])->toArray(),
+                    'status'    => StatusCliente::orderBy('nome')->get(['id', 'nome'])->toArray(),
                 ];
             })
             ->form([
                 Tabs::make('dependencias')
                     ->tabs([
+
+                        Tab::make('Segmentos')
+                            ->icon(Heroicon::OutlinedTag)
+                            ->schema([
+                                Repeater::make('segmentos')
+                                    ->label('')
+                                    ->schema([
+                                        TextInput::make('nome')
+                                            ->label('Nome do segmento')
+                                            ->required()
+                                            ->maxLength(100)
+                                            ->placeholder('Ex.: Laboratório clínico')
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->addActionLabel('+ Adicionar segmento')
+                                    ->reorderableWithDragAndDrop(false)
+                                    ->collapsible(false)
+                                    ->cloneable(false)
+                                    ->itemLabel(fn (array $state): ?string => $state['nome'] ?? 'Novo segmento')
+                                    ->defaultItems(0)
+                                    ->grid(1)
+                                    ->extraAttributes(['class' => 'dep-table-repeater']),
+                            ]),
 
                         Tab::make('Status')
                             ->icon(Heroicon::OutlinedCheckBadge)
@@ -67,7 +92,8 @@ class GerenciarDependenciasAction extends Action
                     ->columnSpanFull(),
             ])
             ->action(function (array $data): void {
-                $this->sincronizar(StatusCliente::class, $data['status'] ?? []);
+                $this->sincronizar(CategoriaSegmento::class, $data['segmentos'] ?? []);
+                $this->sincronizar(StatusCliente::class,     $data['status']    ?? []);
 
                 Notification::make()
                     ->title('Dependências atualizadas')

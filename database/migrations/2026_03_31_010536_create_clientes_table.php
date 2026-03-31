@@ -14,6 +14,12 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        Schema::create('categorias_segmentos', function (Blueprint $table) {
+            $table->id();
+            $table->string('nome');
+            $table->timestamps();
+        });
+
         Schema::create('clientes', function (Blueprint $table) {
             $table->id();
 
@@ -25,11 +31,16 @@ return new class extends Migration
                 ->cascadeOnUpdate()
                 ->nullOnDelete();
 
+            $table->foreignId('id_categoria_segmento')
+                ->nullable()
+                ->constrained('categorias_segmentos')
+                ->cascadeOnUpdate()
+                ->nullOnDelete();
+
             // Empresa
             $table->string('razao_social');
             $table->string('nome_fantasia')->nullable();
             $table->string('cnpj', 18)->nullable()->unique();
-            $table->string('segmento')->nullable();
 
             // Contato
             $table->string('nome_completo')->nullable();
@@ -60,6 +71,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('clientes');
+        Schema::dropIfExists('categorias_segmentos');
         Schema::dropIfExists('status_clientes');
     }
 };

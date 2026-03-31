@@ -2,6 +2,7 @@
 
 namespace App\Models\Clientes;
 
+use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Status\StatusCliente;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,9 +16,9 @@ class Cliente extends Model
         'razao_social',
         'nome_fantasia',
         'cnpj',
-        'segmento',
 
         'id_status_cliente',
+        'id_categoria_segmento',
 
         'nome_completo',
         'cargo',
@@ -36,14 +37,29 @@ class Cliente extends Model
     ];
 
     protected $casts = [
-        'id_status_cliente' => 'integer',
+        'id_status_cliente'     => 'integer',
+        'id_categoria_segmento' => 'integer',
     ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | RELACIONAMENTOS
+    |--------------------------------------------------------------------------
+    */
 
     public function statusCliente(): BelongsTo
     {
         return $this->belongsTo(
             StatusCliente::class,
             'id_status_cliente'
+        );
+    }
+
+    public function categoriaSegmento(): BelongsTo
+    {
+        return $this->belongsTo(
+            CategoriaSegmento::class,
+            'id_categoria_segmento'
         );
     }
 }
