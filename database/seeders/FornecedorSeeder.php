@@ -14,7 +14,7 @@ class FornecedorSeeder extends Seeder
     public function run(): void
     {
         // ── Categorias de fornecimento ────────────────────────────────────
-        $categorias = collect([
+        foreach ([
             'Reagentes / insumos',
             'Equipamentos',
             'Serviços',
@@ -22,41 +22,49 @@ class FornecedorSeeder extends Seeder
             'Embalagens',
             'Tecnologia da informação',
             'Manutenção e calibração',
-        ])->map(fn ($nome) => CategoriaFornecimento::firstOrCreate(['nome' => $nome]));
+        ] as $nome) {
+            CategoriaFornecimento::firstOrCreate(['nome' => $nome]);
+        }
 
         // ── Status de homologação ─────────────────────────────────────────
-        $statusList = collect([
+        foreach ([
             'Em homologação',
             'Homologado',
             'Pendência documental',
             'Suspenso',
             'Inativo',
-        ])->map(fn ($nome) => StatusHomologacao::firstOrCreate(['nome' => $nome]));
+        ] as $nome) {
+            StatusHomologacao::firstOrCreate(['nome' => $nome]);
+        }
 
         // ── Prazos de pagamento ───────────────────────────────────────────
-        $prazos = collect([
+        foreach ([
             '15 dias',
             '30 dias',
             '45 dias',
             '60 dias',
             '90 dias',
             'À vista',
-        ])->map(fn ($nome) => PrazoPagamento::firstOrCreate(['nome' => $nome]));
+        ] as $nome) {
+            PrazoPagamento::firstOrCreate(['nome' => $nome]);
+        }
 
         // ── Formas de pagamento ───────────────────────────────────────────
-        $formas = collect([
+        foreach ([
             'Boleto bancário',
             'Pix',
             'Transferência (TED / DOC)',
             'Cartão corporativo',
             'Cheque',
-        ])->map(fn ($nome) => FormaPagamento::firstOrCreate(['nome' => $nome]));
+        ] as $nome) {
+            FormaPagamento::firstOrCreate(['nome' => $nome]);
+        }
 
-        // ── Helpers de lookup ─────────────────────────────────────────────
-        $categoria  = fn (string $nome) => $categorias->firstWhere('nome', $nome)->id;
-        $status     = fn (string $nome) => $statusList->firstWhere('nome', $nome)->id;
-        $prazo      = fn (string $nome) => $prazos->firstWhere('nome', $nome)->id;
-        $forma      = fn (string $nome) => $formas->firstWhere('nome', $nome)->id;
+        // ── Helpers de lookup (busca do banco após criar) ─────────────────
+        $categoria = fn (string $nome) => CategoriaFornecimento::where('nome', $nome)->value('id');
+        $status    = fn (string $nome) => StatusHomologacao::where('nome', $nome)->value('id');
+        $prazo     = fn (string $nome) => PrazoPagamento::where('nome', $nome)->value('id');
+        $forma     = fn (string $nome) => FormaPagamento::where('nome', $nome)->value('id');
 
         // ── Fornecedores ──────────────────────────────────────────────────
         $fornecedores = [
