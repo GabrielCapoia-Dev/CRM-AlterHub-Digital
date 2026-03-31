@@ -33,7 +33,7 @@ class PainelPanelProvider extends PanelProvider
             ->login()
             ->profile()
             ->spa()
-            ->sidebar(false)
+            ->topbar(false)
             ->darkMode(false)
             ->sidebarCollapsibleOnDesktop()
             ->colors([
