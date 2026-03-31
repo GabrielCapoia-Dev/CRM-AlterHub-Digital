@@ -641,3 +641,8 @@ html.dark {
     font-size: 0.875rem !important;
     padding: 0.375rem 0.5rem !important;
 }
+
+.fi-main.fi-width-7xl,
+.fi-width-7xl {
+    max-width: 96rem !important;
+}
