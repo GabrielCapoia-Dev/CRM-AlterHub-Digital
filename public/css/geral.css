@@ -47,9 +47,6 @@
     --ub-shadow-md: 0 4px 6px rgba(15, 34, 97, 0.07), 0 2px 4px rgba(15, 34, 97, 0.04);
     --ub-shadow-lg: 0 10px 15px rgba(15, 34, 97, 0.10), 0 4px 6px rgba(15, 34, 97, 0.05);
     --ub-shadow-sidebar: 2px 0 16px rgba(10, 26, 74, 0.12);
-
-
-    --sidebar-width: 14rem;
 }
 
 /* ── RESET DARK MODE ───────────────────────────── */
@@ -648,4 +645,9 @@ html.dark {
 .fi-main.fi-width-7xl,
 .fi-width-7xl {
     max-width: 110rem !important;
+}
+
+/* ── Sidebar width quando aberta ── */
+.fi-sidebar.fi-sidebar-open {
+    --sidebar-width: 14rem !important;
 }
