@@ -29,81 +29,90 @@ class GerenciarDependenciasAction extends Action
             ->label('Gerenciar dependências')
             ->icon(Heroicon::OutlinedCog6Tooth)
             ->color('gray')
-            ->modalWidth('5xl')
+            ->modalWidth('2xl')
             ->modalHeading('Gerenciar dependências')
             ->modalDescription('Cadastre e edite as opções disponíveis nos selects do formulário de fornecedores.')
             ->modalIcon(Heroicon::OutlinedCog6Tooth)
             ->slideOver(false)
             ->fillForm(function (): array {
                 return [
-                    'categorias'      => CategoriaFornecimento::orderBy('nome')->get(['id', 'nome'])->toArray(),
-                    'status'          => StatusHomologacao::orderBy('nome')->get(['id', 'nome'])->toArray(),
-                    'prazos'          => PrazoPagamento::orderBy('nome')->get(['id', 'nome'])->toArray(),
-                    'formas'          => FormaPagamento::orderBy('nome')->get(['id', 'nome'])->toArray(),
+                    'categorias' => CategoriaFornecimento::orderBy('nome')->get(['id', 'nome'])->toArray(),
+                    'status'     => StatusHomologacao::orderBy('nome')->get(['id', 'nome'])->toArray(),
+                    'prazos'     => PrazoPagamento::orderBy('nome')->get(['id', 'nome'])->toArray(),
+                    'formas'     => FormaPagamento::orderBy('nome')->get(['id', 'nome'])->toArray(),
                 ];
             })
             ->form([
                 Tabs::make('dependencias')
                     ->tabs([
 
-                        Tab::make('Categorias de fornecimento')
+                        Tab::make('Categorias')
                             ->icon(Heroicon::OutlinedTag)
                             ->schema([
                                 Repeater::make('categorias')
                                     ->label('')
                                     ->schema([
                                         TextInput::make('nome')
-                                            ->label('Nome')
+                                            ->label('Nome da categoria')
                                             ->required()
                                             ->maxLength(100)
-                                            ->placeholder('Ex.: Reagentes / insumos'),
+                                            ->placeholder('Ex.: Reagentes / insumos')
+                                            ->columnSpanFull(),
                                     ])
-                                    ->addActionLabel('Adicionar categoria')
-                                    ->reorderable()
-                                    ->collapsible()
+                                    ->addActionLabel('+ Adicionar categoria')
+                                    ->reorderableWithDragAndDrop(false)
+                                    ->collapsible(false)
                                     ->cloneable(false)
-                                    ->itemLabel(fn (array $state): ?string => $state['nome'] ?? null)
-                                    ->defaultItems(0),
+                                    ->itemLabel(fn (array $state): ?string => $state['nome'] ?? 'Nova categoria')
+                                    ->defaultItems(0)
+                                    ->grid(1)
+                                    ->extraAttributes(['class' => 'dep-table-repeater']),
                             ]),
 
-                        Tab::make('Status de homologação')
+                        Tab::make('Status')
                             ->icon(Heroicon::OutlinedCheckBadge)
                             ->schema([
                                 Repeater::make('status')
                                     ->label('')
                                     ->schema([
                                         TextInput::make('nome')
-                                            ->label('Nome')
+                                            ->label('Nome do status')
                                             ->required()
                                             ->maxLength(100)
-                                            ->placeholder('Ex.: Homologado'),
+                                            ->placeholder('Ex.: Homologado')
+                                            ->columnSpanFull(),
                                     ])
-                                    ->addActionLabel('Adicionar status')
-                                    ->reorderable()
-                                    ->collapsible()
+                                    ->addActionLabel('+ Adicionar status')
+                                    ->reorderableWithDragAndDrop(false)
+                                    ->collapsible(false)
                                     ->cloneable(false)
-                                    ->itemLabel(fn (array $state): ?string => $state['nome'] ?? null)
-                                    ->defaultItems(0),
+                                    ->itemLabel(fn (array $state): ?string => $state['nome'] ?? 'Novo status')
+                                    ->defaultItems(0)
+                                    ->grid(1)
+                                    ->extraAttributes(['class' => 'dep-table-repeater']),
                             ]),
 
-                        Tab::make('Prazos de pagamento')
+                        Tab::make('Prazos')
                             ->icon(Heroicon::OutlinedCalendarDays)
                             ->schema([
                                 Repeater::make('prazos')
                                     ->label('')
                                     ->schema([
                                         TextInput::make('nome')
-                                            ->label('Nome')
+                                            ->label('Nome do prazo')
                                             ->required()
                                             ->maxLength(100)
-                                            ->placeholder('Ex.: 30 dias'),
+                                            ->placeholder('Ex.: 30 dias')
+                                            ->columnSpanFull(),
                                     ])
-                                    ->addActionLabel('Adicionar prazo')
-                                    ->reorderable()
-                                    ->collapsible()
+                                    ->addActionLabel('+ Adicionar prazo')
+                                    ->reorderableWithDragAndDrop(false)
+                                    ->collapsible(false)
                                     ->cloneable(false)
-                                    ->itemLabel(fn (array $state): ?string => $state['nome'] ?? null)
-                                    ->defaultItems(0),
+                                    ->itemLabel(fn (array $state): ?string => $state['nome'] ?? 'Novo prazo')
+                                    ->defaultItems(0)
+                                    ->grid(1)
+                                    ->extraAttributes(['class' => 'dep-table-repeater']),
                             ]),
 
                         Tab::make('Formas de pagamento')
@@ -113,42 +122,30 @@ class GerenciarDependenciasAction extends Action
                                     ->label('')
                                     ->schema([
                                         TextInput::make('nome')
-                                            ->label('Nome')
+                                            ->label('Nome da forma')
                                             ->required()
                                             ->maxLength(100)
-                                            ->placeholder('Ex.: Boleto bancário'),
+                                            ->placeholder('Ex.: Boleto bancário')
+                                            ->columnSpanFull(),
                                     ])
-                                    ->addActionLabel('Adicionar forma')
-                                    ->reorderable()
-                                    ->collapsible()
+                                    ->addActionLabel('+ Adicionar forma')
+                                    ->reorderableWithDragAndDrop(false)
+                                    ->collapsible(false)
                                     ->cloneable(false)
-                                    ->itemLabel(fn (array $state): ?string => $state['nome'] ?? null)
-                                    ->defaultItems(0),
+                                    ->itemLabel(fn (array $state): ?string => $state['nome'] ?? 'Nova forma')
+                                    ->defaultItems(0)
+                                    ->grid(1)
+                                    ->extraAttributes(['class' => 'dep-table-repeater']),
                             ]),
 
                     ])
                     ->columnSpanFull(),
             ])
             ->action(function (array $data): void {
-                $this->sincronizar(
-                    CategoriaFornecimento::class,
-                    $data['categorias'] ?? []
-                );
-
-                $this->sincronizar(
-                    StatusHomologacao::class,
-                    $data['status'] ?? []
-                );
-
-                $this->sincronizar(
-                    PrazoPagamento::class,
-                    $data['prazos'] ?? []
-                );
-
-                $this->sincronizar(
-                    FormaPagamento::class,
-                    $data['formas'] ?? []
-                );
+                $this->sincronizar(CategoriaFornecimento::class, $data['categorias'] ?? []);
+                $this->sincronizar(StatusHomologacao::class,     $data['status']     ?? []);
+                $this->sincronizar(PrazoPagamento::class,        $data['prazos']     ?? []);
+                $this->sincronizar(FormaPagamento::class,        $data['formas']     ?? []);
 
                 Notification::make()
                     ->title('Dependências atualizadas')
@@ -158,25 +155,13 @@ class GerenciarDependenciasAction extends Action
             });
     }
 
-    /**
-     * Sincroniza os itens do Repeater com a tabela correspondente.
-     * - Itens com 'id' existente → atualiza o nome
-     * - Itens sem 'id' → cria novo registro
-     * - IDs que sumiram do Repeater → NÃO deleta (segurança: pode ter FK ativa)
-     */
     private function sincronizar(string $model, array $itens): void
     {
-        $idsEnviados = [];
-
         foreach ($itens as $item) {
             if (!empty($item['id'])) {
-                // Atualiza existente
                 $model::where('id', $item['id'])->update(['nome' => $item['nome']]);
-                $idsEnviados[] = $item['id'];
             } else {
-                // Cria novo
-                $novo = $model::create(['nome' => $item['nome']]);
-                $idsEnviados[] = $novo->id;
+                $model::create(['nome' => $item['nome']]);
             }
         }
     }

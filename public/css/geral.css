@@ -595,3 +595,49 @@ html.dark {
     background: var(--ub-white);
     padding: 1rem 1.5rem;
 }
+
+/* ── Repeater estilo tabela (dependências) ── */
+.dep-table-repeater .fi-fo-repeater-item {
+    border: none !important;
+    border-bottom: 1px solid var(--ub-neutral-100) !important;
+    border-radius: 0 !important;
+    padding: 0.625rem 0.75rem !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.dep-table-repeater .fi-fo-repeater-item:first-child {
+    border-top: 2px solid var(--ub-neutral-200) !important;
+}
+
+.dep-table-repeater .fi-fo-repeater-item:last-child {
+    border-bottom: none !important;
+}
+
+.dep-table-repeater .fi-fo-repeater-item:hover {
+    background: var(--ub-primary-50) !important;
+}
+
+/* Esconde label e helper text dentro do repeater-tabela */
+.dep-table-repeater .fi-fo-field-wrp-label,
+.dep-table-repeater .fi-fo-field-wrp-helper-text {
+    display: none !important;
+}
+
+/* Input inline sem borda visível em repouso */
+.dep-table-repeater .fi-input-wrp {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.dep-table-repeater .fi-input-wrp:focus-within {
+    border-color: var(--ub-primary-600) !important;
+    background: var(--ub-white) !important;
+    box-shadow: 0 0 0 3px rgba(23, 54, 141, 0.10) !important;
+}
+
+.dep-table-repeater .fi-input {
+    font-size: 0.875rem !important;
+    padding: 0.375rem 0.5rem !important;
+}
