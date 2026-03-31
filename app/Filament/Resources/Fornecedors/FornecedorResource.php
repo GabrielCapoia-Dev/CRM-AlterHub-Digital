@@ -287,13 +287,33 @@ class FornecedorResource extends Resource
                         Select::make('uf')
                             ->label('UF')
                             ->options([
-                                'AC' => 'AC', 'AL' => 'AL', 'AM' => 'AM', 'AP' => 'AP',
-                                'BA' => 'BA', 'CE' => 'CE', 'DF' => 'DF', 'ES' => 'ES',
-                                'GO' => 'GO', 'MA' => 'MA', 'MG' => 'MG', 'MS' => 'MS',
-                                'MT' => 'MT', 'PA' => 'PA', 'PB' => 'PB', 'PE' => 'PE',
-                                'PI' => 'PI', 'PR' => 'PR', 'RJ' => 'RJ', 'RN' => 'RN',
-                                'RO' => 'RO', 'RR' => 'RR', 'RS' => 'RS', 'SC' => 'SC',
-                                'SE' => 'SE', 'SP' => 'SP', 'TO' => 'TO',
+                                'AC' => 'AC',
+                                'AL' => 'AL',
+                                'AM' => 'AM',
+                                'AP' => 'AP',
+                                'BA' => 'BA',
+                                'CE' => 'CE',
+                                'DF' => 'DF',
+                                'ES' => 'ES',
+                                'GO' => 'GO',
+                                'MA' => 'MA',
+                                'MG' => 'MG',
+                                'MS' => 'MS',
+                                'MT' => 'MT',
+                                'PA' => 'PA',
+                                'PB' => 'PB',
+                                'PE' => 'PE',
+                                'PI' => 'PI',
+                                'PR' => 'PR',
+                                'RJ' => 'RJ',
+                                'RN' => 'RN',
+                                'RO' => 'RO',
+                                'RR' => 'RR',
+                                'RS' => 'RS',
+                                'SC' => 'SC',
+                                'SE' => 'SE',
+                                'SP' => 'SP',
+                                'TO' => 'TO',
                             ])
                             ->searchable()
                             ->placeholder('Selecione'),
@@ -365,7 +385,7 @@ class FornecedorResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->weight('semibold')
-                    ->description(fn (Fornecedor $record) => $record->nome_fantasia),
+                    ->description(fn(Fornecedor $record) => $record->nome_fantasia),
 
                 TextColumn::make('cnpj')
                     ->label('CNPJ')
@@ -381,7 +401,7 @@ class FornecedorResource extends Resource
                 TextColumn::make('statusHomologacao.nome')
                     ->label('Status')
                     ->badge()
-                    ->color(fn (string $state): string => match (true) {
+                    ->color(fn(string $state): string => match (true) {
                         str_contains(strtolower($state), 'homologado') && !str_contains(strtolower($state), 'em') => 'success',
                         str_contains(strtolower($state), 'homologaç') || str_contains(strtolower($state), 'andamento') => 'warning',
                         str_contains(strtolower($state), 'suspenso')  => 'danger',
@@ -391,7 +411,7 @@ class FornecedorResource extends Resource
 
                 TextColumn::make('cidade')
                     ->label('Cidade / UF')
-                    ->formatStateUsing(fn (Fornecedor $record) => implode(' — ', array_filter([$record->cidade, $record->uf])))
+                    ->formatStateUsing(fn(Fornecedor $record) => implode(' — ', array_filter([$record->cidade, $record->uf])))
                     ->color('gray'),
 
                 TextColumn::make('telefone')
@@ -420,15 +440,16 @@ class FornecedorResource extends Resource
 
                 SelectFilter::make('uf')
                     ->label('UF')
-                    ->options([
-                        'AC' => 'AC', 'AL' => 'AL', 'AM' => 'AM', 'AP' => 'AP',
-                        'BA' => 'BA', 'CE' => 'CE', 'DF' => 'DF', 'ES' => 'ES',
-                        'GO' => 'GO', 'MA' => 'MA', 'MG' => 'MG', 'MS' => 'MS',
-                        'MT' => 'MT', 'PA' => 'PA', 'PB' => 'PB', 'PE' => 'PE',
-                        'PI' => 'PI', 'PR' => 'PR', 'RJ' => 'RJ', 'RN' => 'RN',
-                        'RO' => 'RO', 'RR' => 'RR', 'RS' => 'RS', 'SC' => 'SC',
-                        'SE' => 'SE', 'SP' => 'SP', 'TO' => 'TO',
-                    ]),
+                    ->options(
+                        Fornecedor::query()
+                            ->whereNotNull('uf')
+                            ->where('uf', '!=', '')
+                            ->distinct()
+                            ->orderBy('uf')
+                            ->limit(5)
+                            ->pluck('uf', 'uf')
+                            ->toArray()
+                    ),
             ], layout: FiltersLayout::AboveContent)
 
             ->recordActions([
