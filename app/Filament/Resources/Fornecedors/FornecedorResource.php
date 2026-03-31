@@ -20,6 +20,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Forms\Get;
 use Illuminate\Validation\Rule;
 
@@ -428,7 +429,7 @@ class FornecedorResource extends Resource
                         'RO' => 'RO', 'RR' => 'RR', 'RS' => 'RS', 'SC' => 'SC',
                         'SE' => 'SE', 'SP' => 'SP', 'TO' => 'TO',
                     ]),
-            ])
+            ], layout: FiltersLayout::AboveContent)
 
             ->recordActions([
                 EditAction::make()->label('Editar'),
