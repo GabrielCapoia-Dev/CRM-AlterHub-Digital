@@ -234,11 +234,11 @@ class InsumoResource extends Resource
                     ->formatStateUsing(function (Insumo $record): string {
                         $un = $record->tipoUnidadeMedida;
 
-                        if (!$un) {
-                            return $record->estoque_minimo;
-                        }
+                        $valor = number_format((int) $record->estoque_minimo, 0, ',', '.');
 
-                        $valor = $record->estoque_minimo;
+                        if (!$un) {
+                            return $valor;
+                        }
 
                         return $un->sigla
                             ? "{$valor} {$un->nome} ({$un->sigla})"
