@@ -121,7 +121,7 @@ class InsumoResource extends Resource
                         Select::make('tipo_unidade_medida_id')
                             ->label('Unidade de medida')
                             ->relationship('tipoUnidadeMedida', 'nome')
-                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->sigla
+                            ->getOptionLabelFromRecordUsing(fn($record) => $record->sigla
                                 ? "{$record->nome} ({$record->sigla})"
                                 : $record->nome)
                             ->searchable()
@@ -202,7 +202,7 @@ class InsumoResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->weight('semibold')
-                    ->description(fn (Insumo $record) => $record->descricao
+                    ->description(fn(Insumo $record) => $record->descricao
                         ? \Illuminate\Support\Str::limit($record->descricao, 60)
                         : null),
 
@@ -229,9 +229,21 @@ class InsumoResource extends Resource
 
                 TextColumn::make('estoque_minimo')
                     ->label('Est. mín.')
-                    ->numeric(decimalPlaces: 2)
                     ->sortable()
-                    ->color('gray'),
+                    ->color('gray')
+                    ->formatStateUsing(function (Insumo $record): string {
+                        $un = $record->tipoUnidadeMedida;
+
+                        if (!$un) {
+                            return $record->estoque_minimo;
+                        }
+
+                        $valor = $record->estoque_minimo;
+
+                        return $un->sigla
+                            ? "{$valor} {$un->nome} ({$un->sigla})"
+                            : "{$valor} {$un->nome}";
+                    }),
 
                 TextColumn::make('tipoArmazenamento.nome')
                     ->label('Armazenamento')
@@ -241,7 +253,7 @@ class InsumoResource extends Resource
                 TextColumn::make('statusInsumo.nome')
                     ->label('Status')
                     ->badge()
-                    ->color(fn (string $state): string => match (true) {
+                    ->color(fn(string $state): string => match (true) {
                         str_contains(strtolower($state), 'ativo')          => 'success',
                         str_contains(strtolower($state), 'análise')        => 'warning',
                         str_contains(strtolower($state), 'descontinuado')  => 'danger',
