@@ -241,7 +241,7 @@ class InsumoResource extends Resource
                         }
 
                         return $un->sigla
-                            ? "{$valor} {$un->nome} ({$un->sigla})"
+                            ? "{$valor} ({$un->sigla})"
                             : "{$valor} {$un->nome}";
                     }),
 
