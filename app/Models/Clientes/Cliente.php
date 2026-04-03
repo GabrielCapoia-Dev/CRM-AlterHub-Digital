@@ -2,10 +2,12 @@
 
 namespace App\Models\Clientes;
 
+use App\Models\Oportunidade;
 use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Status\StatusCliente;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Cliente extends Model
 {
@@ -60,6 +62,14 @@ class Cliente extends Model
         return $this->belongsTo(
             CategoriaSegmento::class,
             'id_categoria_segmento'
+        );
+    }
+
+    public function oportunidades(): HasMany
+    {
+        return $this->hasMany(
+            Oportunidade::class,
+            'cliente_id'
         );
     }
 }

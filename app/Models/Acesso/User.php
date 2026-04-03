@@ -2,9 +2,14 @@
 
 namespace App\Models\Acesso;
 
+use App\Models\Oportunidade;
+use App\Models\OportunidadeInteracao;
+use App\Models\OportunidadeMovimentacao;
+use App\Models\OportunidadeTarefa;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -33,6 +38,7 @@ class User extends Authenticatable implements FilamentUser
     protected function casts(): array
     {
         return [
+            'email_approved' => 'boolean',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
@@ -55,5 +61,37 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->hasVerifiedEmail() && $this->emailAprovado();
+    }
+
+    public function oportunidades(): HasMany
+    {
+        return $this->hasMany(
+            Oportunidade::class,
+            'user_id',
+        );
+    }
+
+    public function oportunidadeInteracoes(): HasMany
+    {
+        return $this->hasMany(
+            OportunidadeInteracao::class,
+            'user_id',
+        );
+    }
+
+    public function oportunidadeTarefas(): HasMany
+    {
+        return $this->hasMany(
+            OportunidadeTarefa::class,
+            'user_id',
+        );
+    }
+
+    public function oportunidadeMovimentacoes(): HasMany
+    {
+        return $this->hasMany(
+            OportunidadeMovimentacao::class,
+            'user_id',
+        );
     }
 }
