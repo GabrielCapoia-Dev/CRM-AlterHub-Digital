@@ -8,7 +8,7 @@
         $products = $this->getProductOptions();
         $selectedOpportunity = $this->getSelectedOpportunity();
         $selectedClientSegment = $this->getSelectedClientSegmentName();
-        $pendingStageName = collect($stages)->firstWhere('id', $pendingMoveStageId)['nome'] ?? 'Encerramento';
+        $pendingStageName = data_get(collect($stages)->firstWhere('id', $pendingMoveStageId), 'nome', 'Encerramento');
         $canEditOpportunity = $selectedOpportunity
             ? auth()->user()?->can('update', $selectedOpportunity)
             : auth()->user()?->can('create', \App\Models\Oportunidade::class);
@@ -164,3 +164,172 @@
                                                     @endif
                                                 </p>
                                             @endif
+
+                                            @if (count($card['products']))
+                                                <div class="crm-kanban-chip-row">
+                                                    @foreach ($card['products'] as $product)
+                                                        <span class="crm-kanban-chip">{{ $product }}</span>
+                                                    @endforeach
+
+                                                    @if ($card['extra_products_count'] > 0)
+                                                        <span class="crm-kanban-chip">+{{ $card['extra_products_count'] }}</span>
+                                                    @endif
+                                                </div>
+                                            @endif
+
+                                            <div class="crm-kanban-card-grid">
+                                                <div>
+                                                    <span class="crm-kanban-card-label">Temperatura</span>
+                                                    <strong>{{ $card['temperature_label'] }}</strong>
+                                                </div>
+
+                                                <div>
+                                                    <span class="crm-kanban-card-label">Valor</span>
+                                                    <strong>{{ $card['value_formatted'] ?? 'Sem valor' }}</strong>
+                                                </div>
+                                            </div>
+                                        </button>
+
+                                        <footer class="crm-kanban-card-footer">
+                                            <div class="crm-kanban-owner">
+                                                <span>{{ $card['owner_initials'] }}</span>
+                                                <small>{{ $card['owner'] ?: 'Sem responsável' }}</small>
+                                            </div>
+
+                                            <small title="{{ $card['last_interaction_at'] ?? 'Sem interação' }}">
+                                                {{ $card['last_interaction_label'] }}
+                                            </small>
+                                        </footer>
+                                    </article>
+                                @empty
+                                    <div class="crm-kanban-empty">
+                                        Nenhuma oportunidade nesta etapa com os filtros atuais.
+                                    </div>
+                                @endforelse
+                            </div>
+
+                            @can('create', \App\Models\Oportunidade::class)
+                                <button type="button" class="crm-kanban-stage-create" wire:click="openCreateDrawer({{ $column['id'] }})">
+                                    + Nova oportunidade aqui
+                                </button>
+                            @endcan
+                        </article>
+                    @endforeach
+                </section>
+            @else
+                <section class="crm-kanban-zero">
+                    <h3>Nenhuma etapa configurada</h3>
+                    <p>Crie as etapas do funil para começar a trabalhar o quadro Kanban.</p>
+
+                    @can('viewAny', \App\Models\Etapa::class)
+                        <a href="{{ \App\Filament\Resources\Etapas\EtapaResource::getUrl() }}" class="crm-btn crm-btn-primary">
+                            Abrir etapas
+                        </a>
+                    @endcan
+                </section>
+            @endif
+        </section>
+
+        @if ($closingReasonModalOpen)
+            <div class="crm-modal-root" role="dialog" aria-modal="true" aria-labelledby="crm-close-modal-title">
+                <div class="crm-modal-backdrop" wire:click="cancelPendingMove"></div>
+
+                <div class="crm-modal-panel">
+                    <div class="crm-modal-copy">
+                        <p class="crm-kanban-eyebrow">Fechamento obrigatório</p>
+                        <h3 id="crm-close-modal-title">Motivo do fechamento</h3>
+                        <p>
+                            Para mover esta oportunidade para <strong>{{ $pendingStageName }}</strong>, informe o motivo do encerramento.
+                        </p>
+                    </div>
+
+                    <label class="crm-field">
+                        <span>Motivo</span>
+                        <textarea rows="4" wire:model.defer="pendingMoveReason" placeholder="Ex.: proposta aceita, prazo acordado ou perda por preço."></textarea>
+                        @error('pendingMoveReason')
+                            <small class="crm-field-error">{{ $message }}</small>
+                        @enderror
+                    </label>
+
+                    <div class="crm-modal-actions">
+                        <button type="button" class="crm-btn crm-btn-secondary" wire:click="cancelPendingMove">
+                            Cancelar
+                        </button>
+
+                        <button type="button" class="crm-btn crm-btn-primary" wire:click="confirmPendingStageMove">
+                            Confirmar movimentação
+                        </button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($drawerOpen)
+            <div class="crm-drawer-root">
+                <button type="button" class="crm-drawer-backdrop" wire:click="closeDrawer" aria-label="Fechar painel lateral"></button>
+
+                <aside class="crm-drawer-panel" aria-label="Detalhes da oportunidade">
+                    <header class="crm-drawer-header">
+                        <div>
+                            <p class="crm-kanban-eyebrow">{{ $drawerMode === 'create' ? 'Nova oportunidade' : 'Oportunidade selecionada' }}</p>
+                            <h3>{{ $selectedOpportunity?->titulo ?? 'Nova oportunidade' }}</h3>
+                            <p>
+                                {{ $selectedOpportunity?->cliente?->razao_social ?? 'Preencha os dados principais para começar.' }}
+                            </p>
+                        </div>
+
+                        <div class="crm-drawer-actions">
+                            @if ($selectedOpportunity)
+                                <a href="{{ \App\Filament\Resources\Oportunidades\OportunidadeResource::getUrl('view', ['record' => $selectedOpportunity]) }}" class="crm-btn crm-btn-secondary">
+                                    Visualizar
+                                </a>
+
+                                @can('update', $selectedOpportunity)
+                                    <a href="{{ \App\Filament\Resources\Oportunidades\OportunidadeResource::getUrl('edit', ['record' => $selectedOpportunity]) }}" class="crm-btn crm-btn-secondary">
+                                        Edição completa
+                                    </a>
+                                @endcan
+                            @endif
+
+                            <button type="button" class="crm-icon-btn" wire:click="closeDrawer" aria-label="Fechar painel">
+                                ×
+                            </button>
+                        </div>
+                    </header>
+
+                    <nav class="crm-drawer-tabs" aria-label="Abas da oportunidade">
+                        <button type="button" class="{{ $activeDrawerTab === 'summary' ? 'is-active' : '' }}" wire:click="$set('activeDrawerTab', 'summary')">
+                            Resumo
+                        </button>
+                        <button type="button" class="{{ $activeDrawerTab === 'products' ? 'is-active' : '' }}" wire:click="$set('activeDrawerTab', 'products')" @disabled(! $selectedOpportunity)>
+                            Produtos
+                        </button>
+                        <button type="button" class="{{ $activeDrawerTab === 'interactions' ? 'is-active' : '' }}" wire:click="$set('activeDrawerTab', 'interactions')" @disabled(! $selectedOpportunity)>
+                            Interações
+                        </button>
+                        <button type="button" class="{{ $activeDrawerTab === 'tasks' ? 'is-active' : '' }}" wire:click="$set('activeDrawerTab', 'tasks')" @disabled(! $selectedOpportunity)>
+                            Tarefas
+                        </button>
+                        <button type="button" class="{{ $activeDrawerTab === 'movements' ? 'is-active' : '' }}" wire:click="$set('activeDrawerTab', 'movements')" @disabled(! $selectedOpportunity)>
+                            Movimentações
+                        </button>
+                    </nav>
+
+                    <div class="crm-drawer-body">
+                        @if ($activeDrawerTab === 'summary')
+                            @include('filament.resources.oportunidades.pages.partials.summary')
+                        @elseif ($activeDrawerTab === 'products')
+                            @include('filament.resources.oportunidades.pages.partials.products')
+                        @elseif ($activeDrawerTab === 'interactions')
+                            @include('filament.resources.oportunidades.pages.partials.interactions')
+                        @elseif ($activeDrawerTab === 'tasks')
+                            @include('filament.resources.oportunidades.pages.partials.tasks')
+                        @else
+                            @include('filament.resources.oportunidades.pages.partials.movements')
+                        @endif
+                    </div>
+                </aside>
+            </div>
+        @endif
+    </div>
+</x-filament-panels::page>

@@ -29,6 +29,7 @@ class PainelPanelProvider extends PanelProvider
     {
         return $panel
             ->id('painel')
+            ->default()
             ->path('painel')
             ->login()
             ->profile()
