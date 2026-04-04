@@ -39,23 +39,29 @@
     --crm-stage-create-height: 3.25rem;
     font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
     color: var(--crm-neutral-900);
-}
-
-.fi-main.fi-width-7xl:has(.crm-kanban-page) {
-    width: min(calc(100vw - 2rem), 120rem);
-    max-width: min(calc(100vw - 2rem), 120rem);
-}
-
-.fi-main.fi-width-7xl:has(.crm-kanban-page) .fi-page-content,
-.fi-main.fi-width-7xl:has(.crm-kanban-page) .fi-page-main {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+.fi-main:has(.crm-kanban-page),
+.fi-page:has(.crm-kanban-page),
+.fi-page:has(.crm-kanban-page) .fi-page-content,
+.fi-page:has(.crm-kanban-page) .fi-page-main {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .crm-kanban-shell {
     position: relative;
     display: grid;
     gap: 1.1rem;
+    width: min(100%, 118rem);
+    max-width: 118rem;
+    min-width: 0;
+    margin-inline: auto;
 }
 
 .crm-kanban-shell::before {
@@ -96,7 +102,8 @@
     display: grid;
     justify-items: center;
     gap: 1rem;
-    width: min(26rem, calc(100vw - 2rem));
+    width: min(26rem, calc(100% - 2rem));
+    max-width: 100%;
     padding: 1.5rem;
     border: 1px solid rgba(156, 199, 231, 0.28);
     border-radius: 1.5rem;
@@ -173,9 +180,9 @@
 }
 
 .crm-kanban-hero {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) auto;
+    align-items: center;
     gap: 1.5rem;
     padding: 1.55rem 1.6rem;
     background:
@@ -186,7 +193,8 @@
 }
 
 .crm-kanban-hero-copy {
-    max-width: 40rem;
+    max-width: 42rem;
+    min-width: 0;
 }
 
 .crm-kanban-hero-copy h1,
@@ -234,6 +242,11 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.7rem;
+}
+
+.crm-kanban-hero-actions {
+    justify-self: end;
+    align-self: center;
 }
 
 .crm-btn,
@@ -307,19 +320,20 @@
 .crm-kanban-filter-grid,
 .crm-drawer-grid {
     display: grid;
-    grid-template-columns: minmax(0, 2.1fr) repeat(3, minmax(10rem, 1fr));
+    grid-template-columns: minmax(0, 1.7fr) repeat(3, minmax(0, 1fr));
     gap: 0.9rem;
 }
 
-.crm-kanban-filter-grid .crm-field-search {
-    grid-column: auto;
+.crm-kanban-filter-grid > *,
+.crm-drawer-grid > * {
+    min-width: 0;
 }
 
 .crm-kanban-filter-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 1rem 1.25rem;
     margin-top: 1rem;
 }
 
@@ -327,21 +341,35 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.6rem;
+    min-width: 0;
 }
 
 .crm-kanban-filter-meta {
     display: flex;
-    align-items: center;
+    flex-wrap: wrap;
+    align-items: flex-start;
     justify-content: flex-end;
     gap: 0.85rem;
+    min-width: 0;
+    max-width: min(100%, 25rem);
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--crm-neutral-500);
+    text-align: right;
+    justify-self: end;
+}
+
+.crm-kanban-filter-meta span {
+    margin: 0;
+    line-height: 1.45;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .crm-field {
     display: grid;
     gap: 0.38rem;
+    min-width: 0;
 }
 
 .crm-field span,
@@ -428,11 +456,20 @@
 .crm-kanban-board {
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: minmax(22rem, 23rem);
-    gap: 1rem;
+    grid-auto-columns: clamp(21rem, 23vw, 23.5rem);
+    gap: clamp(0.9rem, 1vw, 1.15rem);
     align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     overflow-x: auto;
-    padding-bottom: 0.55rem;
+    overflow-y: hidden;
+    padding: 0.15rem 0.9rem 0.65rem 0.15rem;
+    margin-inline: -0.15rem;
+    scroll-padding-inline-start: 0.15rem;
+    scroll-padding-inline-end: 0.9rem;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
 }
 
@@ -450,6 +487,7 @@
     grid-template-rows: var(--crm-stage-header-height) minmax(18rem, 1fr);
     min-height: clamp(34rem, calc(100vh - 18rem), 46rem);
     gap: 0.8rem;
+    min-width: 0;
     scroll-snap-align: start;
 }
 
@@ -474,6 +512,7 @@
     justify-content: space-between;
     gap: 0.9rem;
     height: var(--crm-stage-header-height);
+    min-width: 0;
     padding: 1rem 1rem 1rem 1.05rem;
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 255, 0.92) 100%);
@@ -530,12 +569,14 @@
     display: grid;
     gap: 0.35rem;
     justify-items: end;
+    min-width: 0;
     text-align: right;
 }
 
 .crm-kanban-stage-summary strong {
     font-size: 0.96rem;
     color: var(--crm-primary-900);
+    white-space: nowrap;
 }
 
 .crm-kanban-stage-flag {
@@ -558,6 +599,8 @@
     gap: 0.8rem;
     align-content: start;
     min-height: 18rem;
+    min-width: 0;
+    overflow-x: hidden;
     overflow-y: auto;
     padding: 0.12rem;
     border-radius: 1.15rem;
@@ -930,7 +973,8 @@ body.crm-kanban-is-dragging .crm-kanban-card * {
 .crm-modal-panel {
     top: 50%;
     left: 50%;
-    width: min(34rem, calc(100vw - 2rem));
+    width: min(34rem, calc(100% - 2rem));
+    max-width: calc(100% - 2rem);
     padding: 1.2rem;
     transform: translate(-50%, -50%);
 }
@@ -939,7 +983,8 @@ body.crm-kanban-is-dragging .crm-kanban-card * {
     top: 0.75rem;
     right: 0.75rem;
     bottom: 0.75rem;
-    width: min(42rem, calc(100vw - 1.5rem));
+    width: min(42rem, calc(100% - 1.5rem));
+    max-width: calc(100% - 1.5rem);
     border-radius: 1.45rem;
     overflow: hidden;
     box-shadow: 0 32px 68px rgba(15, 34, 97, 0.2);
@@ -1145,93 +1190,65 @@ body.crm-kanban-is-dragging .crm-kanban-card * {
     }
 }
 
-@media (min-width: 1440px) {
-    .fi-main.fi-width-7xl:has(.crm-kanban-page) {
-        width: min(calc(100vw - 2.75rem), 132rem);
-        max-width: min(calc(100vw - 2.75rem), 132rem);
-    }
-
-    .crm-kanban-board {
-        grid-auto-columns: minmax(23.5rem, 24.5rem);
-        gap: 1.15rem;
-    }
-
+@media (min-width: 1280px) {
     .crm-kanban-shell {
+        max-width: 122rem;
         gap: 1.25rem;
-    }
-}
-
-@media (min-width: 1800px) {
-    .fi-main.fi-width-7xl:has(.crm-kanban-page) {
-        width: min(calc(100vw - 3.5rem), 148rem);
-        max-width: min(calc(100vw - 3.5rem), 148rem);
     }
 
     .crm-kanban-board {
-        grid-auto-columns: minmax(24.5rem, 25.75rem);
-        gap: 1.25rem;
+        grid-auto-columns: clamp(21.75rem, 22vw, 24rem);
     }
 }
 
-@media (max-width: 1180px) {
+@media (min-width: 1600px) {
+    .crm-kanban-shell {
+        max-width: 132rem;
+    }
+
+    .crm-kanban-board {
+        grid-auto-columns: clamp(22.5rem, 20vw, 25rem);
+        gap: 1.2rem;
+    }
+}
+
+@media (max-width: 1279px) {
     .crm-kanban-filter-grid,
     .crm-drawer-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .crm-kanban-filter-bar,
     .crm-kanban-hero,
+    .crm-kanban-filter-bar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .crm-kanban-hero-actions,
+    .crm-kanban-filter-meta {
+        justify-self: start;
+        text-align: left;
+    }
+
+    .crm-kanban-filter-meta {
+        max-width: 100%;
+        justify-content: flex-start;
+    }
+
     .crm-drawer-header,
     .crm-entity-card {
         flex-direction: column;
     }
 
-    .crm-kanban-filter-meta {
-        justify-content: flex-start;
-        align-items: flex-start;
-    }
-
     .crm-kanban-stage {
-        min-height: clamp(32rem, calc(100vh - 15rem), 42rem);
+        min-height: clamp(32rem, calc(100dvh - 15rem), 42rem);
     }
 }
 
-@media (max-width: 860px) {
-    .fi-main.fi-width-7xl:has(.crm-kanban-page) {
-        width: min(calc(100vw - 1.25rem), 100%);
-        max-width: min(calc(100vw - 1.25rem), 100%);
-    }
-
+@media (max-width: 767px) {
     .crm-kanban-filter-grid,
     .crm-drawer-grid,
     .crm-kanban-card-grid {
         grid-template-columns: 1fr;
-    }
-
-    .crm-kanban-board {
-        grid-auto-columns: minmax(18rem, calc(100vw - 2rem));
-    }
-
-    .crm-drawer-panel,
-    .crm-modal-panel {
-        top: auto;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        width: 100vw;
-        border-radius: 1.5rem 1.5rem 0 0;
-    }
-
-    .crm-modal-panel {
-        transform: none;
-    }
-
-    .crm-drawer-panel {
-        height: min(92vh, 52rem);
-    }
-
-    .crm-drawer-body {
-        height: calc(100% - 11.35rem);
     }
 
     .crm-kanban-shell {
@@ -1243,20 +1260,62 @@ body.crm-kanban-is-dragging .crm-kanban-card * {
         padding: 1.1rem;
     }
 
+    .crm-kanban-hero-actions {
+        width: 100%;
+    }
+
+    .crm-kanban-hero-actions .crm-btn {
+        flex: 1 1 12rem;
+    }
+
+    .crm-kanban-board {
+        grid-auto-columns: clamp(18rem, calc(100% - 0.8rem), 22rem);
+        padding-inline-end: 0.8rem;
+        scroll-padding-inline-end: 0.8rem;
+    }
+
+    .crm-drawer-panel,
+    .crm-modal-panel {
+        top: auto;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: auto;
+        max-width: 100%;
+        border-radius: 1.5rem 1.5rem 0 0;
+    }
+
+    .crm-modal-panel {
+        transform: none;
+    }
+
+    .crm-drawer-panel {
+        height: min(92dvh, 52rem);
+    }
+
+    .crm-drawer-body {
+        height: calc(100% - 11.35rem);
+    }
+
     .crm-kanban-stage {
         min-height: 31rem;
     }
 }
 
-@media (max-width: 640px) {
-    .fi-main.fi-width-7xl:has(.crm-kanban-page) {
-        width: calc(100vw - 0.75rem);
-        max-width: calc(100vw - 0.75rem);
+@media (max-width: 480px) {
+    .crm-kanban-page {
+        --crm-stage-header-height: 5.9rem;
+        --crm-stage-create-height: 3rem;
     }
 
-    .crm-kanban-page {
-        --crm-stage-header-height: 6rem;
-        --crm-stage-create-height: 3rem;
+    .crm-kanban-shell {
+        gap: 0.85rem;
+    }
+
+    .crm-kanban-hero,
+    .crm-kanban-filters {
+        padding: 1rem;
+        border-radius: 1.2rem;
     }
 
     .crm-kanban-hero-copy h1 {
@@ -1264,8 +1323,10 @@ body.crm-kanban-is-dragging .crm-kanban-card * {
     }
 
     .crm-kanban-board {
-        grid-auto-columns: minmax(17.35rem, calc(100vw - 1.4rem));
-        gap: 0.85rem;
+        grid-auto-columns: clamp(17rem, calc(100% - 0.65rem), 20.5rem);
+        gap: 0.75rem;
+        padding-inline-end: 0.65rem;
+        scroll-padding-inline-end: 0.65rem;
     }
 
     .crm-kanban-stage-header,

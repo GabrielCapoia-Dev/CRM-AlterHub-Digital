@@ -15,6 +15,7 @@ use App\Models\Produto;
 use Carbon\CarbonInterface;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
+use Filament\Support\Enums\Width;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +29,8 @@ class KanbanOportunidades extends Page
     protected static ?string $title = 'CRM - Kanban';
 
     protected string $view = 'filament.resources.oportunidades.pages.kanban-oportunidades';
+
+    protected Width | string | null $maxWidth = Width::Full;
 
     public string $search = '';
 
