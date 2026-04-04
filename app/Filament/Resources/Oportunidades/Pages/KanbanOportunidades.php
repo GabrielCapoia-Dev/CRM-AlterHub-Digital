@@ -15,7 +15,6 @@ use App\Models\Produto;
 use Carbon\CarbonInterface;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
-use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Auth;
@@ -84,11 +83,6 @@ class KanbanOportunidades extends Page
         $this->resetTaskForm();
     }
 
-    public function render(): View
-    {
-        return view($this->getView(), $this->getViewData());
-    }
-
     public function updated(string $name, mixed $value): void
     {
         if (($name === 'opportunityForm.etapa_id') && (! $this->selectedStageIsClosing())) {
@@ -120,17 +114,17 @@ class KanbanOportunidades extends Page
                 'cliente.categoriaSegmento',
                 'user',
                 'etapa',
-                'oportunidadeProdutos' => fn (Builder $query) => $query
+                'oportunidadeProdutos' => fn ($query) => $query
                     ->with('produto')
                     ->latest('updated_at'),
-                'oportunidadeInteracoes' => fn (Builder $query) => $query
+                'oportunidadeInteracoes' => fn ($query) => $query
                     ->with('user')
                     ->latest('ocorreu_em'),
-                'oportunidadeTarefas' => fn (Builder $query) => $query
+                'oportunidadeTarefas' => fn ($query) => $query
                     ->with('user')
                     ->orderBy('data_prevista')
                     ->latest('updated_at'),
-                'oportunidadeMovimentacoes' => fn (Builder $query) => $query
+                'oportunidadeMovimentacoes' => fn ($query) => $query
                     ->with(['user', 'etapaOrigem', 'etapaDestino'])
                     ->latest('movido_em'),
             ])
@@ -711,7 +705,7 @@ class KanbanOportunidades extends Page
                 'cliente.categoriaSegmento',
                 'user',
                 'etapa',
-                'oportunidadeProdutos' => fn (Builder $builder) => $builder
+                'oportunidadeProdutos' => fn ($builder) => $builder
                     ->with('produto')
                     ->latest('updated_at'),
             ])

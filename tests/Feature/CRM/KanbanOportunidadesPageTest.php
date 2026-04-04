@@ -21,7 +21,7 @@ class KanbanOportunidadesPageTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_registers_the_kanban_index_and_the_support_list_route(): void
+    public function test_it_renders_the_kanban_index_and_keeps_the_support_list_route_available(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
@@ -38,8 +38,19 @@ class KanbanOportunidadesPageTest extends TestCase
 
         $this->actingAs($user);
 
-        $this->assertStringEndsWith('/painel/oportunidades', OportunidadeResource::getUrl());
-        $this->assertStringEndsWith('/painel/oportunidades/lista', OportunidadeResource::getUrl('list'));
+        $kanbanUrl = OportunidadeResource::getUrl();
+        $listUrl = OportunidadeResource::getUrl('list');
+
+        $this->assertStringEndsWith('/painel/oportunidades', $kanbanUrl);
+        $this->assertStringEndsWith('/painel/oportunidades/lista', $listUrl);
+
+        $this->get($kanbanUrl)
+            ->assertOk()
+            ->assertSeeText('CRM - Kanban')
+            ->assertSeeText('Pipeline comercial');
+
+        $this->get($listUrl)
+            ->assertOk();
     }
 
     public function test_it_creates_a_new_opportunity_from_the_drawer(): void
@@ -121,7 +132,7 @@ class KanbanOportunidadesPageTest extends TestCase
 
     private function criarBaseDeKanban(bool $includeClosingStage = false): array
     {
-        $permissions = [
+        $grantedPermissions = [
             PermissoesEnum::ListarOportunidades,
             PermissoesEnum::CriarOportunidades,
             PermissoesEnum::EditarOportunidades,
@@ -141,11 +152,8 @@ class KanbanOportunidadesPageTest extends TestCase
             PermissoesEnum::ListarMovimentacoesDeOportunidade,
         ];
 
-        foreach ($permissions as $permission) {
-            Permission::create([
-                'name' => $permission->value,
-                'guard_name' => 'web',
-            ]);
+        foreach (PermissoesEnum::cases() as $permission) {
+            Permission::findOrCreate($permission->value, 'web');
         }
 
         $user = User::create([
@@ -157,7 +165,7 @@ class KanbanOportunidadesPageTest extends TestCase
             'password' => 'password',
         ]);
 
-        $user->givePermissionTo(collect($permissions)->map(fn (PermissoesEnum $permission) => $permission->value)->all());
+        $user->givePermissionTo(collect($grantedPermissions)->map(fn (PermissoesEnum $permission) => $permission->value)->all());
 
         $status = StatusCliente::create(['nome' => 'Ativo']);
         $segmento = CategoriaSegmento::create(['nome' => 'Laboratorio']);
