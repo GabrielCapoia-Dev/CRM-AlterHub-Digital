@@ -25,6 +25,24 @@
         @pointerup.window="releaseCard()"
         @pointercancel.window="releaseCard()"
     >
+        <div class="crm-kanban-loading-overlay" wire:loading.flex role="status" aria-live="polite" aria-busy="true">
+            <div class="crm-kanban-loading-backdrop"></div>
+
+            <div class="crm-kanban-loading-panel">
+                <div class="crm-kanban-loading-spinner" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+
+                <div class="crm-kanban-loading-copy">
+                    <p class="crm-kanban-eyebrow">Processando</p>
+                    <strong>Atualizando quadro comercial</strong>
+                    <p>Estamos sincronizando o CRM e bloqueando novas interacoes ate a operacao concluir.</p>
+                </div>
+            </div>
+        </div>
+
         <section class="crm-kanban-shell">
             <header class="crm-kanban-hero">
                 <div class="crm-kanban-hero-copy">

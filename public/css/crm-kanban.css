@@ -41,6 +41,17 @@
     color: var(--crm-neutral-900);
 }
 
+.fi-main.fi-width-7xl:has(.crm-kanban-page) {
+    width: min(calc(100vw - 2rem), 120rem);
+    max-width: min(calc(100vw - 2rem), 120rem);
+}
+
+.fi-main.fi-width-7xl:has(.crm-kanban-page) .fi-page-content,
+.fi-main.fi-width-7xl:has(.crm-kanban-page) .fi-page-main {
+    width: 100%;
+    max-width: 100%;
+}
+
 .crm-kanban-shell {
     position: relative;
     display: grid;
@@ -58,6 +69,94 @@
     background: radial-gradient(circle, rgba(156, 199, 231, 0.34), transparent 72%);
     filter: blur(8px);
     pointer-events: none;
+}
+
+.crm-kanban-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+
+.crm-kanban-loading-backdrop {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at top right, rgba(156, 199, 231, 0.18), transparent 26rem),
+        rgba(10, 26, 74, 0.48);
+    backdrop-filter: blur(5px);
+}
+
+.crm-kanban-loading-panel {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    justify-items: center;
+    gap: 1rem;
+    width: min(26rem, calc(100vw - 2rem));
+    padding: 1.5rem;
+    border: 1px solid rgba(156, 199, 231, 0.28);
+    border-radius: 1.5rem;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 32px 64px rgba(15, 34, 97, 0.24);
+    text-align: center;
+    animation: crm-loading-panel-in 0.22s var(--crm-ease);
+}
+
+.crm-kanban-loading-copy strong {
+    display: block;
+    margin: 0;
+    color: var(--crm-neutral-900);
+    font-size: 1rem;
+}
+
+.crm-kanban-loading-panel .crm-kanban-eyebrow {
+    margin-bottom: 0.45rem;
+    color: var(--crm-primary-700);
+}
+
+.crm-kanban-loading-copy p {
+    margin: 0.45rem 0 0;
+    color: var(--crm-neutral-500);
+}
+
+.crm-kanban-loading-copy p:last-child {
+    color: var(--crm-neutral-500);
+    line-height: 1.55;
+}
+
+.crm-kanban-loading-spinner {
+    position: relative;
+    width: 4.4rem;
+    height: 4.4rem;
+}
+
+.crm-kanban-loading-spinner span {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    border: 3px solid transparent;
+    border-top-color: var(--crm-primary-800);
+    border-right-color: rgba(23, 54, 141, 0.2);
+    animation: crm-spin 1s linear infinite;
+}
+
+.crm-kanban-loading-spinner span:nth-child(2) {
+    inset: 0.42rem;
+    border-top-color: var(--crm-accent-500);
+    border-right-color: rgba(0, 201, 167, 0.16);
+    animation-duration: 1.3s;
+    animation-direction: reverse;
+}
+
+.crm-kanban-loading-spinner span:nth-child(3) {
+    inset: 0.92rem;
+    border-top-color: var(--crm-secondary-400);
+    border-right-color: rgba(147, 192, 231, 0.12);
+    animation-duration: 1.6s;
 }
 
 .crm-kanban-hero,
@@ -329,7 +428,7 @@
 .crm-kanban-board {
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: minmax(21.5rem, 22.5rem);
+    grid-auto-columns: minmax(22rem, 23rem);
     gap: 1rem;
     align-items: stretch;
     overflow-x: auto;
@@ -1026,6 +1125,54 @@ body.crm-kanban-is-dragging .crm-kanban-card * {
     }
 }
 
+@keyframes crm-loading-panel-in {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 1rem, 0) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+@keyframes crm-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (min-width: 1440px) {
+    .fi-main.fi-width-7xl:has(.crm-kanban-page) {
+        width: min(calc(100vw - 2.75rem), 132rem);
+        max-width: min(calc(100vw - 2.75rem), 132rem);
+    }
+
+    .crm-kanban-board {
+        grid-auto-columns: minmax(23.5rem, 24.5rem);
+        gap: 1.15rem;
+    }
+
+    .crm-kanban-shell {
+        gap: 1.25rem;
+    }
+}
+
+@media (min-width: 1800px) {
+    .fi-main.fi-width-7xl:has(.crm-kanban-page) {
+        width: min(calc(100vw - 3.5rem), 148rem);
+        max-width: min(calc(100vw - 3.5rem), 148rem);
+    }
+
+    .crm-kanban-board {
+        grid-auto-columns: minmax(24.5rem, 25.75rem);
+        gap: 1.25rem;
+    }
+}
+
 @media (max-width: 1180px) {
     .crm-kanban-filter-grid,
     .crm-drawer-grid {
@@ -1043,9 +1190,18 @@ body.crm-kanban-is-dragging .crm-kanban-card * {
         justify-content: flex-start;
         align-items: flex-start;
     }
+
+    .crm-kanban-stage {
+        min-height: clamp(32rem, calc(100vh - 15rem), 42rem);
+    }
 }
 
 @media (max-width: 860px) {
+    .fi-main.fi-width-7xl:has(.crm-kanban-page) {
+        width: min(calc(100vw - 1.25rem), 100%);
+        max-width: min(calc(100vw - 1.25rem), 100%);
+    }
+
     .crm-kanban-filter-grid,
     .crm-drawer-grid,
     .crm-kanban-card-grid {
@@ -1053,7 +1209,7 @@ body.crm-kanban-is-dragging .crm-kanban-card * {
     }
 
     .crm-kanban-board {
-        grid-auto-columns: minmax(18.5rem, calc(100vw - 2.5rem));
+        grid-auto-columns: minmax(18rem, calc(100vw - 2rem));
     }
 
     .crm-drawer-panel,
@@ -1076,5 +1232,70 @@ body.crm-kanban-is-dragging .crm-kanban-card * {
 
     .crm-drawer-body {
         height: calc(100% - 11.35rem);
+    }
+
+    .crm-kanban-shell {
+        gap: 0.95rem;
+    }
+
+    .crm-kanban-hero,
+    .crm-kanban-filters {
+        padding: 1.1rem;
+    }
+
+    .crm-kanban-stage {
+        min-height: 31rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .fi-main.fi-width-7xl:has(.crm-kanban-page) {
+        width: calc(100vw - 0.75rem);
+        max-width: calc(100vw - 0.75rem);
+    }
+
+    .crm-kanban-page {
+        --crm-stage-header-height: 6rem;
+        --crm-stage-create-height: 3rem;
+    }
+
+    .crm-kanban-hero-copy h1 {
+        font-size: 1.35rem;
+    }
+
+    .crm-kanban-board {
+        grid-auto-columns: minmax(17.35rem, calc(100vw - 1.4rem));
+        gap: 0.85rem;
+    }
+
+    .crm-kanban-stage-header,
+    .crm-kanban-card,
+    .crm-kanban-stage-create,
+    .crm-drawer-section,
+    .crm-drawer-form,
+    .crm-entity-card {
+        border-radius: 1rem;
+    }
+
+    .crm-kanban-card,
+    .crm-kanban-stage-header {
+        padding: 0.9rem;
+    }
+
+    .crm-kanban-loading-overlay {
+        padding: 1rem;
+    }
+
+    .crm-kanban-loading-panel {
+        padding: 1.25rem 1rem;
+    }
+
+    .crm-drawer-tabs {
+        padding-inline: 1rem;
+    }
+
+    .crm-drawer-body,
+    .crm-drawer-header {
+        padding-inline: 1rem;
     }
 }
