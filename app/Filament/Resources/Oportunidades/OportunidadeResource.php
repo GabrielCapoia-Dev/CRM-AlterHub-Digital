@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Oportunidades;
 
 use App\Filament\Resources\Oportunidades\Pages\CreateOportunidade;
 use App\Filament\Resources\Oportunidades\Pages\EditOportunidade;
+use App\Filament\Resources\Oportunidades\Pages\KanbanOportunidades;
 use App\Filament\Resources\Oportunidades\Pages\ListOportunidades;
 use App\Filament\Resources\Oportunidades\Pages\ViewOportunidade;
 use App\Filament\Resources\Oportunidades\RelationManagers\OportunidadeInteracoesRelationManager;
@@ -229,7 +230,8 @@ class OportunidadeResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListOportunidades::route('/'),
+            'index' => KanbanOportunidades::route('/'),
+            'list' => ListOportunidades::route('/lista'),
             'create' => CreateOportunidade::route('/create'),
             'view' => ViewOportunidade::route('/{record}'),
             'edit' => EditOportunidade::route('/{record}/edit'),
