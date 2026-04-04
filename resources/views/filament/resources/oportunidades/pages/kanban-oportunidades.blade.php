@@ -19,18 +19,24 @@
             || filled($segmentFilter);
     @endphp
 
-    <div x-data="crmKanbanBoard()" class="crm-kanban-page">
+    <div
+        x-data="crmKanbanBoard()"
+        class="crm-kanban-page"
+        @pointerup.window="releaseCard()"
+        @pointercancel.window="releaseCard()"
+    >
         <section class="crm-kanban-shell">
-            <header class="crm-kanban-toolbar">
-                <div class="crm-kanban-toolbar-copy">
-                    <p class="crm-kanban-eyebrow">CRM operacional</p>
-                    <h2>Pipeline comercial</h2>
+            <header class="crm-kanban-hero">
+                <div class="crm-kanban-hero-copy">
+                    <p class="crm-kanban-eyebrow">CRM - Kanban</p>
+                    <h1>Pipeline comercial</h1>
                     <p>
-                        Arraste entre etapas, acompanhe valores por coluna e trabalhe o contexto da negociação sem sair do quadro.
+                        Arraste entre etapas, acompanhe valor por coluna e trabalhe o contexto da negociacao
+                        sem sair do quadro principal.
                     </p>
                 </div>
 
-                <div class="crm-kanban-toolbar-actions">
+                <div class="crm-kanban-hero-actions">
                     <a href="{{ $this->getListUrl() }}" class="crm-btn crm-btn-secondary">
                         Lista de apoio
                     </a>
@@ -45,7 +51,7 @@
 
             <section class="crm-kanban-filters">
                 <div class="crm-kanban-filter-grid">
-                    <label class="crm-field">
+                    <label class="crm-field crm-field-search">
                         <span>Busca</span>
                         <input
                             type="search"
@@ -55,7 +61,7 @@
                     </label>
 
                     <label class="crm-field">
-                        <span>Responsável</span>
+                        <span>Responsavel</span>
                         <select wire:model.live="ownerFilter">
                             <option value="">Todos</option>
                             @foreach ($owners as $owner)
@@ -75,57 +81,74 @@
                     </label>
 
                     <label class="crm-field">
-                        <span>Última interação</span>
+                        <span>Ultima interacao</span>
                         <select wire:model.live="lastInteractionDays">
                             <option value="">Qualquer data</option>
-                            <option value="7">Até 7 dias</option>
-                            <option value="30">Até 30 dias</option>
-                            <option value="90">Até 90 dias</option>
+                            <option value="7">Ate 7 dias</option>
+                            <option value="30">Ate 30 dias</option>
+                            <option value="90">Ate 90 dias</option>
                         </select>
                     </label>
                 </div>
 
-                <div class="crm-kanban-filter-pills">
-                    <button
-                        type="button"
-                        class="crm-filter-pill {{ blank($segmentFilter) ? 'is-active' : '' }}"
-                        wire:click="setSegmentFilter"
-                    >
-                        Todos os segmentos
-                    </button>
-
-                    @foreach ($segments as $segment)
+                <div class="crm-kanban-filter-bar">
+                    <div class="crm-kanban-filter-pills">
                         <button
                             type="button"
-                            class="crm-filter-pill {{ (int) $segmentFilter === $segment['id'] ? 'is-active' : '' }}"
-                            wire:click="setSegmentFilter({{ $segment['id'] }})"
+                            class="crm-filter-pill {{ blank($segmentFilter) ? 'is-active' : '' }}"
+                            wire:click="setSegmentFilter"
                         >
-                            {{ $segment['nome'] }}
+                            Todos os segmentos
                         </button>
-                    @endforeach
 
-                    @if ($hasFilters)
-                        <button type="button" class="crm-filter-clear" wire:click="resetFilters">
-                            Limpar filtros
-                        </button>
-                    @endif
+                        @foreach ($segments as $segment)
+                            <button
+                                type="button"
+                                class="crm-filter-pill {{ (int) $segmentFilter === $segment['id'] ? 'is-active' : '' }}"
+                                wire:click="setSegmentFilter({{ $segment['id'] }})"
+                            >
+                                {{ $segment['nome'] }}
+                            </button>
+                        @endforeach
+                    </div>
+
+                    <div class="crm-kanban-filter-meta">
+                        <span>Clique no card para abrir o detalhe e arraste de qualquer ponto para mudar a etapa.</span>
+
+                        @if ($hasFilters)
+                            <button type="button" class="crm-filter-clear" wire:click="resetFilters">
+                                Limpar filtros
+                            </button>
+                        @endif
+                    </div>
                 </div>
             </section>
 
             @if (count($columns))
                 <section class="crm-kanban-board" aria-label="Quadro Kanban de oportunidades">
                     @foreach ($columns as $column)
-                        <article class="crm-kanban-stage" wire:key="stage-{{ $column['id'] }}">
+                        <article
+                            class="crm-kanban-stage {{ $column['fechamento'] ? 'is-closing' : '' }}"
+                            style="--crm-stage-color: {{ $column['cor'] }}"
+                            wire:key="stage-{{ $column['id'] }}"
+                        >
                             <header class="crm-kanban-stage-header">
                                 <div class="crm-kanban-stage-title">
-                                    <span class="crm-kanban-stage-dot" style="--crm-stage-color: {{ $column['cor'] }}"></span>
+                                    <span class="crm-kanban-stage-dot"></span>
+
                                     <div>
                                         <h3>{{ $column['nome'] }}</h3>
                                         <p>{{ $column['count'] }} oportunidade(s)</p>
                                     </div>
                                 </div>
 
-                                <strong>{{ $column['sum_formatted'] }}</strong>
+                                <div class="crm-kanban-stage-summary">
+                                    <strong>{{ $column['sum_formatted'] }}</strong>
+
+                                    @if ($column['fechamento'])
+                                        <span class="crm-kanban-stage-flag">Encerramento</span>
+                                    @endif
+                                </div>
                             </header>
 
                             <div
@@ -135,70 +158,91 @@
                                 @drop.prevent="drop($event, {{ $column['id'] }}, $wire)"
                             >
                                 @forelse ($column['cards'] as $card)
-                                    <article class="crm-kanban-card" wire:key="card-{{ $card['id'] }}">
-                                        <div class="crm-kanban-card-head">
-                                            <span class="crm-kanban-badge">{{ $card['segment'] ?? 'Sem segmento' }}</span>
+                                    <article
+                                        class="crm-kanban-card"
+                                        wire:key="card-{{ $card['id'] }}"
+                                        draggable="true"
+                                        tabindex="0"
+                                        role="button"
+                                        aria-label="Abrir oportunidade {{ $card['title'] }}"
+                                        @pointerdown="primeCard($event, {{ $card['id'] }})"
+                                        @dragstart="startDrag($event, {{ $card['id'] }})"
+                                        @dragend="endDrag($event)"
+                                        @click="openCard($event, {{ $card['id'] }}, $wire)"
+                                        @keydown.enter.prevent="openCard($event, {{ $card['id'] }}, $wire)"
+                                        @keydown.space.prevent="openCard($event, {{ $card['id'] }}, $wire)"
+                                        :class="cardClasses({{ $card['id'] }})"
+                                    >
+                                        <div class="crm-kanban-card-top">
+                                            <div class="crm-kanban-card-heading">
+                                                <h4>{{ $card['title'] }}</h4>
+                                                <p class="crm-kanban-card-company">{{ $card['company'] }}</p>
+                                            </div>
 
-                                            <button
-                                                type="button"
-                                                class="crm-kanban-drag-handle"
-                                                draggable="true"
-                                                @dragstart="startDrag($event, {{ $card['id'] }})"
-                                                @dragend="endDrag($event)"
-                                                title="Arrastar oportunidade"
-                                            >
-                                                <span></span>
-                                                <span></span>
-                                            </button>
+                                            <div class="crm-kanban-card-badges">
+                                                <span class="crm-kanban-status-badge crm-kanban-status-{{ \Illuminate\Support\Str::slug($column['slug'] ?: $column['nome']) }}">
+                                                    {{ $column['nome'] }}
+                                                </span>
+                                                <span class="crm-kanban-temp crm-kanban-temp-{{ $card['temperature'] }}">
+                                                    {{ $card['temperature_label'] }}
+                                                </span>
+                                            </div>
                                         </div>
 
-                                        <button type="button" class="crm-kanban-card-body" wire:click="openDrawer({{ $card['id'] }})">
-                                            <h4>{{ $card['title'] }}</h4>
-                                            <p class="crm-kanban-card-company">{{ $card['company'] }}</p>
+                                        @if ($card['contact'] || $card['email'])
+                                            <p class="crm-kanban-card-meta">
+                                                {{ $card['contact'] ?: 'Sem contato' }}
+                                                @if ($card['email'])
+                                                    · {{ $card['email'] }}
+                                                @endif
+                                            </p>
+                                        @endif
 
-                                            @if ($card['contact'] || $card['email'])
-                                                <p class="crm-kanban-card-meta">
-                                                    {{ $card['contact'] ?: 'Sem contato' }}
-                                                    @if ($card['email'])
-                                                        · {{ $card['email'] }}
-                                                    @endif
-                                                </p>
-                                            @endif
-
-                                            @if (count($card['products']))
-                                                <div class="crm-kanban-chip-row">
-                                                    @foreach ($card['products'] as $product)
-                                                        <span class="crm-kanban-chip">{{ $product }}</span>
-                                                    @endforeach
-
-                                                    @if ($card['extra_products_count'] > 0)
-                                                        <span class="crm-kanban-chip">+{{ $card['extra_products_count'] }}</span>
-                                                    @endif
-                                                </div>
-                                            @endif
-
-                                            <div class="crm-kanban-card-grid">
-                                                <div>
-                                                    <span class="crm-kanban-card-label">Temperatura</span>
-                                                    <strong>{{ $card['temperature_label'] }}</strong>
-                                                </div>
-
-                                                <div>
-                                                    <span class="crm-kanban-card-label">Valor</span>
-                                                    <strong>{{ $card['value_formatted'] ?? 'Sem valor' }}</strong>
-                                                </div>
+                                        @if ($card['segment'])
+                                            <div class="crm-kanban-card-segment">
+                                                <span class="crm-kanban-badge">{{ $card['segment'] }}</span>
                                             </div>
-                                        </button>
+                                        @endif
+
+                                        @if (count($card['products']))
+                                            <div class="crm-kanban-chip-row">
+                                                @foreach ($card['products'] as $product)
+                                                    <span class="crm-kanban-chip">{{ $product }}</span>
+                                                @endforeach
+
+                                                @if ($card['extra_products_count'] > 0)
+                                                    <span class="crm-kanban-chip">+{{ $card['extra_products_count'] }}</span>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        <div class="crm-kanban-card-grid">
+                                            <div>
+                                                <span class="crm-kanban-card-label">Valor estimado</span>
+                                                <strong>{{ $card['value_formatted'] ?? 'Sem valor' }}</strong>
+                                            </div>
+
+                                            <div>
+                                                <span class="crm-kanban-card-label">Ultima interacao</span>
+                                                <strong>{{ $card['last_interaction_label'] }}</strong>
+                                            </div>
+                                        </div>
 
                                         <footer class="crm-kanban-card-footer">
                                             <div class="crm-kanban-owner">
                                                 <span>{{ $card['owner_initials'] }}</span>
-                                                <small>{{ $card['owner'] ?: 'Sem responsável' }}</small>
+
+                                                <div>
+                                                    <small>Responsavel</small>
+                                                    <strong>{{ $card['owner'] ?: 'Sem responsavel' }}</strong>
+                                                </div>
                                             </div>
 
-                                            <small title="{{ $card['last_interaction_at'] ?? 'Sem interação' }}">
-                                                {{ $card['last_interaction_label'] }}
-                                            </small>
+                                            <div class="crm-kanban-card-grip" aria-hidden="true">
+                                                <span></span>
+                                                <span></span>
+                                                <span></span>
+                                            </div>
                                         </footer>
                                     </article>
                                 @empty
@@ -209,7 +253,11 @@
                             </div>
 
                             @can('create', \App\Models\Oportunidade::class)
-                                <button type="button" class="crm-kanban-stage-create" wire:click="openCreateDrawer({{ $column['id'] }})">
+                                <button
+                                    type="button"
+                                    class="crm-kanban-stage-create"
+                                    wire:click="openCreateDrawer({{ $column['id'] }})"
+                                >
                                     + Nova oportunidade aqui
                                 </button>
                             @endcan
@@ -218,8 +266,9 @@
                 </section>
             @else
                 <section class="crm-kanban-zero">
+                    <p class="crm-kanban-eyebrow">CRM - Kanban</p>
                     <h3>Nenhuma etapa configurada</h3>
-                    <p>Crie as etapas do funil para começar a trabalhar o quadro Kanban.</p>
+                    <p>Crie as etapas do funil para comecar a trabalhar o quadro Kanban.</p>
 
                     @can('viewAny', \App\Models\Etapa::class)
                         <a href="{{ \App\Filament\Resources\Etapas\EtapaResource::getUrl() }}" class="crm-btn crm-btn-primary">
@@ -236,7 +285,7 @@
 
                 <div class="crm-modal-panel">
                     <div class="crm-modal-copy">
-                        <p class="crm-kanban-eyebrow">Fechamento obrigatório</p>
+                        <p class="crm-kanban-eyebrow">Fechamento obrigatorio</p>
                         <h3 id="crm-close-modal-title">Motivo do fechamento</h3>
                         <p>
                             Para mover esta oportunidade para <strong>{{ $pendingStageName }}</strong>, informe o motivo do encerramento.
@@ -245,7 +294,7 @@
 
                     <label class="crm-field">
                         <span>Motivo</span>
-                        <textarea rows="4" wire:model.defer="pendingMoveReason" placeholder="Ex.: proposta aceita, prazo acordado ou perda por preço."></textarea>
+                        <textarea rows="4" wire:model.defer="pendingMoveReason" placeholder="Ex.: proposta aceita, prazo acordado ou perda por preco."></textarea>
                         @error('pendingMoveReason')
                             <small class="crm-field-error">{{ $message }}</small>
                         @enderror
@@ -257,7 +306,7 @@
                         </button>
 
                         <button type="button" class="crm-btn crm-btn-primary" wire:click="confirmPendingStageMove">
-                            Confirmar movimentação
+                            Confirmar movimentacao
                         </button>
                     </div>
                 </div>
@@ -270,11 +319,11 @@
 
                 <aside class="crm-drawer-panel" aria-label="Detalhes da oportunidade">
                     <header class="crm-drawer-header">
-                        <div>
+                        <div class="crm-drawer-header-copy">
                             <p class="crm-kanban-eyebrow">{{ $drawerMode === 'create' ? 'Nova oportunidade' : 'Oportunidade selecionada' }}</p>
                             <h3>{{ $selectedOpportunity?->titulo ?? 'Nova oportunidade' }}</h3>
                             <p>
-                                {{ $selectedOpportunity?->cliente?->razao_social ?? 'Preencha os dados principais para começar.' }}
+                                {{ $selectedOpportunity?->cliente?->razao_social ?? 'Preencha os dados principais para comecar.' }}
                             </p>
                         </div>
 
@@ -286,7 +335,7 @@
 
                                 @can('update', $selectedOpportunity)
                                     <a href="{{ \App\Filament\Resources\Oportunidades\OportunidadeResource::getUrl('edit', ['record' => $selectedOpportunity]) }}" class="crm-btn crm-btn-secondary">
-                                        Edição completa
+                                        Edicao completa
                                     </a>
                                 @endcan
                             @endif
@@ -305,13 +354,13 @@
                             Produtos
                         </button>
                         <button type="button" class="{{ $activeDrawerTab === 'interactions' ? 'is-active' : '' }}" wire:click="$set('activeDrawerTab', 'interactions')" @disabled(! $selectedOpportunity)>
-                            Interações
+                            Interacoes
                         </button>
                         <button type="button" class="{{ $activeDrawerTab === 'tasks' ? 'is-active' : '' }}" wire:click="$set('activeDrawerTab', 'tasks')" @disabled(! $selectedOpportunity)>
                             Tarefas
                         </button>
                         <button type="button" class="{{ $activeDrawerTab === 'movements' ? 'is-active' : '' }}" wire:click="$set('activeDrawerTab', 'movements')" @disabled(! $selectedOpportunity)>
-                            Movimentações
+                            Movimentacoes
                         </button>
                     </nav>
 
