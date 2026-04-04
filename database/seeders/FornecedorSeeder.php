@@ -8,6 +8,7 @@ use App\Models\Empresas\Fornecedor;
 use App\Models\Empresas\PrazoPagamento;
 use App\Models\Status\StatusHomologacao;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class FornecedorSeeder extends Seeder
 {
@@ -280,7 +281,9 @@ class FornecedorSeeder extends Seeder
         foreach ($fornecedores as $dados) {
             Fornecedor::firstOrCreate(
                 ['cnpj' => $dados['cnpj']],
-                $dados
+                array_merge([
+                    'uuid' => (string) Str::uuid(),
+                ], $dados)
             );
         }
 
