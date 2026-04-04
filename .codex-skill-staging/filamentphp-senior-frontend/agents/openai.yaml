@@ -1,0 +1,7 @@
+interface:
+  display_name: "Filament Senior Frontend"
+  short_description: "Padroes senior para FilamentPHP v5 e Laravel 12+"
+  default_prompt: "Use $filamentphp-senior-frontend to implementar ou revisar interfaces FilamentPHP com foco em arquitetura, UX, Eloquent e performance."
+
+policy:
+  allow_implicit_invocation: true
