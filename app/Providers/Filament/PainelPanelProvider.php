@@ -48,7 +48,7 @@ class PainelPanelProvider extends PanelProvider
                     600 => '42,  88,  192', // #2A58C0
                     700 => '30,  69,  168', // #1E45A8
                     800 => '23,  54,  141', // #17368D — brand
-                    900 => '15,  34,  97',  // #0F2261
+                    900 => '17, 25, 44',    // #11192c
                     950 => '10,  26,  74',  // #0A1A4A
                 ],
                 // Gray → Neutral do design system
