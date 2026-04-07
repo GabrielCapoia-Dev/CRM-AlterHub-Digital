@@ -5,17 +5,19 @@ namespace App\Filament\Resources\Insumos\Pages;
 use App\Filament\Resources\Insumos\Actions\GerenciarDependenciasAction;
 use App\Filament\Resources\Insumos\InsumoResource;
 use Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ListRecords;
+use Filament\Resources\Pages\ManageRecords;
 
-class ListInsumos extends ListRecords
+class ManageInsumos extends ManageRecords
 {
     protected static string $resource = InsumoResource::class;
+
+    protected string $view = 'filament.resources.insumos.pages.manage-insumos';
 
     protected function getHeaderActions(): array
     {
         return [
             GerenciarDependenciasAction::make(),
-            CreateAction::make()->label('Novo insumo'),
+            InsumoResource::configureCreateAction(CreateAction::make()),
         ];
     }
 }

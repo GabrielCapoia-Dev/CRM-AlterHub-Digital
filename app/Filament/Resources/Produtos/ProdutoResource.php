@@ -2,15 +2,14 @@
 
 namespace App\Filament\Resources\Produtos;
 
-use App\Filament\Resources\Produtos\Pages\CreateProduto;
-use App\Filament\Resources\Produtos\Pages\EditProduto;
-use App\Filament\Resources\Produtos\Pages\ListProdutos;
-use App\Models\Categorias\CategoriaProduto;
+use App\Filament\Resources\Produtos\Pages\ManageProdutos;
 use App\Models\Produto;
 use App\Models\ProdutoComponenteCusto;
+use App\Models\ProdutoInsumo;
 use App\Models\Produtos\Insumo;
 use App\Services\Produtos\ProdutoPricingCalculator;
 use BackedEnum;
+use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Hidden;
@@ -66,12 +65,12 @@ class ProdutoResource extends Resource
                         Tab::make('Dados gerais')
                             ->schema([
                                 Section::make('Dados gerais')
-                                    ->description('Ficha técnica e comercial do produto.')
+                                    ->description('Ficha tecnica e comercial do produto.')
                                     ->icon(Heroicon::OutlinedTag)
                                     ->columns(2)
                                     ->schema([
                                         TextInput::make('codigo_interno')
-                                            ->label('SKU / código interno')
+                                            ->label('SKU / codigo interno')
                                             ->required()
                                             ->maxLength(255)
                                             ->unique(table: 'produtos', column: 'codigo_interno', ignoreRecord: true)
@@ -118,41 +117,41 @@ class ProdutoResource extends Resource
                                             ->placeholder('0000.00.00'),
 
                                         TextInput::make('estoque_minimo')
-                                            ->label('Estoque mínimo')
+                                            ->label('Estoque minimo')
                                             ->numeric()
                                             ->minValue(0)
                                             ->placeholder('0,0000'),
 
                                         TextInput::make('preco_tabela')
-                                            ->label('Preço base')
+                                            ->label('Preco base')
                                             ->numeric()
                                             ->prefix('R$')
                                             ->minValue(0.01)
                                             ->required(),
 
                                         TextInput::make('preco_minimo')
-                                            ->label('Preço mínimo')
+                                            ->label('Preco minimo')
                                             ->numeric()
                                             ->prefix('R$')
                                             ->minValue(0.01)
                                             ->required(),
 
                                         Textarea::make('descricao')
-                                            ->label('Descrição')
+                                            ->label('Descricao')
                                             ->rows(4)
                                             ->columnSpanFull(),
 
                                         Textarea::make('observacao')
-                                            ->label('Observações internas')
+                                            ->label('Observacoes internas')
                                             ->rows(4)
                                             ->columnSpanFull(),
                                     ]),
                             ]),
 
-                        Tab::make('Formação de custos')
+                        Tab::make('Formacao de custos')
                             ->schema([
-                                Section::make('Composição por insumos')
-                                    ->description('Monte a ficha técnica do produto com snapshots de custo unitário.')
+                                Section::make('Composicao por insumos')
+                                    ->description('Monte a ficha tecnica do produto com snapshots de custo unitario.')
                                     ->icon(Heroicon::OutlinedClipboardDocumentList)
                                     ->columnSpanFull()
                                     ->schema([
@@ -195,7 +194,7 @@ class ProdutoResource extends Resource
                                                 Hidden::make('custo_total_snapshot'),
 
                                                 Placeholder::make('custo_unitario_snapshot_preview')
-                                                    ->label('Custo unitário snapshot')
+                                                    ->label('Custo unitario snapshot')
                                                     ->content(fn (Get $get): string => static::formatCurrency(
                                                         (float) ($get('custo_unitario_snapshot') ?? 0)
                                                     )),
@@ -210,7 +209,7 @@ class ProdutoResource extends Resource
                                     ]),
 
                                 Section::make('Encargos, despesas e margem')
-                                    ->description('Cadastre percentuais e custos fixos que compõem o preço sugerido.')
+                                    ->description('Cadastre percentuais e custos fixos que compoem o preco sugerido.')
                                     ->icon(Heroicon::OutlinedChartBar)
                                     ->columnSpanFull()
                                     ->schema([
@@ -245,10 +244,10 @@ class ProdutoResource extends Resource
                                                     ->required(),
 
                                                 Toggle::make('obrigatorio')
-                                                    ->label('Obrigatório'),
+                                                    ->label('Obrigatorio'),
 
                                                 Toggle::make('is_margem')
-                                                    ->label('É margem')
+                                                    ->label('E margem')
                                                     ->live()
                                                     ->afterStateUpdated(function (Set $set, mixed $state): void {
                                                         if ($state) {
@@ -258,8 +257,8 @@ class ProdutoResource extends Resource
                                             ]),
                                     ]),
 
-                                Section::make('Resumo da formação')
-                                    ->description('Os totais são recalculados a partir da composição atual do formulário.')
+                                Section::make('Resumo da formacao')
+                                    ->description('Os totais sao recalculados a partir da composicao atual do formulario.')
                                     ->icon(Heroicon::OutlinedChartBar)
                                     ->columns(3)
                                     ->columnSpanFull()
@@ -295,18 +294,18 @@ class ProdutoResource extends Resource
                                             )),
 
                                         Placeholder::make('resumo_custo_base_formacao')
-                                            ->label('Custo base da formação')
+                                            ->label('Custo base da formacao')
                                             ->content(fn (Get $get): string => static::formatCurrency(
                                                 static::buildResumo($get)['custo_base_formacao']
                                             )),
 
                                         Placeholder::make('resumo_preco_sugerido')
-                                            ->label('Preço sugerido')
+                                            ->label('Preco sugerido')
                                             ->content(function (Get $get): string {
                                                 $precoSugerido = static::buildResumo($get)['preco_sugerido'];
 
                                                 return $precoSugerido === null
-                                                    ? 'Percentuais inválidos'
+                                                    ? 'Percentuais invalidos'
                                                     : static::formatCurrency($precoSugerido);
                                             })
                                             ->columnSpanFull(),
@@ -322,7 +321,7 @@ class ProdutoResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['categoriaProduto']))
             ->columns([
                 TextColumn::make('codigo_interno')
-                    ->label('Código')
+                    ->label('Codigo')
                     ->searchable()
                     ->sortable()
                     ->fontFamily('mono'),
@@ -343,22 +342,22 @@ class ProdutoResource extends Resource
                     ->sortable(),
 
                 TextColumn::make('preco_tabela')
-                    ->label('Preço base')
+                    ->label('Preco base')
                     ->money('BRL')
                     ->sortable(),
 
                 TextColumn::make('preco_minimo')
-                    ->label('Preço mínimo')
+                    ->label('Preco minimo')
                     ->money('BRL')
                     ->sortable()
-                    ->placeholder('Não informado'),
+                    ->placeholder('Nao informado'),
 
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
                     ->formatStateUsing(function (?string $state): string {
                         if (! $state) {
-                            return 'Não definido';
+                            return 'Nao definido';
                         }
 
                         return Produto::statusOptions()[$state] ?? $state;
@@ -369,7 +368,7 @@ class ProdutoResource extends Resource
                     ->dateTime('d/m/Y H:i'),
             ])
             ->defaultSort('nome')
-            ->searchPlaceholder('Buscar por nome ou código...')
+            ->searchPlaceholder('Buscar por nome ou codigo...')
             ->filters([
                 SelectFilter::make('categoria_produto_id')
                     ->label('Categoria')
@@ -382,7 +381,7 @@ class ProdutoResource extends Resource
                     ->options(Produto::statusOptions()),
             ])
             ->recordActions([
-                EditAction::make()->label('Editar'),
+                static::configureEditAction(EditAction::make()->label('Editar')),
                 DeleteAction::make()->label('Excluir'),
             ]);
     }
@@ -390,9 +389,58 @@ class ProdutoResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListProdutos::route('/'),
-            'create' => CreateProduto::route('/create'),
-            'edit' => EditProduto::route('/{record}/edit'),
+            'index' => ManageProdutos::route('/'),
+        ];
+    }
+
+    public static function configureCreateAction(CreateAction $action): CreateAction
+    {
+        return $action
+            ->label('Novo produto')
+            ->modalWidth('7xl')
+            ->createAnother(false)
+            ->mutateFormDataUsing(fn (array $data): array => app(ProdutoPricingCalculator::class)->prepareForPersistence($data));
+    }
+
+    public static function configureEditAction(EditAction $action): EditAction
+    {
+        return $action
+            ->modalWidth('7xl')
+            ->fillForm(fn (Produto $record): array => static::getModalFormData($record))
+            ->mutateFormDataUsing(fn (array $data): array => app(ProdutoPricingCalculator::class)->prepareForPersistence($data));
+    }
+
+    public static function getModalFormData(Produto $record): array
+    {
+        return [
+            ...$record->attributesToArray(),
+            'produtoInsumos' => $record->produtoInsumos()
+                ->orderBy('ordem')
+                ->get()
+                ->map(fn (ProdutoInsumo $item): array => [
+                    'id' => $item->id,
+                    'insumo_id' => $item->insumo_id,
+                    'quantidade' => (float) $item->quantidade,
+                    'unidade_consumo' => $item->unidade_consumo,
+                    'ordem' => $item->ordem,
+                    'custo_unitario_snapshot' => (float) $item->custo_unitario_snapshot,
+                    'custo_total_snapshot' => (float) $item->custo_total_snapshot,
+                ])
+                ->all(),
+            'produtoComponentesCusto' => $record->produtoComponentesCusto()
+                ->orderBy('ordem')
+                ->get()
+                ->map(fn (ProdutoComponenteCusto $item): array => [
+                    'id' => $item->id,
+                    'nome' => $item->nome,
+                    'categoria' => $item->categoria,
+                    'tipo' => $item->tipo,
+                    'valor' => (float) $item->valor,
+                    'obrigatorio' => $item->obrigatorio,
+                    'is_margem' => $item->is_margem,
+                    'ordem' => $item->ordem,
+                ])
+                ->all(),
         ];
     }
 

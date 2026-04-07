@@ -4,16 +4,18 @@ namespace App\Filament\Resources\Produtos\Pages;
 
 use App\Filament\Resources\Produtos\ProdutoResource;
 use Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ListRecords;
+use Filament\Resources\Pages\ManageRecords;
 
-class ListProdutos extends ListRecords
+class ManageProdutos extends ManageRecords
 {
     protected static string $resource = ProdutoResource::class;
+
+    protected string $view = 'filament.resources.produtos.pages.manage-produtos';
 
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->label('Novo produto'),
+            ProdutoResource::configureCreateAction(CreateAction::make()),
         ];
     }
 }

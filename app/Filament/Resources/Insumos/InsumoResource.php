@@ -2,14 +2,13 @@
 
 namespace App\Filament\Resources\Insumos;
 
-use App\Filament\Resources\Insumos\Pages\CreateInsumo;
-use App\Filament\Resources\Insumos\Pages\EditInsumo;
-use App\Filament\Resources\Insumos\Pages\ListInsumos;
+use App\Filament\Resources\Insumos\Pages\ManageInsumos;
 use App\Models\Empresas\Fornecedor;
 use App\Models\Produtos\Insumo;
 use App\Models\Produtos\InsumoFatorCusto;
 use App\Services\Produtos\InsumoCostCalculator;
 use BackedEnum;
+use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Placeholder;
@@ -317,7 +316,7 @@ class InsumoResource extends Resource
                     ->preload(),
             ])
             ->recordActions([
-                EditAction::make()->label('Editar'),
+                static::configureEditAction(EditAction::make()->label('Editar')),
                 DeleteAction::make()->label('Excluir'),
             ]);
     }
@@ -325,9 +324,42 @@ class InsumoResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListInsumos::route('/'),
-            'create' => CreateInsumo::route('/create'),
-            'edit' => EditInsumo::route('/{record}/edit'),
+            'index' => ManageInsumos::route('/'),
+        ];
+    }
+
+    public static function configureCreateAction(CreateAction $action): CreateAction
+    {
+        return $action
+            ->label('Novo insumo')
+            ->modalWidth('6xl')
+            ->createAnother(false)
+            ->mutateFormDataUsing(fn (array $data): array => app(InsumoCostCalculator::class)->prepareForPersistence($data));
+    }
+
+    public static function configureEditAction(EditAction $action): EditAction
+    {
+        return $action
+            ->modalWidth('6xl')
+            ->fillForm(fn (Insumo $record): array => static::getModalFormData($record))
+            ->mutateFormDataUsing(fn (array $data): array => app(InsumoCostCalculator::class)->prepareForPersistence($data));
+    }
+
+    public static function getModalFormData(Insumo $record): array
+    {
+        return [
+            ...$record->attributesToArray(),
+            'insumoFatoresCusto' => $record->insumoFatoresCusto()
+                ->orderBy('ordem')
+                ->get()
+                ->map(fn (InsumoFatorCusto $item): array => [
+                    'id' => $item->id,
+                    'nome' => $item->nome,
+                    'tipo' => $item->tipo,
+                    'valor' => (float) $item->valor,
+                    'ordem' => $item->ordem,
+                ])
+                ->all(),
         ];
     }
 
