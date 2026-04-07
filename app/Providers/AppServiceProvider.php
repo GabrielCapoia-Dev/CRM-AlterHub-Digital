@@ -2,10 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\Produto;
+use App\Models\Produtos\Insumo;
+use App\Policies\InsumoPolicy;
+use App\Policies\ProdutoPolicy;
 use Illuminate\Support\ServiceProvider;
 use Filament\Support\Facades\FilamentAsset;
 use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
@@ -17,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
         if (app()->environment('production')) {
             URL::forceScheme('https');
         }
+
+        Gate::policy(Produto::class, ProdutoPolicy::class);
+        Gate::policy(Insumo::class, InsumoPolicy::class);
 
         FilamentAsset::register([
             Css::make('geral', secure_asset('css/geral.css?v=' . filemtime(public_path('css/geral.css')))),

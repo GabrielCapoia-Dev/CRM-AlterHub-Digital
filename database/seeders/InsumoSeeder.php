@@ -5,11 +5,14 @@ namespace Database\Seeders;
 use App\Models\Categorias\TipoArmazenamento;
 use App\Models\Categorias\TipoInsumo;
 use App\Models\Categorias\TipoUnidadeMedida;
+use App\Models\Empresas\Fornecedor;
 use App\Models\Produtos\Insumo;
 use App\Models\Status\StatusInsumo;
+use App\Services\Produtos\InsumoCostCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Arr;
 
 class InsumoSeeder extends Seeder
 {
@@ -62,6 +65,9 @@ class InsumoSeeder extends Seeder
             $nome => StatusInsumo::query()->firstOrCreate(['nome' => $nome]),
         ]);
 
+        $fornecedores = Fornecedor::query()->pluck('uuid', 'razao_social');
+        $calculator = app(InsumoCostCalculator::class);
+
         $insumos = [
             [
                 'codigo_interno' => 'INS-2026-001',
@@ -72,7 +78,12 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Kit',
                 'status' => 'Ativo',
                 'ncm' => '38229090',
-                'custo_referencia' => 420.5000,
+                'fornecedor' => 'ReagentBio Distribuidora Ltda.',
+                'origem' => 'importado',
+                'moeda_origem' => 'USD',
+                'custo_moeda_origem' => 68.0000,
+                'taxa_cambio' => 5.420000,
+                'fatores' => $this->importFactors(35.0000, 12.5000, 1.5000),
                 'estoque_minimo' => 8.0000,
                 'observacao' => 'Consumo crescente em campanhas sazonais.',
             ],
@@ -85,7 +96,12 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Kit',
                 'status' => 'Ativo',
                 'ncm' => '38229090',
-                'custo_referencia' => 510.0000,
+                'fornecedor' => 'ReagentBio Distribuidora Ltda.',
+                'origem' => 'importado',
+                'moeda_origem' => 'USD',
+                'custo_moeda_origem' => 74.0000,
+                'taxa_cambio' => 5.450000,
+                'fatores' => $this->importFactors(42.0000, 12.5000, 1.5000),
                 'estoque_minimo' => 6.0000,
                 'observacao' => 'Material critico para entregas de alto giro.',
             ],
@@ -98,6 +114,8 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Litro',
                 'status' => 'Ativo',
                 'ncm' => '38229090',
+                'fornecedor' => 'ReagentBio Distribuidora Ltda.',
+                'origem' => 'nacional',
                 'custo_referencia' => 185.4000,
                 'estoque_minimo' => 12.0000,
                 'observacao' => 'Usado em kits proprios e validacoes internas.',
@@ -111,6 +129,8 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Caixa',
                 'status' => 'Ativo',
                 'ncm' => '39269090',
+                'fornecedor' => 'MicroTube Plásticos Ltda.',
+                'origem' => 'nacional',
                 'custo_referencia' => 78.9000,
                 'estoque_minimo' => 40.0000,
                 'observacao' => 'Lote com maior giro entre molecular e rotina.',
@@ -124,6 +144,8 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Caixa',
                 'status' => 'Ativo',
                 'ncm' => '39269090',
+                'fornecedor' => 'MicroTube Plásticos Ltda.',
+                'origem' => 'nacional',
                 'custo_referencia' => 132.7500,
                 'estoque_minimo' => 20.0000,
                 'observacao' => 'Mantida com cobertura para duas semanas de producao.',
@@ -137,6 +159,8 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Caixa',
                 'status' => 'Ativo',
                 'ncm' => '39269090',
+                'fornecedor' => 'MicroTube Plásticos Ltda.',
+                'origem' => 'nacional',
                 'custo_referencia' => 96.2000,
                 'estoque_minimo' => 24.0000,
                 'observacao' => 'Apoia biobanco e kits de coleta especial.',
@@ -150,7 +174,12 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Kit',
                 'status' => 'Ativo',
                 'ncm' => '35079039',
-                'custo_referencia' => 689.0000,
+                'fornecedor' => 'ReagentBio Distribuidora Ltda.',
+                'origem' => 'importado',
+                'moeda_origem' => 'USD',
+                'custo_moeda_origem' => 98.0000,
+                'taxa_cambio' => 5.580000,
+                'fatores' => $this->importFactors(58.0000, 13.0000, 2.0000),
                 'estoque_minimo' => 5.0000,
                 'observacao' => 'Item de maior sensibilidade a atraso logistico.',
             ],
@@ -163,7 +192,12 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Kit',
                 'status' => 'Ativo',
                 'ncm' => '38229090',
-                'custo_referencia' => 355.6000,
+                'fornecedor' => 'ReagentBio Distribuidora Ltda.',
+                'origem' => 'importado',
+                'moeda_origem' => 'USD',
+                'custo_moeda_origem' => 49.5000,
+                'taxa_cambio' => 5.460000,
+                'fatores' => $this->importFactors(32.0000, 12.0000, 1.5000),
                 'estoque_minimo' => 4.0000,
                 'observacao' => 'Mantido em estoque seguro para liberacao de lotes.',
             ],
@@ -176,6 +210,8 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Litro',
                 'status' => 'Ativo',
                 'ncm' => '34029039',
+                'fornecedor' => 'Vetorial Insumos Biotecnologia',
+                'origem' => 'nacional',
                 'custo_referencia' => 64.3000,
                 'estoque_minimo' => 15.0000,
                 'observacao' => 'Uso mais intenso em campanhas de inflamacoes sazonais.',
@@ -189,6 +225,8 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Litro',
                 'status' => 'Ativo',
                 'ncm' => '38229090',
+                'fornecedor' => 'ReagentBio Distribuidora Ltda.',
+                'origem' => 'nacional',
                 'custo_referencia' => 244.8000,
                 'estoque_minimo' => 10.0000,
                 'observacao' => 'Consumo indexado ao equipamento Auto X8.',
@@ -202,7 +240,12 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Kit',
                 'status' => 'Em homologacao',
                 'ncm' => '38229090',
-                'custo_referencia' => 780.0000,
+                'fornecedor' => 'ReagentBio Distribuidora Ltda.',
+                'origem' => 'importado',
+                'moeda_origem' => 'USD',
+                'custo_moeda_origem' => 104.0000,
+                'taxa_cambio' => 5.600000,
+                'fatores' => $this->importFactors(44.0000, 12.5000, 2.0000),
                 'estoque_minimo' => 3.0000,
                 'observacao' => 'Novo fornecedor em avaliacao para ganho de margem.',
             ],
@@ -215,6 +258,8 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Litro',
                 'status' => 'Ativo',
                 'ncm' => '29051220',
+                'fornecedor' => 'Vetorial Insumos Biotecnologia',
+                'origem' => 'nacional',
                 'custo_referencia' => 58.9000,
                 'estoque_minimo' => 18.0000,
                 'observacao' => 'Mantido com dupla cobertura por risco de ruptura.',
@@ -228,6 +273,8 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Mililitro',
                 'status' => 'Bloqueado',
                 'ncm' => '38229090',
+                'fornecedor' => 'Vetorial Insumos Biotecnologia',
+                'origem' => 'nacional',
                 'custo_referencia' => 11.2500,
                 'estoque_minimo' => 150.0000,
                 'observacao' => 'Bloqueado temporariamente por revisao de estabilidade.',
@@ -241,6 +288,8 @@ class InsumoSeeder extends Seeder
                 'unidade' => 'Unidade',
                 'status' => 'Ativo',
                 'ncm' => '38249989',
+                'fornecedor' => 'BioPack Soluções em Embalagem',
+                'origem' => 'nacional',
                 'custo_referencia' => 14.5000,
                 'estoque_minimo' => 80.0000,
                 'observacao' => 'Apoia expedicao de kits com sensibilidade termica.',
@@ -248,24 +297,35 @@ class InsumoSeeder extends Seeder
         ];
 
         foreach ($insumos as $index => $dados) {
-            $insumo = Insumo::query()->firstOrNew([
+            $prepared = $calculator->prepareForPersistence([
                 'codigo_interno' => $dados['codigo_interno'],
-            ]);
-
-            $insumo->fill([
                 'nome' => $dados['nome'],
                 'descricao' => $dados['descricao'],
                 'tipo_insumo_id' => $tipoMap[$dados['tipo']]->id,
                 'tipo_armazenamento_id' => $armazenamentoMap[$dados['armazenamento']]->id,
                 'tipo_unidade_medida_id' => $unidadeMap[$dados['unidade']]->id,
                 'status_insumo_id' => $statusMap[$dados['status']]->id,
+                'fornecedor_id' => $fornecedores[$dados['fornecedor']] ?? null,
+                'origem' => $dados['origem'],
+                'moeda_origem' => $dados['moeda_origem'] ?? null,
+                'custo_referencia' => $dados['custo_referencia'] ?? null,
+                'custo_moeda_origem' => $dados['custo_moeda_origem'] ?? null,
+                'taxa_cambio' => $dados['taxa_cambio'] ?? null,
                 'ncm' => $dados['ncm'],
-                'custo_referencia' => $dados['custo_referencia'],
                 'estoque_minimo' => $dados['estoque_minimo'],
                 'observacao' => $dados['observacao'],
+                'insumoFatoresCusto' => $dados['fatores'] ?? [],
             ]);
 
+            $insumo = Insumo::query()->firstOrNew([
+                'codigo_interno' => $dados['codigo_interno'],
+            ]);
+
+            $insumo->fill(Arr::except($prepared, ['insumoFatoresCusto']));
             $insumo->saveQuietly();
+
+            $insumo->insumoFatoresCusto()->delete();
+            $insumo->insumoFatoresCusto()->createMany($prepared['insumoFatoresCusto']);
 
             $createdAt = CarbonImmutable::now()->subDays(140 - ($index * 5))->setTime(10, 0);
             $updatedAt = $createdAt->addDays(2);
@@ -274,6 +334,27 @@ class InsumoSeeder extends Seeder
         }
 
         $this->command->info('InsumoSeeder concluiu ' . count($insumos) . ' insumos.');
+    }
+
+    private function importFactors(float $frete, float $aduaneiraPercentual, float $seguroPercentual): array
+    {
+        return [
+            [
+                'nome' => 'Frete internacional',
+                'tipo' => 'valor_fixo_brl',
+                'valor' => $frete,
+            ],
+            [
+                'nome' => 'Despesa aduaneira',
+                'tipo' => 'percentual',
+                'valor' => $aduaneiraPercentual,
+            ],
+            [
+                'nome' => 'Seguro internacional',
+                'tipo' => 'percentual',
+                'valor' => $seguroPercentual,
+            ],
+        ];
     }
 
     private function syncTimestamps(Model $model, CarbonImmutable $createdAt, CarbonImmutable $updatedAt): void

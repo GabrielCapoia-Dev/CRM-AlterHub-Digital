@@ -3,9 +3,11 @@
 namespace App\Models\Empresas;
 
 use App\Models\Categorias\CategoriaFornecimento;
+use App\Models\Produtos\Insumo;
 use App\Models\Status\StatusHomologacao;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 
@@ -111,5 +113,10 @@ class Fornecedor extends Model
             FormaPagamento::class,
             'id_forma_pagamento'
         );
+    }
+
+    public function insumosPreferenciais(): HasMany
+    {
+        return $this->hasMany(Insumo::class, 'fornecedor_id', 'uuid');
     }
 }

@@ -26,6 +26,12 @@ enum PermissoesEnum: string
     case EditarProdutosCRM          = 'Editar Produtos CRM';
     case ExcluirProdutosCRM         = 'Excluir Produtos CRM';
 
+    // Estoque - Insumos
+    case ListarInsumos              = 'Listar Insumos';
+    case CriarInsumos               = 'Criar Insumos';
+    case EditarInsumos              = 'Editar Insumos';
+    case ExcluirInsumos             = 'Excluir Insumos';
+
     // CRM - Etapas
     case ListarEtapasCRM            = 'Listar Etapas CRM';
     case CriarEtapasCRM             = 'Criar Etapas CRM';

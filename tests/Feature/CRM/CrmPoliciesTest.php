@@ -11,7 +11,9 @@ use App\Models\OportunidadeMovimentacao;
 use App\Models\OportunidadeProduto;
 use App\Models\OportunidadeTarefa;
 use App\Models\Produto;
+use App\Models\Produtos\Insumo;
 use App\Policies\EtapaPolicy;
+use App\Policies\InsumoPolicy;
 use App\Policies\OportunidadeInteracaoPolicy;
 use App\Policies\OportunidadeMovimentacaoPolicy;
 use App\Policies\OportunidadePolicy;
@@ -55,6 +57,10 @@ class CrmPoliciesTest extends TestCase
             PermissoesEnum::CriarProdutosCRM,
             PermissoesEnum::EditarProdutosCRM,
             PermissoesEnum::ExcluirProdutosCRM,
+            PermissoesEnum::ListarInsumos,
+            PermissoesEnum::CriarInsumos,
+            PermissoesEnum::EditarInsumos,
+            PermissoesEnum::ExcluirInsumos,
             PermissoesEnum::ListarEtapasCRM,
             PermissoesEnum::CriarEtapasCRM,
             PermissoesEnum::EditarEtapasCRM,
@@ -89,6 +95,7 @@ class CrmPoliciesTest extends TestCase
         $user->givePermissionTo(collect($permissoes)->map(fn (PermissoesEnum $permissao) => $permissao->value)->all());
 
         $produto = new Produto();
+        $insumo = new Insumo();
         $etapa = new Etapa();
         $oportunidade = new Oportunidade();
         $oportunidadeProduto = new OportunidadeProduto();
@@ -100,6 +107,10 @@ class CrmPoliciesTest extends TestCase
         $this->assertTrue(app(ProdutoPolicy::class)->create($user));
         $this->assertTrue(app(ProdutoPolicy::class)->update($user, $produto));
         $this->assertTrue(app(ProdutoPolicy::class)->delete($user, $produto));
+        $this->assertTrue(app(InsumoPolicy::class)->viewAny($user));
+        $this->assertTrue(app(InsumoPolicy::class)->create($user));
+        $this->assertTrue(app(InsumoPolicy::class)->update($user, $insumo));
+        $this->assertTrue(app(InsumoPolicy::class)->delete($user, $insumo));
 
         $this->assertTrue(app(EtapaPolicy::class)->viewAny($user));
         $this->assertTrue(app(OportunidadePolicy::class)->create($user));
@@ -112,6 +123,7 @@ class CrmPoliciesTest extends TestCase
         $this->assertFalse(app(OportunidadeMovimentacaoPolicy::class)->update($user, $movimentacao));
 
         $this->assertFalse(app(ProdutoPolicy::class)->viewAny($semPermissao));
+        $this->assertFalse(app(InsumoPolicy::class)->viewAny($semPermissao));
         $this->assertFalse(app(EtapaPolicy::class)->create($semPermissao));
         $this->assertFalse(app(OportunidadePolicy::class)->update($semPermissao, $oportunidade));
         $this->assertFalse(app(OportunidadeProdutoPolicy::class)->delete($semPermissao, $oportunidadeProduto));

@@ -2,9 +2,12 @@
 
 namespace App\Models\Produtos;
 
+use App\Models\Empresas\Fornecedor;
+use App\Models\ProdutoInsumo;
 use App\Models\Status\StatusInsumo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Categorias\TipoInsumo;
 use App\Models\Categorias\TipoArmazenamento;
 use App\Models\Categorias\TipoUnidadeMedida;
@@ -16,6 +19,7 @@ class Insumo extends Model
 
     protected $fillable = [
         'codigo_interno',
+        'fornecedor_id',
         'nome',
         'descricao',
 
@@ -23,9 +27,15 @@ class Insumo extends Model
         'tipo_armazenamento_id',
         'tipo_unidade_medida_id',
         'status_insumo_id',
+        'origem',
+        'moeda_origem',
 
         'ncm',
         'custo_referencia',
+        'custo_moeda_origem',
+        'taxa_cambio',
+        'valor_convertido_brl',
+        'custo_nacionalizado',
         'estoque_minimo',
 
         'observacao',
@@ -36,9 +46,30 @@ class Insumo extends Model
         'tipo_armazenamento_id'   => 'integer',
         'tipo_unidade_medida_id'  => 'integer',
         'status_insumo_id'        => 'integer',
+        'fornecedor_id'           => 'string',
         'custo_referencia'        => 'decimal:4',
+        'custo_moeda_origem'      => 'decimal:4',
+        'taxa_cambio'             => 'decimal:6',
+        'valor_convertido_brl'    => 'decimal:4',
+        'custo_nacionalizado'     => 'decimal:4',
         'estoque_minimo'          => 'decimal:4',
     ];
+
+    public static function origemOptions(): array
+    {
+        return [
+            'nacional' => 'Nacional',
+            'importado' => 'Importado',
+        ];
+    }
+
+    public static function moedaOptions(): array
+    {
+        return [
+            'USD' => 'USD',
+            'EUR' => 'EUR',
+        ];
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -76,5 +107,20 @@ class Insumo extends Model
             StatusInsumo::class,
             'status_insumo_id'
         );
+    }
+
+    public function fornecedor(): BelongsTo
+    {
+        return $this->belongsTo(Fornecedor::class, 'fornecedor_id', 'uuid');
+    }
+
+    public function insumoFatoresCusto(): HasMany
+    {
+        return $this->hasMany(InsumoFatorCusto::class, 'insumo_id')->orderBy('ordem');
+    }
+
+    public function produtoInsumos(): HasMany
+    {
+        return $this->hasMany(ProdutoInsumo::class, 'insumo_id');
     }
 }
