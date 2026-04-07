@@ -35,7 +35,7 @@
     --crm-shadow-md: 0 16px 30px rgba(15, 34, 97, 0.11);
     --crm-shadow-lg: 0 26px 54px rgba(15, 34, 97, 0.14);
     --crm-ease: cubic-bezier(0.4, 0, 0.2, 1);
-    --crm-stage-header-height: 6.5rem;
+    --crm-stage-header-height: 5rem;
     --crm-stage-create-height: 3.25rem;
     font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
     color: var(--crm-neutral-900);

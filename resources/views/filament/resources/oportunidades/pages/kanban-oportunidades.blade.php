@@ -207,33 +207,6 @@
                                             </div>
                                         </div>
 
-                                        @if ($card['contact'] || $card['email'])
-                                            <p class="crm-kanban-card-meta">
-                                                {{ $card['contact'] ?: 'Sem contato' }}
-                                                @if ($card['email'])
-                                                    · {{ $card['email'] }}
-                                                @endif
-                                            </p>
-                                        @endif
-
-                                        @if ($card['segment'])
-                                            <div class="crm-kanban-card-segment">
-                                                <span class="crm-kanban-badge">{{ $card['segment'] }}</span>
-                                            </div>
-                                        @endif
-
-                                        @if (count($card['products']))
-                                            <div class="crm-kanban-chip-row">
-                                                @foreach ($card['products'] as $product)
-                                                    <span class="crm-kanban-chip">{{ $product }}</span>
-                                                @endforeach
-
-                                                @if ($card['extra_products_count'] > 0)
-                                                    <span class="crm-kanban-chip">+{{ $card['extra_products_count'] }}</span>
-                                                @endif
-                                            </div>
-                                        @endif
-
                                         <div class="crm-kanban-card-grid">
                                             <div>
                                                 <span class="crm-kanban-card-label">Valor estimado</span>
@@ -251,7 +224,6 @@
                                                 <span>{{ $card['owner_initials'] }}</span>
 
                                                 <div>
-                                                    <small>Responsavel</small>
                                                     <strong>{{ $card['owner'] ?: 'Sem responsavel' }}</strong>
                                                 </div>
                                             </div>
