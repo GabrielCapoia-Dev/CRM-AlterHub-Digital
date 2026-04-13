@@ -47,7 +47,7 @@ class ProdutoResource extends Resource
 
     public static ?string $slug = 'produtos';
 
-    protected static string | UnitEnum | null $navigationGroup = 'CRM';
+    protected static string | UnitEnum | null $navigationGroup = 'Estoque';
 
     protected static ?int $navigationSort = 1;
 
@@ -167,7 +167,7 @@ class ProdutoResource extends Resource
                                                     ->label('Insumo')
                                                     ->relationship('insumo', 'nome')
                                                     ->getOptionLabelFromRecordUsing(
-                                                        fn (Insumo $record): string => $record->codigo_interno
+                                                        fn(Insumo $record): string => $record->codigo_interno
                                                             ? "{$record->codigo_interno} - {$record->nome}"
                                                             : $record->nome
                                                     )
@@ -175,7 +175,7 @@ class ProdutoResource extends Resource
                                                     ->preload()
                                                     ->required()
                                                     ->live()
-                                                    ->afterStateUpdated(fn (Set $set, Get $get) => static::syncInsumoSnapshotLine($set, $get)),
+                                                    ->afterStateUpdated(fn(Set $set, Get $get) => static::syncInsumoSnapshotLine($set, $get)),
 
                                                 TextInput::make('quantidade')
                                                     ->label('Quantidade')
@@ -183,7 +183,7 @@ class ProdutoResource extends Resource
                                                     ->minValue(0.0001)
                                                     ->required()
                                                     ->live()
-                                                    ->afterStateUpdated(fn (Set $set, Get $get) => static::syncInsumoSnapshotLine($set, $get)),
+                                                    ->afterStateUpdated(fn(Set $set, Get $get) => static::syncInsumoSnapshotLine($set, $get)),
 
                                                 TextInput::make('unidade_consumo')
                                                     ->label('Unidade de consumo')
@@ -195,13 +195,13 @@ class ProdutoResource extends Resource
 
                                                 Placeholder::make('custo_unitario_snapshot_preview')
                                                     ->label('Custo unitario snapshot')
-                                                    ->content(fn (Get $get): string => static::formatCurrency(
+                                                    ->content(fn(Get $get): string => static::formatCurrency(
                                                         (float) ($get('custo_unitario_snapshot') ?? 0)
                                                     )),
 
                                                 Placeholder::make('custo_total_snapshot_preview')
                                                     ->label('Custo total snapshot')
-                                                    ->content(fn (Get $get): string => static::formatCurrency(
+                                                    ->content(fn(Get $get): string => static::formatCurrency(
                                                         (float) ($get('custo_total_snapshot') ?? 0)
                                                     )),
                                             ])
@@ -220,7 +220,7 @@ class ProdutoResource extends Resource
                                             ->addActionLabel('Adicionar componente')
                                             ->collapsible()
                                             ->live()
-                                            ->default(fn (): array => app(ProdutoPricingCalculator::class)->defaultComponentes())
+                                            ->default(fn(): array => app(ProdutoPricingCalculator::class)->defaultComponentes())
                                             ->schema([
                                                 TextInput::make('nome')
                                                     ->label('Nome')
@@ -265,37 +265,37 @@ class ProdutoResource extends Resource
                                     ->schema([
                                         Placeholder::make('resumo_custo_total_insumos')
                                             ->label('Custo total de insumos')
-                                            ->content(fn (Get $get): string => static::formatCurrency(
+                                            ->content(fn(Get $get): string => static::formatCurrency(
                                                 static::buildResumo($get)['custo_total_insumos']
                                             )),
 
                                         Placeholder::make('resumo_custos_adicionais')
                                             ->label('Custos adicionais')
-                                            ->content(fn (Get $get): string => static::formatCurrency(
+                                            ->content(fn(Get $get): string => static::formatCurrency(
                                                 static::buildResumo($get)['custos_adicionais']
                                             )),
 
                                         Placeholder::make('resumo_percentual_total')
                                             ->label('Percentual total')
-                                            ->content(fn (Get $get): string => static::formatPercent(
+                                            ->content(fn(Get $get): string => static::formatPercent(
                                                 static::buildResumo($get)['percentual_total']
                                             )),
 
                                         Placeholder::make('resumo_percentual_sobre_venda')
                                             ->label('Percentual sobre venda')
-                                            ->content(fn (Get $get): string => static::formatPercent(
+                                            ->content(fn(Get $get): string => static::formatPercent(
                                                 static::buildResumo($get)['percentual_sobre_venda']
                                             )),
 
                                         Placeholder::make('resumo_margem')
                                             ->label('Margem')
-                                            ->content(fn (Get $get): string => static::formatPercent(
+                                            ->content(fn(Get $get): string => static::formatPercent(
                                                 static::buildResumo($get)['margem']
                                             )),
 
                                         Placeholder::make('resumo_custo_base_formacao')
                                             ->label('Custo base da formacao')
-                                            ->content(fn (Get $get): string => static::formatCurrency(
+                                            ->content(fn(Get $get): string => static::formatCurrency(
                                                 static::buildResumo($get)['custo_base_formacao']
                                             )),
 
@@ -318,7 +318,7 @@ class ProdutoResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['categoriaProduto']))
+            ->modifyQueryUsing(fn(Builder $query) => $query->with(['categoriaProduto']))
             ->columns([
                 TextColumn::make('codigo_interno')
                     ->label('Codigo')
@@ -399,15 +399,15 @@ class ProdutoResource extends Resource
             ->label('Novo produto')
             ->modalWidth('7xl')
             ->createAnother(false)
-            ->mutateFormDataUsing(fn (array $data): array => app(ProdutoPricingCalculator::class)->prepareForPersistence($data));
+            ->mutateFormDataUsing(fn(array $data): array => app(ProdutoPricingCalculator::class)->prepareForPersistence($data));
     }
 
     public static function configureEditAction(EditAction $action): EditAction
     {
         return $action
             ->modalWidth('7xl')
-            ->fillForm(fn (Produto $record): array => static::getModalFormData($record))
-            ->mutateFormDataUsing(fn (array $data): array => app(ProdutoPricingCalculator::class)->prepareForPersistence($data));
+            ->fillForm(fn(Produto $record): array => static::getModalFormData($record))
+            ->mutateFormDataUsing(fn(array $data): array => app(ProdutoPricingCalculator::class)->prepareForPersistence($data));
     }
 
     public static function getModalFormData(Produto $record): array
@@ -417,7 +417,7 @@ class ProdutoResource extends Resource
             'produtoInsumos' => $record->produtoInsumos()
                 ->orderBy('ordem')
                 ->get()
-                ->map(fn (ProdutoInsumo $item): array => [
+                ->map(fn(ProdutoInsumo $item): array => [
                     'id' => $item->id,
                     'insumo_id' => $item->insumo_id,
                     'quantidade' => (float) $item->quantidade,
@@ -430,7 +430,7 @@ class ProdutoResource extends Resource
             'produtoComponentesCusto' => $record->produtoComponentesCusto()
                 ->orderBy('ordem')
                 ->get()
-                ->map(fn (ProdutoComponenteCusto $item): array => [
+                ->map(fn(ProdutoComponenteCusto $item): array => [
                     'id' => $item->id,
                     'nome' => $item->nome,
                     'categoria' => $item->categoria,

@@ -39,15 +39,15 @@ class OportunidadeResource extends Resource
 
     protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedBuildingOffice2;
 
-    protected static ?string $navigationLabel = 'Oportunidades';
+    protected static ?string $navigationLabel = 'CRM Kanban';
 
-    protected static ?string $modelLabel = 'Oportunidade';
+    protected static ?string $modelLabel = 'CRM Kanban';
 
-    protected static ?string $pluralModelLabel = 'Oportunidades';
+    protected static ?string $pluralModelLabel = 'CRM Kanban';
 
-    public static ?string $slug = 'oportunidades';
+    public static ?string $slug = 'crm-kanban';
 
-    protected static string | UnitEnum | null $navigationGroup = 'CRM';
+    protected static string | UnitEnum | null $navigationGroup = 'Comercial';
 
     protected static ?int $navigationSort = 3;
 
