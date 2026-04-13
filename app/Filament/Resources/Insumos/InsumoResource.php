@@ -200,7 +200,7 @@ class InsumoResource extends Resource
     protected static function configureModalAction(CreateAction|EditAction $action, bool $withDelete = false): CreateAction|EditAction
     {
         return $action
-            ->modalWidth('7xl')
+            ->modalWidth('4xl')
             ->modalIcon(null)
             ->modalHeading($withDelete ? 'Editar insumo' : 'Novo insumo')
             ->modalDescription('Itens para producao e laboratorio (compras / estoque). Campos com * sao obrigatorios nesta demonstracao.')

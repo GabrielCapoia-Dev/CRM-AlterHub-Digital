@@ -397,7 +397,7 @@ class ProdutoResource extends Resource
     {
         return $action
             ->label('Novo produto')
-            ->modalWidth('7xl')
+            ->modalWidth('4xl')
             ->createAnother(false)
             ->mutateFormDataUsing(fn(array $data): array => app(ProdutoPricingCalculator::class)->prepareForPersistence($data));
     }
@@ -405,7 +405,7 @@ class ProdutoResource extends Resource
     public static function configureEditAction(EditAction $action): EditAction
     {
         return $action
-            ->modalWidth('7xl')
+            ->modalWidth('4xl')
             ->fillForm(fn(Produto $record): array => static::getModalFormData($record))
             ->mutateFormDataUsing(fn(array $data): array => app(ProdutoPricingCalculator::class)->prepareForPersistence($data));
     }
