@@ -418,10 +418,55 @@ class InsumoResource extends Resource
                     ->columnSpanFull()
                     ->extraAttributes(['class' => 'insumo-subsection'])
                     ->schema([
+                        Hidden::make('show_existing_factor_picker')
+                            ->default(false)
+                            ->dehydrated(false)
+                            ->live(),
+
                         SchemaActions::make([
-                            static::makeAddExistingFactorAction(),
+                            static::makeShowExistingFactorPickerAction(),
                         ])
                             ->alignment(Alignment::Start)
+                            ->columnSpanFull(),
+
+                        Select::make('existing_factor_template')
+                            ->label('Adicionar fator existente')
+                            ->placeholder('Selecione uma opcao')
+                            ->options(fn (Get $get): array => static::getAvailableExistingFactorTemplateOptions($get))
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->dehydrated(false)
+                            ->visible(fn (Get $get): bool => $get('show_existing_factor_picker') && static::hasAvailableExistingFactorTemplates($get))
+                            ->extraAttributes([
+                                'class' => 'insumo-existing-factor-select',
+                            ])
+                            ->extraAlpineAttributes([
+                                'x-on:change' => 'window.dispatchEvent(new CustomEvent("insumo-existing-factor-selected"))',
+                            ])
+                            ->afterStateUpdated(function (?string $state, Get $get, Set $set): void {
+                                $template = static::decodeFactorTemplate($state);
+
+                                if (! $template) {
+                                    return;
+                                }
+
+                                $fatores = collect($get('insumoFatoresCusto') ?? [])
+                                    ->filter(fn (mixed $item): bool => is_array($item))
+                                    ->values()
+                                    ->all();
+
+                                $fatores[] = [
+                                    'nome' => $template['nome'],
+                                    'tipo' => $template['tipo'],
+                                    'valor' => $template['valor'],
+                                    'ordem' => count($fatores) + 1,
+                                ];
+
+                                $set('insumoFatoresCusto', $fatores);
+                                $set('existing_factor_template', null);
+                                $set('show_existing_factor_picker', false);
+                            })
                             ->columnSpanFull(),
 
                         Repeater::make('insumoFatoresCusto')
@@ -511,46 +556,19 @@ class InsumoResource extends Resource
             ]);
     }
 
-    protected static function makeAddExistingFactorAction(): Action
+    protected static function makeShowExistingFactorPickerAction(): Action
     {
-        return Action::make('addExistingCostFactor')
+        return Action::make('showExistingCostFactorPicker')
             ->label('Adicionar fator existente')
             ->icon(Heroicon::OutlinedPlusCircle)
             ->color('gray')
-            ->disabled(fn (): bool => static::getExistingFactorTemplateOptions() === [])
-            ->tooltip(fn (): ?string => static::getExistingFactorTemplateOptions() === []
-                ? 'Nenhum fator reutilizavel foi encontrado em outros insumos.'
-                : null)
-            ->schema([
-                Select::make('template')
-                    ->label('Fator existente')
-                    ->options(static::getExistingFactorTemplateOptions())
-                    ->searchable()
-                    ->required(),
+            ->visible(fn (Get $get): bool => (! $get('show_existing_factor_picker')) && static::hasAvailableExistingFactorTemplates($get))
+            ->extraAttributes([
+                'class' => 'insumo-existing-factor-picker-trigger',
             ])
-            ->modalHeading('Adicionar fator existente')
-            ->modalDescription('Reaproveite um fator ja usado em outro insumo e ajuste o valor se necessario.')
-            ->modalSubmitActionLabel('Adicionar fator')
-            ->action(function (array $data, Get $get, Set $set): void {
-                $template = static::decodeFactorTemplate($data['template'] ?? null);
-
-                if (! $template) {
-                    return;
-                }
-
-                $fatores = collect($get('insumoFatoresCusto') ?? [])
-                    ->filter(fn (mixed $item): bool => is_array($item))
-                    ->values()
-                    ->all();
-
-                $fatores[] = [
-                    'nome' => $template['nome'],
-                    'tipo' => $template['tipo'],
-                    'valor' => $template['valor'],
-                    'ordem' => count($fatores) + 1,
-                ];
-
-                $set('insumoFatoresCusto', $fatores);
+            ->dispatch('insumo-existing-factor-picker-opened')
+            ->action(function (Set $set): void {
+                $set('show_existing_factor_picker', true);
             });
     }
 
@@ -585,30 +603,51 @@ class InsumoResource extends Resource
             ->all();
     }
 
-    protected static function getExistingFactorTemplateOptions(): array
+    protected static function hasAvailableExistingFactorTemplates(Get $get): bool
+    {
+        return static::getAvailableExistingFactorTemplateOptions($get) !== [];
+    }
+
+    protected static function getAvailableExistingFactorTemplateOptions(Get $get): array
+    {
+        $selectedSignatures = collect($get('insumoFatoresCusto') ?? [])
+            ->filter(fn (mixed $fator): bool => is_array($fator))
+            ->map(fn (array $fator): string => static::factorTemplateSignature($fator))
+            ->filter()
+            ->values()
+            ->all();
+
+        return collect(static::getExistingFactorTemplates())
+            ->reject(fn (array $template): bool => in_array(static::factorTemplateSignature($template), $selectedSignatures, true))
+            ->mapWithKeys(fn (array $template): array => [
+                static::encodeFactorTemplate($template) => static::formatFactorTemplateLabel($template),
+            ])
+            ->all();
+    }
+
+    protected static function getExistingFactorTemplates(): array
     {
         return InsumoFatorCusto::query()
             ->orderBy('nome')
             ->orderBy('tipo')
             ->get(['nome', 'tipo', 'valor'])
-            ->unique(fn (InsumoFatorCusto $fator): string => implode('|', [
-                $fator->nome,
-                $fator->tipo,
-                number_format((float) $fator->valor, 4, '.', ''),
-            ]))
-            ->mapWithKeys(fn (InsumoFatorCusto $fator): array => [
-                static::encodeFactorTemplate([
-                    'nome' => $fator->nome,
-                    'tipo' => $fator->tipo,
-                    'valor' => (float) $fator->valor,
-                ]) => static::formatFactorTemplateLabel($fator),
+            ->map(fn (InsumoFatorCusto $fator): array => [
+                'nome' => $fator->nome,
+                'tipo' => $fator->tipo,
+                'valor' => (float) $fator->valor,
             ])
+            ->unique(fn (array $template): string => static::factorTemplateSignature($template))
+            ->values()
             ->all();
     }
 
     protected static function encodeFactorTemplate(array $template): string
     {
-        return base64_encode(json_encode($template) ?: '');
+        return base64_encode(json_encode([
+            'nome' => (string) ($template['nome'] ?? ''),
+            'tipo' => $template['tipo'] ?? null,
+            'valor' => round((float) ($template['valor'] ?? 0), 4),
+        ]) ?: '');
     }
 
     protected static function decodeFactorTemplate(?string $payload): ?array
@@ -626,17 +665,26 @@ class InsumoResource extends Resource
         return [
             'nome' => (string) ($decoded['nome'] ?? ''),
             'tipo' => $decoded['tipo'] ?? null,
-            'valor' => (float) ($decoded['valor'] ?? 0),
+            'valor' => round((float) ($decoded['valor'] ?? 0), 4),
         ];
     }
 
-    protected static function formatFactorTemplateLabel(InsumoFatorCusto $fator): string
+    protected static function factorTemplateSignature(array $template): string
     {
-        $tipo = $fator->tipo === 'percentual'
-            ? static::formatPercent((float) $fator->valor)
-            : static::formatCurrency((float) $fator->valor);
+        return implode('|', [
+            trim((string) ($template['nome'] ?? '')),
+            (string) ($template['tipo'] ?? ''),
+            number_format((float) ($template['valor'] ?? 0), 4, '.', ''),
+        ]);
+    }
 
-        return "{$fator->nome} ({$tipo})";
+    protected static function formatFactorTemplateLabel(array|InsumoFatorCusto $template): string
+    {
+        $tipo = ($template['tipo'] ?? null) === 'percentual'
+            ? static::formatPercent((float) ($template['valor'] ?? 0))
+            : static::formatCurrency((float) ($template['valor'] ?? 0));
+
+        return "{$template['nome']} ({$tipo})";
     }
 
     protected static function formatFornecedorLabel(Fornecedor $record): string

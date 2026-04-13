@@ -2,7 +2,7 @@
     <style>
         .insumo-modal-window {
             border-radius: 1.5rem;
-            overflow: hidden;
+            overflow: visible;
             border: 1px solid rgba(148, 163, 184, 0.24);
             box-shadow: 0 28px 80px rgba(15, 23, 42, 0.18);
         }
@@ -28,6 +28,7 @@
 
         .insumo-modal-window .fi-modal-content {
             padding: 1.25rem 1.5rem 1.5rem;
+            overflow: visible;
             background:
                 radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 24%),
                 linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(255, 255, 255, 1));
@@ -52,6 +53,8 @@
 
         .insumo-modal-window .fi-sc-component > .fi-section,
         .insumo-modal-window .fi-sc-component > .fi-section-content-ctn > .fi-section {
+            position: relative;
+            overflow: visible;
             border-radius: 1.25rem;
             border: 1px solid rgba(226, 232, 240, 0.92);
             box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
@@ -65,6 +68,33 @@
 
         .insumo-modal-window .fi-fo-field-wrp-helper-text {
             color: rgb(100 116 139);
+        }
+
+        .insumo-modal-window .fi-fo-select-wrp,
+        .insumo-modal-window .fi-fo-select,
+        .insumo-modal-window .fi-select-input,
+        .insumo-modal-window .fi-select-input-ctn {
+            position: relative;
+            overflow: visible;
+        }
+
+        .insumo-modal-window .fi-fo-select-wrp:focus-within,
+        .insumo-modal-window .insumo-existing-factor-select,
+        .insumo-modal-window .fi-select-input-ctn:focus-within {
+            z-index: 80;
+        }
+
+        .insumo-modal-window .fi-dropdown-panel {
+            z-index: 9999;
+            max-height: min(18rem, calc(100vh - 7rem));
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+        }
+
+        .insumo-modal-window .fi-dropdown-list,
+        .insumo-modal-window .fi-select-input-options-ctn {
+            max-height: none;
         }
 
         .insumo-modal-chip {
@@ -195,6 +225,10 @@
             background: rgba(248, 250, 252, 0.92);
         }
 
+        .insumo-modal-window .insumo-existing-factor-picker-trigger {
+            white-space: nowrap;
+        }
+
         @media (max-width: 1024px) {
             .insumo-cost-summary__grid,
             .insumo-history {
@@ -202,6 +236,41 @@
             }
         }
     </style>
+    <script>
+        (() => {
+            if (window.__insumoInlineFactorPickerBound) {
+                return;
+            }
+
+            window.__insumoInlineFactorPickerBound = true;
+
+            window.addEventListener('insumo-existing-factor-picker-opened', () => {
+                requestAnimationFrame(() => {
+                    const trigger = document.querySelector('.insumo-existing-factor-select .fi-select-input-btn, .insumo-existing-factor-select select');
+
+                    if (!(trigger instanceof HTMLElement)) {
+                        return;
+                    }
+
+                    trigger.focus();
+
+                    if (trigger.classList.contains('fi-select-input-btn')) {
+                        trigger.click();
+                    }
+                });
+            });
+
+            window.addEventListener('insumo-existing-factor-selected', () => {
+                requestAnimationFrame(() => {
+                    const trigger = document.querySelector('.insumo-existing-factor-picker-trigger');
+
+                    if (trigger instanceof HTMLElement) {
+                        trigger.focus();
+                    }
+                });
+            });
+        })();
+    </script>
 
     <div class="space-y-6">
         <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-gray-900">
