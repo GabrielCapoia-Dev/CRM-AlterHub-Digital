@@ -56,3 +56,34 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Na tela de criar / gerenciar os produtos colocar um demonstrativo de prospecção de lucro, 10%, 20%...
+
+um formulário para colocar o Imposto por Estado
+
+Produtos podem existir no sistema sem ter necessidade de usar algum insumo
+
+O vendedor precisa de autorização do gestor para abaixar o preço de um produto
+
+Colocar no campo do produto a quantidade que o cliente esta querendo

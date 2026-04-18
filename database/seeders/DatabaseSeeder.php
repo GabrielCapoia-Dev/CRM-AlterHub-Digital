@@ -64,12 +64,12 @@ class DatabaseSeeder extends Seeder
         );
 
         $this->call([
-            UserSeeder::class,
-            FornecedorSeeder::class,
-            ClienteSeeder::class,
-            InsumoSeeder::class,
-            ProdutoSeeder::class,
-            CrmSeeder::class,
+            // UserSeeder::class,
+            // FornecedorSeeder::class,
+            // ClienteSeeder::class,
+            // InsumoSeeder::class,
+            // ProdutoSeeder::class,
+            // CrmSeeder::class,
         ]);
     }
 }
