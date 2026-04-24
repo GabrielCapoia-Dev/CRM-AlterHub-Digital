@@ -65,4 +65,21 @@ enum PermissoesEnum: string
     // CRM - Movimentações
     case ListarMovimentacoesDeOportunidade = 'Listar Movimentações de Oportunidade';
     case ExcluirMovimentacoesDeOportunidade = 'Excluir Movimentações de Oportunidade';
+    // Operacao - Despesas
+    case ListarDespesasOperacionais = 'Listar Despesas Operacionais';
+    case CriarDespesasOperacionais = 'Criar Despesas Operacionais';
+    case EditarDespesasOperacionais = 'Editar Despesas Operacionais';
+    case ExcluirDespesasOperacionais = 'Excluir Despesas Operacionais';
+
+    // Operacao - Vendas
+    case ListarVendasOperacao = 'Listar Vendas de Operacao';
+    case CriarVendasOperacao = 'Criar Vendas de Operacao';
+    case EditarVendasOperacao = 'Editar Vendas de Operacao';
+    case ExcluirVendasOperacao = 'Excluir Vendas de Operacao';
+
+    // Operacao - Analitico
+    case ListarVisaoConsolidadaOperacao = 'Listar Visao Consolidada da Operacao';
+    case ListarResultadoOperacao = 'Listar Resultado da Operacao';
+    case ListarLucroPorProduto = 'Listar Lucro por Produto';
+    case ListarDashboardBI = 'Listar Dashboard BI';
 }

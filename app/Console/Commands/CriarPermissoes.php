@@ -13,34 +13,35 @@ class CriarPermissoes extends Command
 {
     protected $signature = 'permissoes:criar';
 
-    protected $description = 'Cria permissões e vincula à role Super Admin';
+    protected $description = 'Cria permissoes e vincula a role Super Admin';
 
     public function handle(): int
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $this->info('Criando permissões...');
+        $this->info('Criando permissoes...');
 
         foreach (PermissoesEnum::cases() as $permissao) {
-            $permission = Permission::firstOrCreate(['name' => $permissao->value, 'guard_name' => 'web']);
+            $permission = Permission::firstOrCreate([
+                'name' => $permissao->value,
+                'guard_name' => 'web',
+            ]);
 
             if ($permission->wasRecentlyCreated) {
-                $this->line("✔ Criada: {$permissao->value}");
+                $this->line("Criada: {$permissao->value}");
             }
         }
 
-        $superAdminRole = Role::where('name', RolesEnum::SuperAdmin->value)->first();
-
-        if (! $superAdminRole) {
-            $this->error('Role Super Admin não encontrada.');
-            return Command::FAILURE;
-        }
+        $superAdminRole = Role::firstOrCreate([
+            'name' => RolesEnum::SuperAdmin->value,
+            'guard_name' => 'web',
+        ]);
 
         $superAdminRole->givePermissionTo(
-            collect(PermissoesEnum::cases())->map(fn($p) => $p->value)->toArray()
+            collect(PermissoesEnum::cases())->map(fn ($permissao) => $permissao->value)->toArray()
         );
 
-        $this->info('Permissões vinculadas à role Super Admin com sucesso ✅');
+        $this->info('Permissoes vinculadas a role Super Admin com sucesso.');
 
         return Command::SUCCESS;
     }
