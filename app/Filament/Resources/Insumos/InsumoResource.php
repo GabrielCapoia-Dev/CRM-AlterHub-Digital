@@ -75,7 +75,10 @@ class InsumoResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['fornecedor', 'tipoInsumo', 'statusInsumo', 'tipoUnidadeMedida']))
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->with(['fornecedor', 'tipoInsumo', 'statusInsumo', 'tipoUnidadeMedida'])
+                ->withSum('insumoMovimentacoes as estoque_atual', 'impacto_estoque')
+                ->withCount('insumoMovimentacoes'))
             ->columns([
                 TextColumn::make('codigo_interno')
                     ->label('Codigo')
@@ -87,7 +90,8 @@ class InsumoResource extends Resource
                     ->label('Nome')
                     ->searchable()
                     ->sortable()
-                    ->weight('semibold'),
+                    ->weight('semibold')
+                    ->description(fn (Insumo $record): ?string => $record->tipoInsumo?->nome),
 
                 TextColumn::make('fornecedor.razao_social')
                     ->label('Fornecedor')
@@ -105,35 +109,43 @@ class InsumoResource extends Resource
                         return Insumo::origemOptions()[$state] ?? $state;
                     }),
 
-                TextColumn::make('tipoInsumo.nome')
-                    ->label('Tipo')
-                    ->badge(),
+                TextColumn::make('estoque_atual')
+                    ->label('Estoque atual')
+                    ->badge()
+                    ->sortable()
+                    ->description(fn (Insumo $record): ?string => $record->tipoUnidadeMedida?->sigla ?: $record->tipoUnidadeMedida?->nome)
+                    ->color(function (Insumo $record): string {
+                        if (! $record->possuiHistoricoEstoque()) {
+                            return 'gray';
+                        }
+
+                        return $record->estoqueEstaBaixo() ? 'danger' : 'success';
+                    })
+                    ->formatStateUsing(function ($state, Insumo $record): string {
+                        if (! $record->possuiHistoricoEstoque()) {
+                            return 'Sem historico';
+                        }
+
+                        return static::formatQuantity((float) $state);
+                    }),
+
+                TextColumn::make('estoque_minimo')
+                    ->label('Minimo')
+                    ->alignEnd()
+                    ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatQuantity((float) $state)),
 
                 TextColumn::make('custo_referencia')
                     ->label('Custo efetivo')
                     ->money('BRL')
                     ->sortable(),
 
-                TextColumn::make('tipoUnidadeMedida.nome')
-                    ->label('Unidade')
-                    ->formatStateUsing(function (Insumo $record): string {
-                        $unidade = $record->tipoUnidadeMedida;
-
-                        if (! $unidade) {
-                            return '-';
-                        }
-
-                        return $unidade->sigla
-                            ? "{$unidade->nome} ({$unidade->sigla})"
-                            : $unidade->nome;
-                    }),
-
                 TextColumn::make('statusInsumo.nome')
                     ->label('Status')
-                    ->badge(),
+                    ->badge()
+                    ->description(fn (Insumo $record): ?string => $record->estoqueEstaBaixo() ? 'Abaixo do minimo' : null),
             ])
             ->defaultSort('nome')
-            ->searchPlaceholder('Buscar por nome, codigo ou NCM...')
+            ->searchPlaceholder('Buscar por nome, codigo, fornecedor ou NCM...')
             ->filters([
                 SelectFilter::make('fornecedor_id')
                     ->label('Fornecedor')
@@ -200,10 +212,10 @@ class InsumoResource extends Resource
     protected static function configureModalAction(CreateAction|EditAction $action, bool $withDelete = false): CreateAction|EditAction
     {
         return $action
-            ->modalWidth('4xl')
+            ->modalWidth('5xl')
             ->modalIcon(null)
             ->modalHeading($withDelete ? 'Editar insumo' : 'Novo insumo')
-            ->modalDescription('Itens para producao e laboratorio (compras / estoque). Campos com * sao obrigatorios nesta demonstracao.')
+            ->modalDescription('Cadastro tecnico, origem comercial, estoque minimo e custo efetivo do insumo.')
             ->modalCancelActionLabel('Cancelar')
             ->modalSubmitActionLabel('Salvar insumo')
             ->extraModalWindowAttributes([
@@ -244,7 +256,7 @@ class InsumoResource extends Resource
     protected static function makeIdentificacaoSection(): Section
     {
         return Section::make('Identificacao')
-            ->description('Dados principais de cadastro e classificacao do insumo.')
+            ->description('Cadastro principal, classificacao e limite minimo de estoque.')
             ->icon(Heroicon::OutlinedBeaker)
             ->columns(12)
             ->columnSpanFull()
@@ -339,14 +351,14 @@ class InsumoResource extends Resource
     protected static function makeFornecimentoSection(): Section
     {
         return Section::make('Fornecimento e custo')
-            ->description('Configure o fornecedor, a origem do insumo e a formacao do custo efetivo.')
+            ->description('Fornecedor preferencial, origem e composicao do custo efetivo.')
             ->icon(Heroicon::OutlinedChartBar)
             ->columns(12)
             ->columnSpanFull()
             ->extraAttributes(['class' => 'insumo-form-section'])
             ->schema([
                 Section::make('Dados de origem')
-                    ->description('Defina o fornecedor preferencial e a base de custo conforme a origem do insumo.')
+                    ->description('Base de custo conforme a origem do insumo.')
                     ->columns(12)
                     ->columnSpanFull()
                     ->extraAttributes(['class' => 'insumo-subsection'])
@@ -412,7 +424,7 @@ class InsumoResource extends Resource
                     ]),
 
                 Section::make('Fatores de custo')
-                    ->description('Os fatores adicionados impactam o custo final do produto.')
+                    ->description('Aplicados apenas quando o insumo for importado.')
                     ->visible(fn (Get $get): bool => $get('origem') === 'importado')
                     ->columns(12)
                     ->columnSpanFull()
@@ -508,7 +520,7 @@ class InsumoResource extends Resource
                     ]),
 
                 Section::make('Resumo do calculo')
-                    ->description('Calculado automaticamente com base nos dados de origem e fatores.')
+                    ->description('Atualizado automaticamente conforme a origem e os fatores informados.')
                     ->columnSpanFull()
                     ->extraAttributes(['class' => 'insumo-subsection'])
                     ->schema([
@@ -526,7 +538,7 @@ class InsumoResource extends Resource
     protected static function makeObservacoesSection(): Section
     {
         return Section::make('Observacoes')
-            ->description('Notas internas, requisitos regulatorios ou apontamentos operacionais.')
+            ->description('Notas internas e orientacoes operacionais do insumo.')
             ->icon(Heroicon::OutlinedClipboardDocumentList)
             ->columnSpanFull()
             ->extraAttributes(['class' => 'insumo-form-section'])
@@ -543,7 +555,7 @@ class InsumoResource extends Resource
     protected static function makeHistoricoSection(): Section
     {
         return Section::make('Historico')
-            ->description('Resumo do ultimo salvamento e disponibilidade do historico operacional.')
+            ->description('Saldo atual, alerta de estoque e ultimas movimentacoes do insumo.')
             ->icon(Heroicon::OutlinedClock)
             ->columnSpanFull()
             ->extraAttributes(['class' => 'insumo-form-section'])
@@ -723,5 +735,10 @@ class InsumoResource extends Resource
     protected static function formatPercent(float|int|null $value): string
     {
         return number_format((float) $value, 2, ',', '.').'%';
+    }
+
+    protected static function formatQuantity(float|int|null $value): string
+    {
+        return number_format((float) $value, 4, ',', '.');
     }
 }

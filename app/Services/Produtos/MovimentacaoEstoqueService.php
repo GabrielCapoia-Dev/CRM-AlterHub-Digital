@@ -1,0 +1,179 @@
+<?php
+
+namespace App\Services\Produtos;
+
+use App\Models\Acesso\User;
+use App\Models\InsumoMovimentacao;
+use App\Models\Produto;
+use App\Models\ProdutoMovimentacao;
+use App\Models\Produtos\Insumo;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class MovimentacaoEstoqueService
+{
+    public function prepareForPersistence(array $data, float $saldoAnterior): array
+    {
+        $normalized = $this->normalizePayload($data);
+
+        $this->validate($normalized, $saldoAnterior);
+
+        $impactoEstoque = $this->resolveImpactoEstoque(
+            tipo: $normalized['tipo'],
+            quantidade: $normalized['quantidade'],
+            saldoAnterior: $saldoAnterior,
+        );
+
+        $saldoAtual = $normalized['tipo'] === 'ajuste'
+            ? round($normalized['quantidade'], 4)
+            : round($saldoAnterior + $impactoEstoque, 4);
+
+        $valorTotal = $normalized['valor_total'];
+
+        if ($valorTotal === null && $normalized['valor_unitario'] !== null) {
+            $valorTotal = round($normalized['quantidade'] * $normalized['valor_unitario'], 4);
+        }
+
+        return [
+            ...$normalized,
+            'impacto_estoque' => $impactoEstoque,
+            'saldo_anterior' => round($saldoAnterior, 4),
+            'saldo_atual' => $saldoAtual,
+            'valor_total' => $valorTotal,
+        ];
+    }
+
+    public function createForInsumo(array $data, ?User $user = null): InsumoMovimentacao
+    {
+        return DB::transaction(function () use ($data, $user): InsumoMovimentacao {
+            $insumo = Insumo::query()
+                ->with('tipoUnidadeMedida')
+                ->findOrFail($data['insumo_id']);
+
+            $prepared = $this->prepareForPersistence($data, $insumo->estoqueAtual() ?? 0.0);
+
+            return InsumoMovimentacao::query()->create([
+                ...Arr::except($prepared, ['insumo_id']),
+                'insumo_id' => $insumo->id,
+                'user_id' => $user?->id,
+                'unidade' => $prepared['unidade'] ?? $this->resolveInsumoUnidade($insumo),
+                'responsavel_nome' => $prepared['responsavel_nome'] ?? $user?->name,
+            ]);
+        });
+    }
+
+    public function createForProduto(array $data, ?User $user = null): ProdutoMovimentacao
+    {
+        return DB::transaction(function () use ($data, $user): ProdutoMovimentacao {
+            $produto = Produto::query()->findOrFail($data['produto_id']);
+
+            $prepared = $this->prepareForPersistence($data, $produto->estoqueAtual() ?? 0.0);
+
+            return ProdutoMovimentacao::query()->create([
+                ...Arr::except($prepared, ['produto_id']),
+                'produto_id' => $produto->id,
+                'user_id' => $user?->id,
+                'unidade' => $prepared['unidade'] ?? $produto->unidade_medida,
+                'responsavel_nome' => $prepared['responsavel_nome'] ?? $user?->name,
+            ]);
+        });
+    }
+
+    protected function validate(array $data, float $saldoAnterior): void
+    {
+        $messages = [];
+
+        if (! array_key_exists($data['tipo'], InsumoMovimentacao::tipoOptions())) {
+            $messages['tipo'] = 'Selecione um tipo de movimentacao valido.';
+        }
+
+        if (($data['quantidade'] ?? 0) <= 0) {
+            $messages['quantidade'] = 'Informe uma quantidade maior que zero.';
+        }
+
+        if (in_array($data['tipo'], ['saida', 'consumo_interno', 'perda'], true) && $data['quantidade'] > $saldoAnterior) {
+            $messages['quantidade'] = 'A quantidade informada ultrapassa o saldo atual disponivel.';
+        }
+
+        if (in_array($data['tipo'], ['saida', 'consumo_interno', 'perda', 'ajuste'], true) && blank($data['motivo'] ?? null)) {
+            $messages['motivo'] = 'Informe o motivo desta movimentacao.';
+        }
+
+        if ($data['tipo'] === 'transferencia') {
+            if (blank($data['origem_destino'] ?? null) || blank($data['destino'] ?? null)) {
+                $messages['origem_destino'] = 'Preencha origem e destino para registrar a transferencia.';
+            }
+
+            if (
+                filled($data['origem_destino'] ?? null)
+                && filled($data['destino'] ?? null)
+                && strcasecmp((string) $data['origem_destino'], (string) $data['destino']) === 0
+            ) {
+                $messages['destino'] = 'Origem e destino precisam ser diferentes.';
+            }
+        }
+
+        if ($messages !== []) {
+            throw ValidationException::withMessages($messages);
+        }
+    }
+
+    protected function normalizePayload(array $data): array
+    {
+        return [
+            ...$data,
+            'tipo' => $data['tipo'] ?? 'entrada',
+            'quantidade' => $this->toNullableFloat($data['quantidade'] ?? null) ?? 0.0,
+            'unidade' => $this->trimOrNull($data['unidade'] ?? null),
+            'documento_referencia' => $this->trimOrNull($data['documento_referencia'] ?? null),
+            'motivo' => $this->trimOrNull($data['motivo'] ?? null),
+            'origem_destino' => $this->trimOrNull($data['origem_destino'] ?? null),
+            'destino' => $this->trimOrNull($data['destino'] ?? null),
+            'lote' => $this->trimOrNull($data['lote'] ?? null),
+            'responsavel_nome' => $this->trimOrNull($data['responsavel_nome'] ?? null),
+            'valor_unitario' => $this->toNullableFloat($data['valor_unitario'] ?? null),
+            'valor_total' => $this->toNullableFloat($data['valor_total'] ?? null),
+            'observacao' => $this->trimOrNull($data['observacao'] ?? null),
+            'observacao_interna' => $this->trimOrNull($data['observacao_interna'] ?? null),
+            'realizado_em' => $data['realizado_em'] ?? now(),
+        ];
+    }
+
+    protected function resolveImpactoEstoque(string $tipo, float $quantidade, float $saldoAnterior): float
+    {
+        return match ($tipo) {
+            'entrada' => round($quantidade, 4),
+            'saida', 'consumo_interno', 'perda' => round($quantidade * -1, 4),
+            'ajuste' => round($quantidade - $saldoAnterior, 4),
+            'transferencia' => 0.0,
+            default => 0.0,
+        };
+    }
+
+    protected function resolveInsumoUnidade(Insumo $insumo): ?string
+    {
+        return $insumo->tipoUnidadeMedida?->sigla
+            ?: $insumo->tipoUnidadeMedida?->nome;
+    }
+
+    protected function trimOrNull(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return $value === null ? null : trim((string) $value);
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    protected function toNullableFloat(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return round((float) $value, 4);
+    }
+}

@@ -2,6 +2,7 @@
 
 namespace App\Models\Produtos;
 
+use App\Models\InsumoMovimentacao;
 use App\Models\Categorias\TipoArmazenamento;
 use App\Models\Categorias\TipoInsumo;
 use App\Models\Categorias\TipoUnidadeMedida;
@@ -121,6 +122,54 @@ class Insumo extends Model
     public function produtoInsumos(): HasMany
     {
         return $this->hasMany(ProdutoInsumo::class, 'insumo_id');
+    }
+
+    public function insumoMovimentacoes(): HasMany
+    {
+        return $this->hasMany(InsumoMovimentacao::class, 'insumo_id')
+            ->orderByDesc('realizado_em')
+            ->orderByDesc('id');
+    }
+
+    public function estoqueAtual(): ?float
+    {
+        if (array_key_exists('estoque_atual', $this->attributes)) {
+            return $this->attributes['estoque_atual'] !== null
+                ? (float) $this->attributes['estoque_atual']
+                : null;
+        }
+
+        if (array_key_exists('insumo_movimentacoes_sum_impacto_estoque', $this->attributes)) {
+            return $this->attributes['insumo_movimentacoes_sum_impacto_estoque'] !== null
+                ? (float) $this->attributes['insumo_movimentacoes_sum_impacto_estoque']
+                : null;
+        }
+
+        if (! $this->insumoMovimentacoes()->exists()) {
+            return null;
+        }
+
+        return (float) $this->insumoMovimentacoes()->sum('impacto_estoque');
+    }
+
+    public function possuiHistoricoEstoque(): bool
+    {
+        if (array_key_exists('insumo_movimentacoes_count', $this->attributes)) {
+            return (int) $this->attributes['insumo_movimentacoes_count'] > 0;
+        }
+
+        return $this->insumoMovimentacoes()->exists();
+    }
+
+    public function estoqueEstaBaixo(): bool
+    {
+        $estoqueAtual = $this->estoqueAtual();
+        $estoqueMinimo = $this->estoque_minimo !== null ? (float) $this->estoque_minimo : null;
+
+        return $estoqueAtual !== null
+            && $estoqueMinimo !== null
+            && $estoqueMinimo > 0
+            && $estoqueAtual <= $estoqueMinimo;
     }
 
     protected static function generateCodigoInterno(): string
