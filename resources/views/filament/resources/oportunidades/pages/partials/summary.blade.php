@@ -11,7 +11,6 @@
     <section class="crm-drawer-section">
         <div class="crm-section-heading">
             <h4>Resumo comercial</h4>
-            <p>Atualize os dados principais da negociacao e mantenha a oportunidade pronta para o quadro.</p>
         </div>
 
         <div class="crm-drawer-grid">
@@ -24,52 +23,36 @@
             </label>
 
             <section class="crm-client-panel crm-field-full">
-                <div class="crm-client-panel-header">
-                    <div>
-                        <span class="crm-client-panel-eyebrow">Cliente da oportunidade</span>
-                        <strong>{{ $clientMode === \App\Services\CRM\OportunidadeClienteService::MODE_NEW ? 'Novo cliente' : 'Cliente existente' }}</strong>
-                        <p>Busque por codigo ou CNPJ, ou carregue o cadastro do cliente dentro deste mesmo modal.</p>
-                    </div>
+                <div class="crm-client-toolbar">
+                    <label class="crm-field crm-client-search-field">
+                        <span>Buscar cliente</span>
+                        <input
+                            type="text"
+                            wire:model.live.debounce.350ms="opportunityForm.client_lookup"
+                            placeholder="Codigo ou CNPJ"
+                            @disabled(! $canEditOpportunity)
+                        >
+                        @error('opportunityForm.client_lookup')
+                            <small class="crm-field-error">{{ $message }}</small>
+                        @enderror
+                    </label>
 
                     @if ($canEditOpportunity)
                         <div class="crm-client-actions">
-                            @if ($clientMode === \App\Services\CRM\OportunidadeClienteService::MODE_NEW)
-                                <button type="button" class="crm-btn crm-btn-secondary" wire:click="useExistingClientSearch">
-                                    Usar cliente existente
-                                </button>
-                            @else
-                                <button type="button" class="crm-btn crm-btn-secondary" wire:click="activateNewClientForm">
-                                    Novo Cliente
-                                </button>
-                            @endif
+                            <button type="button" class="crm-btn crm-btn-primary" wire:click="searchClient">
+                                Buscar cliente
+                            </button>
+
+                            <button
+                                type="button"
+                                class="crm-btn crm-btn-secondary {{ $clientMode === \App\Services\CRM\OportunidadeClienteService::MODE_NEW ? 'is-active' : '' }}"
+                                wire:click="activateNewClientForm"
+                            >
+                                Novo Cliente
+                            </button>
                         </div>
                     @endif
                 </div>
-
-                @if ($clientMode !== \App\Services\CRM\OportunidadeClienteService::MODE_NEW)
-                    <div class="crm-client-lookup">
-                        <label class="crm-field crm-field-full">
-                            <span>Buscar cliente por codigo ou CNPJ</span>
-                            <input
-                                type="text"
-                                wire:model.live.debounce.350ms="opportunityForm.client_lookup"
-                                placeholder="Ex.: CLI-2026-014 ou 00.000.000/0001-00"
-                                @disabled(! $canEditOpportunity)
-                            >
-                            @error('opportunityForm.client_lookup')
-                                <small class="crm-field-error">{{ $message }}</small>
-                            @enderror
-                        </label>
-
-                        @if ($canEditOpportunity)
-                            <div class="crm-inline-actions">
-                                <button type="button" class="crm-btn crm-btn-primary" wire:click="searchClient">
-                                    Buscar cliente
-                                </button>
-                            </div>
-                        @endif
-                    </div>
-                @endif
 
                 @if ($selectedClient)
                     <div class="crm-client-feedback is-success">
@@ -99,11 +82,9 @@
                 @elseif ($clientLookupMessage || $clientMode === \App\Services\CRM\OportunidadeClienteService::MODE_NEW)
                     <div class="crm-client-feedback {{ $clientLookupStatus === 'missing' ? 'is-warning' : 'is-info' }}">
                         <div class="crm-client-feedback-copy">
-                            <span>{{ $clientLookupStatus === 'missing' ? 'Nenhum cliente localizado' : 'Fluxo pronto para cadastro' }}</span>
-                            <strong>
-                                {{ $clientLookupStatus === 'missing' ? 'Nao encontramos um cliente com os dados informados.' : 'Voce pode concluir cliente e oportunidade no mesmo lugar.' }}
-                            </strong>
-                            <p>{{ $clientLookupMessage ?: 'Use Novo Cliente para preencher os campos do cliente sem sair do quadro.' }}</p>
+                            <span>{{ $clientLookupStatus === 'missing' ? 'Busca' : 'Cadastro' }}</span>
+                            <strong>{{ $clientLookupStatus === 'missing' ? 'Cliente nao encontrado.' : 'Novo cliente em preenchimento.' }}</strong>
+                            <p>{{ $clientLookupStatus === 'missing' ? 'Use o botao Novo Cliente para seguir com o cadastro.' : 'Preencha os dados do cliente abaixo.' }}</p>
                         </div>
                     </div>
                 @endif
@@ -114,11 +95,6 @@
             </section>
 
             @if ($clientMode === \App\Services\CRM\OportunidadeClienteService::MODE_NEW)
-                <div class="crm-inline-section-heading crm-field-full">
-                    <strong>Dados do novo cliente</strong>
-                    <p>Preencha os dados essenciais do cliente e siga com a oportunidade sem trocar de tela.</p>
-                </div>
-
                 <label class="crm-field">
                     <span>Razao social</span>
                     <input type="text" wire:model.defer="opportunityForm.client_razao_social" @disabled(! $canEditOpportunity)>

@@ -47,7 +47,7 @@ class KanbanOportunidadesPageTest extends TestCase
         $this->get($kanbanUrl)
             ->assertOk()
             ->assertSeeText('CRM - Kanban')
-            ->assertSeeText('Pipeline comercial');
+            ->assertSeeText('Nova oportunidade');
 
         $this->get($listUrl)
             ->assertOk();

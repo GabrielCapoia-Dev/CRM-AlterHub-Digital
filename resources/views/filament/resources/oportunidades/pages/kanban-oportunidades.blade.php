@@ -44,12 +44,7 @@
         <section class="crm-kanban-shell">
             <header class="crm-kanban-hero">
                 <div class="crm-kanban-hero-copy">
-                    <p class="crm-kanban-eyebrow">CRM - Kanban</p>
-                    <h1>Pipeline comercial</h1>
-                    <p>
-                        Arraste entre etapas, acompanhe valor por coluna e trabalhe o contexto da negociacao
-                        sem sair do quadro principal.
-                    </p>
+                    <h1>CRM - Kanban</h1>
                 </div>
 
                 <div class="crm-kanban-hero-actions">
