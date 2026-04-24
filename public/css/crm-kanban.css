@@ -192,6 +192,12 @@
     box-shadow: var(--crm-shadow-lg);
 }
 
+.crm-kanban-hero-compact {
+    grid-template-columns: 1fr;
+    justify-items: end;
+    min-height: auto;
+}
+
 .crm-kanban-hero-copy {
     max-width: 30rem;
     min-width: 0;

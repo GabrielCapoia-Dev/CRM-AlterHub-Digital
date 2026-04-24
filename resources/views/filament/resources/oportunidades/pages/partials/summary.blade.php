@@ -79,12 +79,12 @@
                             @endif
                         </div>
                     </div>
-                @elseif ($clientLookupMessage || $clientMode === \App\Services\CRM\OportunidadeClienteService::MODE_NEW)
+                @elseif ($clientLookupStatus === 'missing')
                     <div class="crm-client-feedback {{ $clientLookupStatus === 'missing' ? 'is-warning' : 'is-info' }}">
                         <div class="crm-client-feedback-copy">
-                            <span>{{ $clientLookupStatus === 'missing' ? 'Busca' : 'Cadastro' }}</span>
-                            <strong>{{ $clientLookupStatus === 'missing' ? 'Cliente nao encontrado.' : 'Novo cliente em preenchimento.' }}</strong>
-                            <p>{{ $clientLookupStatus === 'missing' ? 'Use o botao Novo Cliente para seguir com o cadastro.' : 'Preencha os dados do cliente abaixo.' }}</p>
+                            <span>Busca</span>
+                            <strong>Cliente nao encontrado.</strong>
+                            <p>Use o botao Novo Cliente para seguir com o cadastro.</p>
                         </div>
                     </div>
                 @endif

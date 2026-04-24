@@ -42,11 +42,7 @@
         </div>
 
         <section class="crm-kanban-shell">
-            <header class="crm-kanban-hero">
-                <div class="crm-kanban-hero-copy">
-                    <h1>CRM - Kanban</h1>
-                </div>
-
+            <header class="crm-kanban-hero crm-kanban-hero-compact">
                 <div class="crm-kanban-hero-actions">
                     <a href="{{ $this->getListUrl() }}" class="crm-btn crm-btn-secondary">
                         Lista de apoio
