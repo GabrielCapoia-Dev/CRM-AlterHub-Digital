@@ -12,6 +12,8 @@ use App\Models\OportunidadeInteracao;
 use App\Models\OportunidadeProduto;
 use App\Models\OportunidadeTarefa;
 use App\Models\Produto;
+use App\Models\Status\StatusCliente;
+use App\Services\CRM\OportunidadeClienteService;
 use Carbon\CarbonInterface;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
@@ -21,6 +23,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class KanbanOportunidades extends Page
 {
@@ -30,7 +33,7 @@ class KanbanOportunidades extends Page
 
     protected string $view = 'filament.resources.oportunidades.pages.kanban-oportunidades';
 
-    protected Width | string | null $maxWidth = Width::Full;
+    protected Width|string|null $maxWidth = Width::Full;
 
     public string $search = '';
 
@@ -90,6 +93,14 @@ class KanbanOportunidades extends Page
     {
         if (($name === 'opportunityForm.etapa_id') && (! $this->selectedStageIsClosing())) {
             $this->opportunityForm['motivo_fechamento'] = '';
+        }
+
+        if (($name === 'opportunityForm.client_lookup') && (($this->opportunityForm['client_mode'] ?? null) !== OportunidadeClienteService::MODE_NEW)) {
+            $this->opportunityForm['cliente_id'] = null;
+            $this->opportunityForm['client_lookup_status'] = '';
+            $this->opportunityForm['client_lookup_message'] = blank($value)
+                ? ''
+                : 'Clique em Buscar cliente para localizar um cadastro existente.';
         }
 
         if ($name === 'segmentFilter') {
@@ -152,7 +163,7 @@ class KanbanOportunidades extends Page
             ->values()
             ->map(function (Etapa $etapa, int $index) use ($oportunidadesPorEtapa): array {
                 /** @var EloquentCollection<int, Oportunidade> $cards */
-                $cards = $oportunidadesPorEtapa->get($etapa->id, new EloquentCollection());
+                $cards = $oportunidadesPorEtapa->get($etapa->id, new EloquentCollection);
                 $soma = (float) $cards->sum(fn (Oportunidade $oportunidade): float => (float) ($oportunidade->valor_estimado ?? 0));
 
                 return [
@@ -204,23 +215,6 @@ class KanbanOportunidades extends Page
     }
 
     /**
-     * @return array<int, array{id:int,nome:string,segmento:?string}>
-     */
-    public function getClientOptions(): array
-    {
-        return Cliente::query()
-            ->with('categoriaSegmento')
-            ->orderBy('razao_social')
-            ->get(['id', 'razao_social', 'id_categoria_segmento'])
-            ->map(fn (Cliente $cliente): array => [
-                'id' => $cliente->id,
-                'nome' => $cliente->razao_social,
-                'segmento' => $cliente->categoriaSegmento?->nome,
-            ])
-            ->all();
-    }
-
-    /**
      * @return array<int, array{id:int,nome:string}>
      */
     public function getProductOptions(): array
@@ -251,7 +245,58 @@ class KanbanOportunidades extends Page
             ->all();
     }
 
-    public function getSelectedClientSegmentName(): ?string
+    /**
+     * @return array<int, array{id:int,nome:string}>
+     */
+    public function getClientStatusOptions(): array
+    {
+        return StatusCliente::query()
+            ->orderBy('nome')
+            ->get(['id', 'nome'])
+            ->map(fn (StatusCliente $status): array => [
+                'id' => $status->id,
+                'nome' => $status->nome,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getUfOptions(): array
+    {
+        return [
+            'AC' => 'AC',
+            'AL' => 'AL',
+            'AM' => 'AM',
+            'AP' => 'AP',
+            'BA' => 'BA',
+            'CE' => 'CE',
+            'DF' => 'DF',
+            'ES' => 'ES',
+            'GO' => 'GO',
+            'MA' => 'MA',
+            'MG' => 'MG',
+            'MS' => 'MS',
+            'MT' => 'MT',
+            'PA' => 'PA',
+            'PB' => 'PB',
+            'PE' => 'PE',
+            'PI' => 'PI',
+            'PR' => 'PR',
+            'RJ' => 'RJ',
+            'RN' => 'RN',
+            'RO' => 'RO',
+            'RR' => 'RR',
+            'RS' => 'RS',
+            'SC' => 'SC',
+            'SE' => 'SE',
+            'SP' => 'SP',
+            'TO' => 'TO',
+        ];
+    }
+
+    public function getSelectedClient(): ?Cliente
     {
         $clienteId = (int) ($this->opportunityForm['cliente_id'] ?? 0);
 
@@ -260,10 +305,8 @@ class KanbanOportunidades extends Page
         }
 
         return Cliente::query()
-            ->with('categoriaSegmento')
-            ->find($clienteId)
-            ?->categoriaSegmento
-            ?->nome;
+            ->with(['categoriaSegmento', 'statusCliente'])
+            ->find($clienteId);
     }
 
     public function selectedStageIsClosing(): bool
@@ -342,6 +385,43 @@ class KanbanOportunidades extends Page
         $this->resetTaskForm();
     }
 
+    public function searchClient(): void
+    {
+        $cliente = app(OportunidadeClienteService::class)->findByLookup($this->opportunityForm['client_lookup'] ?? null);
+
+        if (! $cliente) {
+            $this->opportunityForm['cliente_id'] = null;
+            $this->opportunityForm['client_lookup_status'] = 'missing';
+            $this->opportunityForm['client_lookup_message'] = 'Nenhum cliente foi encontrado. Use Novo Cliente para cadastrar no mesmo fluxo.';
+
+            Notification::make()
+                ->title('Cliente nao encontrado')
+                ->body('Voce pode seguir com Novo Cliente e concluir a oportunidade no mesmo lugar.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $this->applyClientFormState(app(OportunidadeClienteService::class)->existingClientFormState($cliente));
+
+        Notification::make()
+            ->title('Cliente encontrado')
+            ->body("{$cliente->razao_social} foi vinculado a oportunidade.")
+            ->success()
+            ->send();
+    }
+
+    public function activateNewClientForm(): void
+    {
+        $this->applyClientFormState(app(OportunidadeClienteService::class)->newClientFormState());
+    }
+
+    public function useExistingClientSearch(): void
+    {
+        $this->applyClientFormState(app(OportunidadeClienteService::class)->blankFormState());
+    }
+
     public function saveOpportunity(): void
     {
         $selected = $this->getSelectedOpportunity();
@@ -354,7 +434,19 @@ class KanbanOportunidades extends Page
 
         $validated = $this->validate($this->opportunityRules(), [], [
             'opportunityForm.titulo' => 'titulo',
-            'opportunityForm.cliente_id' => 'cliente',
+            'opportunityForm.client_lookup' => 'busca do cliente',
+            'opportunityForm.client_razao_social' => 'razao social',
+            'opportunityForm.client_nome_fantasia' => 'nome fantasia',
+            'opportunityForm.client_cnpj' => 'CNPJ',
+            'opportunityForm.client_segmento_id' => 'segmento do cliente',
+            'opportunityForm.client_status_id' => 'status do cliente',
+            'opportunityForm.client_nome_completo' => 'contato principal',
+            'opportunityForm.client_cargo' => 'cargo',
+            'opportunityForm.client_email' => 'e-mail',
+            'opportunityForm.client_telefone' => 'telefone',
+            'opportunityForm.client_cidade' => 'cidade',
+            'opportunityForm.client_uf' => 'UF',
+            'opportunityForm.client_observacao' => 'observacoes do cliente',
             'opportunityForm.etapa_id' => 'etapa',
             'opportunityForm.user_id' => 'responsavel',
             'opportunityForm.temperatura' => 'temperatura',
@@ -363,18 +455,17 @@ class KanbanOportunidades extends Page
             'opportunityForm.notas' => 'notas',
         ]);
 
-        $payload = [
-            'titulo' => trim((string) $validated['opportunityForm']['titulo']),
-            'cliente_id' => (int) $validated['opportunityForm']['cliente_id'],
-            'etapa_id' => (int) $validated['opportunityForm']['etapa_id'],
-            'user_id' => (int) $validated['opportunityForm']['user_id'],
-            'temperatura' => $validated['opportunityForm']['temperatura'],
-            'valor_estimado' => blank($validated['opportunityForm']['valor_estimado']) ? null : (float) $validated['opportunityForm']['valor_estimado'],
-            'motivo_fechamento' => blank($validated['opportunityForm']['motivo_fechamento']) ? null : trim((string) $validated['opportunityForm']['motivo_fechamento']),
-            'notas' => blank($validated['opportunityForm']['notas']) ? null : trim((string) $validated['opportunityForm']['notas']),
-        ];
+        try {
+            $payload = app(OportunidadeClienteService::class)->prepareOpportunityData($validated['opportunityForm']);
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages(
+                collect($exception->errors())
+                    ->mapWithKeys(fn (array $messages, string $field): array => ["opportunityForm.{$field}" => $messages])
+                    ->all(),
+            );
+        }
 
-        $oportunidade = $selected ?? new Oportunidade();
+        $oportunidade = $selected ?? new Oportunidade;
         $oportunidade->fill($payload);
         $oportunidade->save();
 
@@ -479,7 +570,7 @@ class KanbanOportunidades extends Page
             'observacao' => blank($validated['productForm']['observacao']) ? null : trim((string) $validated['productForm']['observacao']),
         ];
 
-        $registro = $editing ?? new OportunidadeProduto();
+        $registro = $editing ?? new OportunidadeProduto;
         $registro->fill($payload);
         $registro->save();
 
@@ -559,7 +650,7 @@ class KanbanOportunidades extends Page
             'ocorreu_em' => $validated['interactionForm']['ocorreu_em'],
         ];
 
-        $registro = $editing ?? new OportunidadeInteracao();
+        $registro = $editing ?? new OportunidadeInteracao;
         $registro->fill($payload);
         $registro->save();
 
@@ -641,7 +732,7 @@ class KanbanOportunidades extends Page
             'data_prevista' => blank($validated['taskForm']['data_prevista']) ? null : $validated['taskForm']['data_prevista'],
         ];
 
-        $registro = $editing ?? new OportunidadeTarefa();
+        $registro = $editing ?? new OportunidadeTarefa;
         $registro->fill($payload);
         $registro->save();
 
@@ -757,7 +848,24 @@ class KanbanOportunidades extends Page
     {
         $rules = [
             'opportunityForm.titulo' => ['required', 'string', 'max:255'],
-            'opportunityForm.cliente_id' => ['required', 'integer', 'exists:clientes,id'],
+            'opportunityForm.client_mode' => ['required', Rule::in([
+                OportunidadeClienteService::MODE_EXISTING,
+                OportunidadeClienteService::MODE_NEW,
+            ])],
+            'opportunityForm.client_lookup' => ['nullable', 'string', 'max:255'],
+            'opportunityForm.cliente_id' => ['nullable', 'integer', 'exists:clientes,id'],
+            'opportunityForm.client_razao_social' => ['nullable', 'string', 'max:255'],
+            'opportunityForm.client_nome_fantasia' => ['nullable', 'string', 'max:255'],
+            'opportunityForm.client_cnpj' => ['nullable', 'string'],
+            'opportunityForm.client_segmento_id' => ['nullable', 'integer', 'exists:categorias_segmentos,id'],
+            'opportunityForm.client_status_id' => ['nullable', 'integer', 'exists:status_clientes,id'],
+            'opportunityForm.client_nome_completo' => ['nullable', 'string', 'max:255'],
+            'opportunityForm.client_cargo' => ['nullable', 'string', 'max:100'],
+            'opportunityForm.client_email' => ['nullable', 'email', 'max:255'],
+            'opportunityForm.client_telefone' => ['nullable', 'string', 'max:20'],
+            'opportunityForm.client_cidade' => ['nullable', 'string', 'max:100'],
+            'opportunityForm.client_uf' => ['nullable', Rule::in(array_keys($this->getUfOptions()))],
+            'opportunityForm.client_observacao' => ['nullable', 'string', 'max:2000'],
             'opportunityForm.etapa_id' => ['required', 'integer', 'exists:etapas,id'],
             'opportunityForm.user_id' => ['required', 'integer', 'exists:users,id'],
             'opportunityForm.temperatura' => ['required', Rule::in(array_keys(Oportunidade::temperaturaOptions()))],
@@ -765,6 +873,18 @@ class KanbanOportunidades extends Page
             'opportunityForm.motivo_fechamento' => ['nullable', 'string'],
             'opportunityForm.notas' => ['nullable', 'string'],
         ];
+
+        if (($this->opportunityForm['client_mode'] ?? OportunidadeClienteService::MODE_EXISTING) === OportunidadeClienteService::MODE_NEW) {
+            $rules['opportunityForm.client_razao_social'][] = 'required';
+            $rules['opportunityForm.client_cnpj'][] = 'required';
+            $rules['opportunityForm.client_cnpj'][] = $this->validCnpjRule();
+            $rules['opportunityForm.client_segmento_id'][] = 'required';
+            $rules['opportunityForm.client_status_id'][] = 'required';
+            $rules['opportunityForm.client_nome_completo'][] = 'required';
+            $rules['opportunityForm.client_telefone'][] = $this->validPhoneRule();
+        } else {
+            $rules['opportunityForm.client_lookup'][] = 'required';
+        }
 
         if ($this->selectedStageIsClosing()) {
             $rules['opportunityForm.motivo_fechamento'][] = 'required';
@@ -813,9 +933,13 @@ class KanbanOportunidades extends Page
 
     protected function fillOpportunityForm(?Oportunidade $opportunity = null, ?int $stageId = null): void
     {
+        $service = app(OportunidadeClienteService::class);
+
         $this->opportunityForm = [
             'titulo' => $opportunity?->titulo ?? '',
-            'cliente_id' => $opportunity?->cliente_id ?? '',
+            ...($opportunity?->cliente
+                ? $service->existingClientFormState($opportunity->cliente)
+                : $service->blankFormState()),
             'etapa_id' => $opportunity?->etapa_id ?? $stageId ?? '',
             'user_id' => $opportunity?->user_id ?? Auth::id(),
             'temperatura' => $opportunity?->temperatura ?? 'warm',
@@ -823,6 +947,92 @@ class KanbanOportunidades extends Page
             'motivo_fechamento' => $opportunity?->motivo_fechamento ?? '',
             'notas' => $opportunity?->notas ?? '',
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $state
+     */
+    protected function applyClientFormState(array $state): void
+    {
+        $this->opportunityForm = [
+            ...$this->opportunityForm,
+            ...$state,
+        ];
+    }
+
+    protected function validCnpjRule(): \Closure
+    {
+        return function (string $attribute, $value, \Closure $fail): void {
+            $cnpj = preg_replace('/\D/', '', (string) $value);
+
+            if (strlen($cnpj) !== 14) {
+                $fail('O CNPJ deve ter 14 digitos.');
+
+                return;
+            }
+
+            if (preg_match('/^(\d)\1+$/', $cnpj)) {
+                $fail('CNPJ invalido.');
+
+                return;
+            }
+
+            $calcularDigito = function (string $numero, int $tamanho): int {
+                $soma = 0;
+                $posicao = $tamanho - 7;
+
+                for ($indice = $tamanho; $indice >= 1; $indice--) {
+                    $soma += (int) $numero[$tamanho - $indice] * $posicao--;
+
+                    if ($posicao < 2) {
+                        $posicao = 9;
+                    }
+                }
+
+                $resultado = $soma % 11;
+
+                return $resultado < 2 ? 0 : 11 - $resultado;
+            };
+
+            if ((int) $cnpj[12] !== $calcularDigito($cnpj, 12)) {
+                $fail('CNPJ invalido.');
+
+                return;
+            }
+
+            if ((int) $cnpj[13] !== $calcularDigito($cnpj, 13)) {
+                $fail('CNPJ invalido.');
+            }
+        };
+    }
+
+    protected function validPhoneRule(): \Closure
+    {
+        return function (string $attribute, $value, \Closure $fail): void {
+            if (blank($value)) {
+                return;
+            }
+
+            $digits = preg_replace('/\D/', '', (string) $value);
+
+            if (! in_array(strlen($digits), [10, 11], true)) {
+                $fail('Informe um telefone valido com DDD.');
+
+                return;
+            }
+
+            $ddd = (int) substr($digits, 0, 2);
+
+            if (($ddd < 11) || ($ddd > 99)) {
+                $fail('DDD invalido.');
+
+                return;
+            }
+
+            if ((strlen($digits) === 11) && ($digits[2] !== '9')) {
+                $fail('Numero de celular deve comecar com 9 apos o DDD.');
+            }
+        };
     }
 
     protected function getSelectedOpportunityForEditing(): Oportunidade
@@ -906,7 +1116,7 @@ class KanbanOportunidades extends Page
 
     protected function formatMoney(float $value): string
     {
-        return 'R$ ' . number_format($value, 2, ',', '.');
+        return 'R$ '.number_format($value, 2, ',', '.');
     }
 
     protected function formatRelativeDate(CarbonInterface $date): string

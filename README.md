@@ -87,3 +87,8 @@ Produtos podem existir no sistema sem ter necessidade de usar algum insumo
 O vendedor precisa de autorização do gestor para abaixar o preço de um produto
 
 Colocar no campo do produto a quantidade que o cliente esta querendo
+
+Status para a tela de envio de remessa
+
+Tela de cadastro de Transportadoras, cliente cadastra cada transportadora que vai levar a remessa.
+Colocar o valor do frete por transportadora

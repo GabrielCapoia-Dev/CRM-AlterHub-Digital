@@ -41,8 +41,8 @@ class KanbanOportunidadesPageTest extends TestCase
         $kanbanUrl = OportunidadeResource::getUrl();
         $listUrl = OportunidadeResource::getUrl('list');
 
-        $this->assertStringEndsWith('/painel/oportunidades', $kanbanUrl);
-        $this->assertStringEndsWith('/painel/oportunidades/lista', $listUrl);
+        $this->assertStringEndsWith('/painel/crm-kanban', $kanbanUrl);
+        $this->assertStringEndsWith('/painel/crm-kanban/lista', $listUrl);
 
         $this->get($kanbanUrl)
             ->assertOk()
@@ -65,6 +65,7 @@ class KanbanOportunidadesPageTest extends TestCase
         $component->mount();
         $component->openCreateDrawer($lead->id);
         $component->opportunityForm['titulo'] = 'Nova oportunidade Kanban';
+        $component->opportunityForm['client_lookup'] = $cliente->codigo_interno;
         $component->opportunityForm['cliente_id'] = $cliente->id;
         $component->opportunityForm['etapa_id'] = $lead->id;
         $component->opportunityForm['user_id'] = $user->id;
@@ -85,6 +86,71 @@ class KanbanOportunidadesPageTest extends TestCase
             Oportunidade::query()->where('titulo', 'Nova oportunidade Kanban')->value('id'),
             $component->selectedOpportunityId,
         );
+    }
+
+    public function test_it_finds_an_existing_client_by_lookup_in_the_drawer(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        [$user, $cliente, $lead] = $this->criarBaseDeKanban();
+
+        $this->actingAs($user);
+
+        $component = app(KanbanOportunidades::class);
+        $component->mount();
+        $component->openCreateDrawer($lead->id);
+        $component->opportunityForm['client_lookup'] = preg_replace('/\D/', '', (string) $cliente->cnpj);
+        $component->searchClient();
+
+        $this->assertSame($cliente->id, $component->opportunityForm['cliente_id']);
+        $this->assertSame('found', $component->opportunityForm['client_lookup_status']);
+        $this->assertSame('Cliente encontrado e vinculado a oportunidade.', $component->opportunityForm['client_lookup_message']);
+    }
+
+    public function test_it_creates_a_new_client_inline_when_saving_a_new_opportunity(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        [$user, $cliente, $lead] = $this->criarBaseDeKanban();
+
+        $this->actingAs($user);
+
+        $component = app(KanbanOportunidades::class);
+        $component->mount();
+        $component->openCreateDrawer($lead->id);
+        $component->activateNewClientForm();
+        $component->opportunityForm['titulo'] = 'Oportunidade com cliente inline';
+        $component->opportunityForm['etapa_id'] = $lead->id;
+        $component->opportunityForm['user_id'] = $user->id;
+        $component->opportunityForm['temperatura'] = 'warm';
+        $component->opportunityForm['valor_estimado'] = 9800;
+        $component->opportunityForm['client_razao_social'] = 'Nova Conta Inline Ltda';
+        $component->opportunityForm['client_nome_fantasia'] = 'Conta Inline';
+        $component->opportunityForm['client_cnpj'] = '45.723.174/0001-10';
+        $component->opportunityForm['client_segmento_id'] = $cliente->id_categoria_segmento;
+        $component->opportunityForm['client_status_id'] = $cliente->id_status_cliente;
+        $component->opportunityForm['client_nome_completo'] = 'Juliana Ramos';
+        $component->opportunityForm['client_email'] = 'juliana.ramos@inline.test';
+        $component->opportunityForm['client_telefone'] = '(11) 99876-5432';
+        $component->opportunityForm['client_cidade'] = 'Sao Paulo';
+        $component->opportunityForm['client_uf'] = 'SP';
+        $component->saveOpportunity();
+
+        $oportunidade = Oportunidade::query()
+            ->with('cliente')
+            ->where('titulo', 'Oportunidade com cliente inline')
+            ->first();
+
+        $this->assertNotNull($oportunidade);
+        $this->assertSame('Nova Conta Inline Ltda', $oportunidade->cliente?->razao_social);
+        $this->assertNotNull($oportunidade->cliente?->codigo_interno);
+        $this->assertSame('edit', $component->drawerMode);
+
+        $this->assertDatabaseHas('clientes', [
+            'id' => $oportunidade->cliente?->id,
+            'razao_social' => 'Nova Conta Inline Ltda',
+            'cnpj' => '45.723.174/0001-10',
+        ]);
     }
 
     public function test_it_requires_a_reason_to_close_an_opportunity_from_the_kanban(): void
@@ -159,7 +225,7 @@ class KanbanOportunidadesPageTest extends TestCase
         $user = User::create([
             'uuid' => (string) Str::uuid(),
             'name' => 'Gestor CRM',
-            'email' => 'kanban.' . Str::random(8) . '@teste.com',
+            'email' => 'kanban.'.Str::random(8).'@teste.com',
             'email_approved' => true,
             'email_verified_at' => now(),
             'password' => 'password',

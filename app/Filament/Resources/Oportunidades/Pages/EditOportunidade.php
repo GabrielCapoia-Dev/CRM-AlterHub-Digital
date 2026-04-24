@@ -11,6 +11,24 @@ class EditOportunidade extends EditRecord
 {
     protected static string $resource = OportunidadeResource::class;
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        return OportunidadeResource::prepareOpportunityDataForFill($data, $this->getRecord());
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return OportunidadeResource::prepareOpportunityDataForPersistence($data);
+    }
+
     protected function getHeaderActions(): array
     {
         return [

@@ -4,10 +4,8 @@
         $owners = $this->getOwnerOptions();
         $segments = $this->getSegmentOptions();
         $stages = $this->getStageOptions();
-        $clients = $this->getClientOptions();
         $products = $this->getProductOptions();
         $selectedOpportunity = $this->getSelectedOpportunity();
-        $selectedClientSegment = $this->getSelectedClientSegmentName();
         $pendingStageName = data_get(collect($stages)->firstWhere('id', $pendingMoveStageId), 'nome', 'Encerramento');
         $canEditOpportunity = $selectedOpportunity
             ? auth()->user()?->can('update', $selectedOpportunity)
@@ -313,7 +311,7 @@
                             <p class="crm-kanban-eyebrow">{{ $drawerMode === 'create' ? 'Nova oportunidade' : 'Oportunidade selecionada' }}</p>
                             <h3>{{ $selectedOpportunity?->titulo ?? 'Nova oportunidade' }}</h3>
                             <p>
-                                {{ $selectedOpportunity?->cliente?->razao_social ?? 'Preencha os dados principais para comecar.' }}
+                                {{ $selectedOpportunity?->cliente?->razao_social ?? ($opportunityForm['client_razao_social'] ?: 'Preencha os dados principais para comecar.') }}
                             </p>
                         </div>
 

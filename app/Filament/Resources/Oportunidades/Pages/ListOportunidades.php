@@ -20,7 +20,7 @@ class ListOportunidades extends ListRecords
                 ->label('CRM - Kanban')
                 ->icon('heroicon-o-view-columns')
                 ->url(static::getResource()::getUrl()),
-            CreateAction::make(),
+            OportunidadeResource::configureCreateAction(CreateAction::make()),
         ];
     }
 }
