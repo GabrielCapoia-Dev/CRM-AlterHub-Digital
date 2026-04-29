@@ -109,6 +109,26 @@ class InsumoResource extends Resource
                         return Insumo::origemOptions()[$state] ?? $state;
                     }),
 
+                TextColumn::make('custo_moeda_origem')
+                    ->label('Valor moeda origem')
+                    ->alignEnd()
+                    ->sortable()
+                    ->placeholder('-')
+                    ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatDecimal((float) $state, 4)),
+
+                TextColumn::make('moeda_origem')
+                    ->label('Moeda')
+                    ->badge()
+                    ->sortable()
+                    ->formatStateUsing(fn (?string $state, Insumo $record): string => $record->origem === 'nacional' ? 'BRL' : ($state ?: '-')),
+
+                TextColumn::make('taxa_cambio')
+                    ->label('Taxa de cambio')
+                    ->alignEnd()
+                    ->sortable()
+                    ->placeholder('-')
+                    ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatDecimal((float) $state, 6)),
+
                 TextColumn::make('estoque_atual')
                     ->label('Estoque atual')
                     ->badge()
@@ -136,6 +156,11 @@ class InsumoResource extends Resource
 
                 TextColumn::make('custo_referencia')
                     ->label('Custo efetivo')
+                    ->money('BRL')
+                    ->sortable(),
+
+                TextColumn::make('custo_nacionalizado')
+                    ->label('Custo final')
                     ->money('BRL')
                     ->sortable(),
 
@@ -740,5 +765,10 @@ class InsumoResource extends Resource
     protected static function formatQuantity(float|int|null $value): string
     {
         return number_format((float) $value, 4, ',', '.');
+    }
+
+    protected static function formatDecimal(float|int|null $value, int $decimals = 4): string
+    {
+        return number_format((float) $value, $decimals, ',', '.');
     }
 }
