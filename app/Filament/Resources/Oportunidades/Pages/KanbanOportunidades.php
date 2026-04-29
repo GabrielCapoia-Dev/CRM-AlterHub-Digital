@@ -900,7 +900,7 @@ class KanbanOportunidades extends Page
     {
         return [
             'productForm.produto_id' => ['required', 'integer', 'exists:produtos,id'],
-            'productForm.preco_negociado' => ['nullable', 'numeric', 'min:0'],
+            'productForm.preco_negociado' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
             'productForm.observacao' => ['nullable', 'string', 'max:2000'],
         ];
     }

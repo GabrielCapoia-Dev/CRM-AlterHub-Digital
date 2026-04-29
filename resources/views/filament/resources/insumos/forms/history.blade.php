@@ -1,12 +1,13 @@
 @php
     use App\Filament\Resources\InsumoMovimentacoes\InsumoMovimentacaoResource;
     use App\Models\InsumoMovimentacao;
+    use App\Support\Ui\NumericFormat;
 
     $ultimaAtualizacao = $record?->updated_at?->format('d/m/Y H:i') ?? '-';
     $saldoAtual = $record?->estoqueAtual();
     $estoqueMinimo = $record?->estoque_minimo !== null ? (float) $record->estoque_minimo : null;
-    $saldoAtualLabel = $saldoAtual === null ? 'Sem historico' : number_format($saldoAtual, 4, ',', '.');
-    $estoqueMinimoLabel = $estoqueMinimo === null ? '-' : number_format($estoqueMinimo, 4, ',', '.');
+    $saldoAtualLabel = $saldoAtual === null ? 'Sem historico' : NumericFormat::decimal($saldoAtual);
+    $estoqueMinimoLabel = $estoqueMinimo === null ? '-' : NumericFormat::decimal($estoqueMinimo);
     $movements = $record
         ? $record->insumoMovimentacoes()->with('user')->limit(4)->get()
         : collect();
@@ -62,7 +63,7 @@
                 @foreach ($movements as $movement)
                     @php
                         $impacto = (float) $movement->impacto_estoque;
-                        $impactoLabel = number_format($impacto, 4, ',', '.');
+                        $impactoLabel = NumericFormat::decimal($impacto);
                         $impactoClasses = $impacto > 0
                             ? 'text-emerald-700'
                             : ($impacto < 0 ? 'text-rose-700' : 'text-slate-600');
@@ -93,7 +94,7 @@
                                 Impacto: {{ $impacto > 0 ? '+' : '' }}{{ $impactoLabel }}
                             </div>
                             <div class="text-slate-500">
-                                Saldo: {{ number_format((float) $movement->saldo_atual, 4, ',', '.') }}
+                                Saldo: {{ NumericFormat::decimal((float) $movement->saldo_atual) }}
                             </div>
                         </div>
                     </div>

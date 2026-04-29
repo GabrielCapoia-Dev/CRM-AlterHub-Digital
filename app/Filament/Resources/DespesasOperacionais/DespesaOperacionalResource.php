@@ -5,6 +5,7 @@ namespace App\Filament\Resources\DespesasOperacionais;
 use App\Filament\Resources\DespesasOperacionais\Pages\ManageDespesasOperacionais;
 use App\Models\DespesaOperacional;
 use App\Models\Produto;
+use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -80,8 +81,11 @@ class DespesaOperacionalResource extends Resource
                         TextInput::make('valor')
                             ->label('Valor')
                             ->numeric()
+                            ->rule('decimal:0,2')
+                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->prefix('R$')
                             ->minValue(0.01)
+                            ->placeholder('0,00')
                             ->required(),
 
                         Select::make('produto_id')

@@ -6,6 +6,7 @@ use App\Filament\Resources\ProdutoMovimentacoes\Pages\ManageProdutoMovimentacoes
 use App\Models\Produto;
 use App\Models\ProdutoMovimentacao;
 use App\Services\Produtos\MovimentacaoEstoqueService;
+use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -91,6 +92,8 @@ class ProdutoMovimentacaoResource extends Resource
                         TextInput::make('quantidade')
                             ->label('Quantidade')
                             ->numeric()
+                            ->rule('decimal:0,2')
+                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->minValue(0.0001)
                             ->required()
                             ->helperText(fn (Get $get): string => $get('tipo') === 'ajuste'
@@ -140,8 +143,11 @@ class ProdutoMovimentacaoResource extends Resource
                         TextInput::make('valor_unitario')
                             ->label('Valor unitario')
                             ->numeric()
+                            ->rule('decimal:0,2')
+                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->minValue(0)
                             ->prefix('R$')
+                            ->placeholder('0,00')
                             ->visible(fn (Get $get): bool => $get('tipo') === 'entrada')
                             ->live()
                             ->columnSpan(4),
@@ -289,11 +295,11 @@ class ProdutoMovimentacaoResource extends Resource
 
     protected static function formatQuantity(float|int|string|null $value): string
     {
-        return number_format((float) $value, 4, ',', '.');
+        return NumericFormat::decimal($value);
     }
 
     protected static function formatCurrency(float|int|null $value): string
     {
-        return 'R$ ' . number_format((float) $value, 2, ',', '.');
+        return NumericFormat::money($value);
     }
 }

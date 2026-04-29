@@ -4,6 +4,7 @@ namespace App\Filament\Resources\OportunidadeProdutos;
 
 use App\Filament\Resources\OportunidadeProdutos\Pages\ManageOportunidadeProdutos;
 use App\Models\OportunidadeProduto;
+use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -57,6 +58,8 @@ class OportunidadeProdutoResource extends Resource
         $components[] = TextInput::make('preco_negociado')
             ->label('Preço negociado')
             ->numeric()
+            ->rule('decimal:0,2')
+            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
             ->prefix('R$')
             ->minValue(0)
             ->placeholder('0,00');

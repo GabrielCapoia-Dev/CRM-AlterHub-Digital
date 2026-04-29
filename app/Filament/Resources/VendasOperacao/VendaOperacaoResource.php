@@ -7,6 +7,7 @@ use App\Models\Produto;
 use App\Models\VendaOperacao;
 use App\Services\Operacao\OperacaoAnalyticsService;
 use App\Services\Operacao\VendaOperacaoService;
+use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ViewAction;
@@ -84,7 +85,7 @@ class VendaOperacaoResource extends Resource
 
                                 $estoque = (float) ($produto->estoqueAtual() ?? 0);
 
-                                return number_format($estoque, 4, ',', '.') . ' ' . ($produto->unidade_medida ?: 'un');
+                                return NumericFormat::decimal($estoque) . ' ' . ($produto->unidade_medida ?: 'un');
                             }),
 
                         Placeholder::make('custo_medio_preview')
@@ -106,31 +107,41 @@ class VendaOperacaoResource extends Resource
 
                                 $custo = app(OperacaoAnalyticsService::class)->currentAverageCostForProduct($produto);
 
-                                return 'R$ ' . number_format($custo, 2, ',', '.');
+                                return NumericFormat::money($custo);
                             }),
 
                         TextInput::make('quantidade')
                             ->label('Quantidade')
                             ->numeric()
+                            ->rule('decimal:0,2')
+                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->minValue(0.0001)
+                            ->placeholder('0,00')
                             ->required(),
 
                         TextInput::make('preco_unitario')
                             ->label('Preco venda unit.')
                             ->numeric()
+                            ->rule('decimal:0,2')
+                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->prefix('R$')
                             ->minValue(0.01)
+                            ->placeholder('0,00')
                             ->required(),
 
                         TextInput::make('icms_aliquota')
                             ->label('ICMS %')
                             ->numeric()
+                            ->rule('decimal:0,2')
+                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->default(0)
                             ->minValue(0),
 
                         TextInput::make('outros_impostos_aliquota')
                             ->label('Outros impostos %')
                             ->numeric()
+                            ->rule('decimal:0,2')
+                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->default(0)
                             ->minValue(0),
 
@@ -175,7 +186,7 @@ class VendaOperacaoResource extends Resource
                 TextColumn::make('quantidade')
                     ->label('Qtd.')
                     ->alignEnd()
-                    ->formatStateUsing(fn ($state): string => number_format((float) $state, 4, ',', '.')),
+                    ->formatStateUsing(fn ($state): string => NumericFormat::decimal($state)),
 
                 TextColumn::make('preco_unitario')
                     ->label('Preco un.')

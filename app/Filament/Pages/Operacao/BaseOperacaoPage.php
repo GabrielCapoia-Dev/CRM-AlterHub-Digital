@@ -3,6 +3,7 @@
 namespace App\Filament\Pages\Operacao;
 
 use App\Services\Operacao\OperacaoAnalyticsService;
+use App\Support\Ui\NumericFormat;
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
 use UnitEnum;
@@ -116,12 +117,12 @@ abstract class BaseOperacaoPage extends Page
 
     public function money(mixed $value): string
     {
-        return 'R$ ' . number_format((float) $value, 2, ',', '.');
+        return NumericFormat::money($value);
     }
 
     public function qty(mixed $value): string
     {
-        return number_format((float) $value, 4, ',', '.');
+        return NumericFormat::decimal($value);
     }
 
     public function pct(mixed $value): string
@@ -130,7 +131,7 @@ abstract class BaseOperacaoPage extends Page
             return '—';
         }
 
-        return number_format((float) $value, 2, ',', '.') . '%';
+        return NumericFormat::percent($value);
     }
 
     public function humanDate(?string $value): string

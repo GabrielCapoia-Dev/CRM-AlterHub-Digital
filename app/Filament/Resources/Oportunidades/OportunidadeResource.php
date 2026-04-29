@@ -17,6 +17,7 @@ use App\Models\Etapa;
 use App\Models\Oportunidade;
 use App\Models\Status\StatusCliente;
 use App\Services\CRM\OportunidadeClienteService;
+use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -103,6 +104,8 @@ class OportunidadeResource extends Resource
                         TextInput::make('valor_estimado')
                             ->label('Valor estimado')
                             ->numeric()
+                            ->rule('decimal:0,2')
+                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->prefix('R$')
                             ->minValue(0)
                             ->placeholder('0,00'),

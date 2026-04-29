@@ -8,6 +8,7 @@ use App\Models\ProdutoComponenteCusto;
 use App\Models\ProdutoInsumo;
 use App\Models\Produtos\Insumo;
 use App\Services\Produtos\ProdutoPricingCalculator;
+use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -120,22 +121,30 @@ class ProdutoResource extends Resource
                                         TextInput::make('estoque_minimo')
                                             ->label('Estoque minimo')
                                             ->numeric()
+                                            ->rule('decimal:0,2')
+                                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                                             ->minValue(0)
-                                            ->placeholder('0,0000')
+                                            ->placeholder('0,00')
                                             ->helperText('Usado como referencia de reposicao na listagem e nas movimentacoes.'),
 
                                         TextInput::make('preco_tabela')
                                             ->label('Preco base')
                                             ->numeric()
+                                            ->rule('decimal:0,2')
+                                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                                             ->prefix('R$')
                                             ->minValue(0.01)
+                                            ->placeholder('0,00')
                                             ->required(),
 
                                         TextInput::make('preco_minimo')
                                             ->label('Preco minimo')
                                             ->numeric()
+                                            ->rule('decimal:0,2')
+                                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                                             ->prefix('R$')
                                             ->minValue(0.01)
+                                            ->placeholder('0,00')
                                             ->required(),
 
                                         Textarea::make('descricao')
@@ -188,6 +197,8 @@ class ProdutoResource extends Resource
                                                 TextInput::make('quantidade')
                                                     ->hiddenLabel()
                                                     ->numeric()
+                                                    ->rule('decimal:0,2')
+                                                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                                                     ->minValue(0.0001)
                                                     ->required()
                                                     ->live()
@@ -257,7 +268,10 @@ class ProdutoResource extends Resource
                                                 TextInput::make('valor')
                                                     ->hiddenLabel()
                                                     ->numeric()
+                                                    ->rule('decimal:0,2')
+                                                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                                                     ->minValue(0)
+                                                    ->placeholder('0,00')
                                                     ->required(),
 
                                                 Toggle::make('obrigatorio')
@@ -528,16 +542,16 @@ class ProdutoResource extends Resource
 
     protected static function formatCurrency(float|int|null $value): string
     {
-        return 'R$ ' . number_format((float) $value, 2, ',', '.');
+        return NumericFormat::money($value);
     }
 
     protected static function formatPercent(float|int|null $value): string
     {
-        return number_format((float) $value, 2, ',', '.') . '%';
+        return NumericFormat::percent($value);
     }
 
     protected static function formatQuantity(float|int|null $value): string
     {
-        return number_format((float) $value, 4, ',', '.');
+        return NumericFormat::decimal($value);
     }
 }

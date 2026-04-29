@@ -11,6 +11,7 @@ use App\Models\Produtos\Insumo;
 use App\Models\Produtos\InsumoFatorCusto;
 use App\Models\Status\StatusInsumo;
 use App\Services\Produtos\InsumoCostCalculator;
+use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -114,7 +115,7 @@ class InsumoResource extends Resource
                     ->alignEnd()
                     ->sortable()
                     ->placeholder('-')
-                    ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatDecimal((float) $state, 4)),
+                    ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatDecimal((float) $state)),
 
                 TextColumn::make('moeda_origem')
                     ->label('Moeda')
@@ -127,7 +128,7 @@ class InsumoResource extends Resource
                     ->alignEnd()
                     ->sortable()
                     ->placeholder('-')
-                    ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatDecimal((float) $state, 6)),
+                    ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatDecimal((float) $state)),
 
                 TextColumn::make('estoque_atual')
                     ->label('Estoque atual')
@@ -367,8 +368,10 @@ class InsumoResource extends Resource
                 TextInput::make('estoque_minimo')
                     ->label('Estoque minimo (alerta)')
                     ->numeric()
+                    ->rule('decimal:0,2')
+                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                     ->minValue(0)
-                    ->placeholder('0,0000')
+                    ->placeholder('0,00')
                     ->columnSpan(6),
             ]);
     }
@@ -400,10 +403,12 @@ class InsumoResource extends Resource
                         TextInput::make('custo_referencia')
                             ->label('Custo unitario')
                             ->numeric()
+                            ->rule('decimal:0,2')
+                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->minValue(0.0001)
                             ->required(fn (Get $get): bool => $get('origem') === 'nacional')
                             ->visible(fn (Get $get): bool => $get('origem') === 'nacional')
-                            ->placeholder('0,0000')
+                            ->placeholder('0,00')
                             ->prefix('R$')
                             ->live()
                             ->columnSpan(8),
@@ -419,20 +424,24 @@ class InsumoResource extends Resource
                         TextInput::make('custo_moeda_origem')
                             ->label('Custo unitario na moeda de origem')
                             ->numeric()
+                            ->rule('decimal:0,2')
+                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->minValue(0.0001)
                             ->required(fn (Get $get): bool => $get('origem') === 'importado')
                             ->visible(fn (Get $get): bool => $get('origem') === 'importado')
-                            ->placeholder('0,0000')
+                            ->placeholder('0,00')
                             ->live()
                             ->columnSpan(4),
 
                         TextInput::make('taxa_cambio')
                             ->label('Taxa de cambio')
                             ->numeric()
+                            ->rule('decimal:0,2')
+                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->minValue(0.000001)
                             ->required(fn (Get $get): bool => $get('origem') === 'importado')
                             ->visible(fn (Get $get): bool => $get('origem') === 'importado')
-                            ->placeholder('0,000000')
+                            ->placeholder('0,00')
                             ->helperText('Sempre manual. Nao ha valor fixo de negocio nem integracao automatica nesta fase.')
                             ->live()
                             ->columnSpan(4),
@@ -532,9 +541,11 @@ class InsumoResource extends Resource
                                 TextInput::make('valor')
                                     ->hiddenLabel()
                                     ->numeric()
+                                    ->rule('decimal:0,2')
+                                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                                     ->minValue(0)
                                     ->required()
-                                    ->placeholder('0,0000')
+                                    ->placeholder('0,00')
                                     ->live(),
                             ])
                             ->addActionLabel('Criar novo fator')
@@ -754,21 +765,21 @@ class InsumoResource extends Resource
 
     protected static function formatCurrency(float|int|null $value): string
     {
-        return 'R$ '.number_format((float) $value, 2, ',', '.');
+        return NumericFormat::money($value);
     }
 
     protected static function formatPercent(float|int|null $value): string
     {
-        return number_format((float) $value, 2, ',', '.').'%';
+        return NumericFormat::percent($value);
     }
 
     protected static function formatQuantity(float|int|null $value): string
     {
-        return number_format((float) $value, 4, ',', '.');
+        return NumericFormat::decimal($value);
     }
 
-    protected static function formatDecimal(float|int|null $value, int $decimals = 4): string
+    protected static function formatDecimal(float|int|null $value, int $decimals = 2): string
     {
-        return number_format((float) $value, $decimals, ',', '.');
+        return NumericFormat::decimal($value, $decimals);
     }
 }
