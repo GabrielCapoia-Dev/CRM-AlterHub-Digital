@@ -19,8 +19,7 @@ class ProdutoPricingCalculator
             $this->makeDefaultComponent('IR', 'impostos', 'percentual_sobre_venda', 0, false),
             $this->makeDefaultComponent('IPI', 'impostos', 'percentual_sobre_venda', 0, false),
             $this->makeDefaultComponent('ICMS', 'impostos', 'percentual_sobre_venda', 0, true),
-            $this->makeDefaultComponent('Comissão', 'comerciais', 'percentual_sobre_venda', 0, false),
-            $this->makeDefaultComponent('Margem', 'comerciais', 'percentual_sobre_venda', 0, true, true),
+            $this->makeDefaultComponent('Comissao', 'comerciais', 'percentual_sobre_venda', 0, false),
             $this->makeDefaultComponent('Frete', 'custos_fixos', 'valor_fixo_brl', 0, false),
             $this->makeDefaultComponent('Outras despesas', 'custos_fixos', 'valor_fixo_brl', 0, false),
             $this->makeDefaultComponent('Despesas gerais', 'custos_fixos', 'valor_fixo_brl', 0, false),
@@ -61,21 +60,30 @@ class ProdutoPricingCalculator
             ->values()
             ->all();
 
-        $custosMap = Insumo::query()
+        $insumosMap = Insumo::query()
+            ->with('tipoUnidadeMedida')
             ->whereIn('id', $insumoIds)
-            ->pluck('custo_referencia', 'id');
+            ->get()
+            ->keyBy('id');
 
         return $items
-            ->map(function (array $item, int $index) use ($custosMap): array {
+            ->map(function (array $item, int $index) use ($insumosMap): array {
                 $insumoId = Arr::get($item, 'insumo_id');
                 $quantidade = $this->toNullableFloat(Arr::get($item, 'quantidade')) ?? 0.0;
-                $custoUnitario = $insumoId
-                    ? (float) ($custosMap[$insumoId] ?? 0)
+
+                /** @var Insumo|null $insumo */
+                $insumo = $insumoId ? $insumosMap->get((int) $insumoId) : null;
+
+                $custoUnitario = $insumo
+                    ? (float) $insumo->custo_referencia
                     : ($this->toNullableFloat(Arr::get($item, 'custo_unitario_snapshot')) ?? 0.0);
 
                 return [
                     ...$item,
                     'ordem' => Arr::get($item, 'ordem', $index),
+                    'unidade_consumo' => $insumo
+                        ? $this->resolveInsumoUnit($insumo)
+                        : $this->normalizeString(Arr::get($item, 'unidade_consumo')),
                     'custo_unitario_snapshot' => round($custoUnitario, 4),
                     'custo_total_snapshot' => round($quantidade * $custoUnitario, 4),
                 ];
@@ -96,7 +104,6 @@ class ProdutoPricingCalculator
                     'tipo' => $item['tipo'] ?? 'percentual_sobre_venda',
                     'valor' => $this->toNullableFloat($item['valor']) ?? 0.0,
                     'obrigatorio' => filter_var($item['obrigatorio'] ?? false, FILTER_VALIDATE_BOOL),
-                    'is_margem' => filter_var($item['is_margem'] ?? false, FILTER_VALIDATE_BOOL),
                     'ordem' => $item['ordem'] ?? $index,
                 ];
             });
@@ -113,7 +120,7 @@ class ProdutoPricingCalculator
                     'id' => $item['id'] ?? null,
                     'insumo_id' => Arr::get($item, 'insumo_id'),
                     'quantidade' => $this->toNullableFloat(Arr::get($item, 'quantidade')) ?? 0.0,
-                    'unidade_consumo' => Arr::get($item, 'unidade_consumo'),
+                    'unidade_consumo' => $this->normalizeString(Arr::get($item, 'unidade_consumo')),
                     'ordem' => Arr::get($item, 'ordem', $index),
                     'custo_unitario_snapshot' => $this->toNullableFloat(Arr::get($item, 'custo_unitario_snapshot')) ?? 0.0,
                     'custo_total_snapshot' => $this->toNullableFloat(Arr::get($item, 'custo_total_snapshot')) ?? 0.0,
@@ -126,7 +133,7 @@ class ProdutoPricingCalculator
 
         return [
             ...$data,
-            'status' => $data['status'] ?? 'em_registro',
+            'status' => $data['status'] ?? 'ativo',
             'preco_tabela' => $this->toNullableFloat($data['preco_tabela'] ?? null),
             'preco_minimo' => $this->toNullableFloat($data['preco_minimo'] ?? null),
             'produtoInsumos' => $insumos->all(),
@@ -153,34 +160,22 @@ class ProdutoPricingCalculator
 
         $percentualSobreVenda = round(
             $componentesCollection
-                ->filter(function (array $item): bool {
-                    return ($item['tipo'] ?? null) === 'percentual_sobre_venda'
-                        && ! ($item['is_margem'] ?? false);
-                })
+                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'percentual_sobre_venda')
                 ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
             4,
         );
 
-        $margem = round(
-            $componentesCollection
-                ->filter(fn (array $item): bool => (bool) ($item['is_margem'] ?? false))
-                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
-            4,
-        );
-
-        $percentualTotal = round($percentualSobreVenda + $margem, 4);
         $custoBaseFormacao = round($custoTotalInsumos + $custosAdicionais, 4);
 
         return [
             'custo_total_insumos' => $custoTotalInsumos,
             'custos_adicionais' => $custosAdicionais,
             'percentual_sobre_venda' => $percentualSobreVenda,
-            'margem' => $margem,
-            'percentual_total' => $percentualTotal,
+            'percentual_total' => $percentualSobreVenda,
             'custo_base_formacao' => $custoBaseFormacao,
-            'preco_sugerido' => $percentualTotal >= 100
+            'preco_sugerido' => $percentualSobreVenda >= 100
                 ? null
-                : round($custoBaseFormacao / (1 - ($percentualTotal / 100)), 2),
+                : round($custoBaseFormacao / (1 - ($percentualSobreVenda / 100)), 2),
         ];
     }
 
@@ -189,15 +184,15 @@ class ProdutoPricingCalculator
         $messages = [];
 
         if (! in_array($data['status'], array_keys(Produto::statusOptions()), true)) {
-            $messages['status'] = 'Selecione um status válido para o produto.';
+            $messages['status'] = 'Selecione um status valido para o produto.';
         }
 
         if (($data['preco_tabela'] ?? 0) <= 0) {
-            $messages['preco_tabela'] = 'Informe um preço base maior que zero.';
+            $messages['preco_tabela'] = 'Informe um preco base maior que zero.';
         }
 
         if (($data['preco_minimo'] ?? 0) <= 0) {
-            $messages['preco_minimo'] = 'Informe um preço mínimo maior que zero.';
+            $messages['preco_minimo'] = 'Informe um preco minimo maior que zero.';
         }
 
         if (
@@ -205,16 +200,16 @@ class ProdutoPricingCalculator
             && ($data['preco_minimo'] ?? null) !== null
             && $data['preco_minimo'] > $data['preco_tabela']
         ) {
-            $messages['preco_minimo'] = 'O preço mínimo não pode ser maior que o preço base.';
+            $messages['preco_minimo'] = 'O preco minimo nao pode ser maior que o preco base.';
         }
 
         if ($summary['percentual_total'] >= 100) {
-            $messages['produtoComponentesCusto'] = 'A soma dos percentuais e da margem deve ser menor que 100%.';
+            $messages['produtoComponentesCusto'] = 'A soma dos percentuais sobre a venda deve ser menor que 100%.';
         }
 
         foreach ($data['produtoInsumos'] as $index => $item) {
             if (blank($item['insumo_id'] ?? null)) {
-                $messages["produtoInsumos.$index.insumo_id"] = 'Selecione um insumo para cada linha da composição.';
+                $messages["produtoInsumos.$index.insumo_id"] = 'Selecione um insumo para cada linha da composicao.';
             }
 
             if (($item['quantidade'] ?? 0) <= 0) {
@@ -228,19 +223,15 @@ class ProdutoPricingCalculator
             }
 
             if (! array_key_exists($item['categoria'] ?? '', ProdutoComponenteCusto::categoriaOptions())) {
-                $messages["produtoComponentesCusto.$index.categoria"] = 'Selecione uma categoria válida para o componente.';
+                $messages["produtoComponentesCusto.$index.categoria"] = 'Selecione uma categoria valida para o componente.';
             }
 
             if (! array_key_exists($item['tipo'] ?? '', ProdutoComponenteCusto::tipoOptions())) {
-                $messages["produtoComponentesCusto.$index.tipo"] = 'Selecione um tipo válido para o componente.';
+                $messages["produtoComponentesCusto.$index.tipo"] = 'Selecione um tipo valido para o componente.';
             }
 
             if (($item['valor'] ?? 0) < 0) {
-                $messages["produtoComponentesCusto.$index.valor"] = 'O valor do componente não pode ser negativo.';
-            }
-
-            if (($item['is_margem'] ?? false) && ($item['tipo'] ?? null) !== 'percentual_sobre_venda') {
-                $messages["produtoComponentesCusto.$index.tipo"] = 'Componentes marcados como margem precisam ser percentuais.';
+                $messages["produtoComponentesCusto.$index.valor"] = 'O valor do componente nao pode ser negativo.';
             }
         }
 
@@ -255,7 +246,6 @@ class ProdutoPricingCalculator
         string $tipo,
         float $valor,
         bool $obrigatorio,
-        bool $isMargem = false,
     ): array {
         return [
             'nome' => $nome,
@@ -263,7 +253,6 @@ class ProdutoPricingCalculator
             'tipo' => $tipo,
             'valor' => $valor,
             'obrigatorio' => $obrigatorio,
-            'is_margem' => $isMargem,
         ];
     }
 
@@ -274,5 +263,22 @@ class ProdutoPricingCalculator
         }
 
         return round((float) $value, 4);
+    }
+
+    protected function resolveInsumoUnit(Insumo $insumo): ?string
+    {
+        return $insumo->tipoUnidadeMedida?->sigla
+            ?: $insumo->tipoUnidadeMedida?->nome;
+    }
+
+    protected function normalizeString(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }

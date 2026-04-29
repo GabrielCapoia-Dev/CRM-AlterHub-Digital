@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Produtos;
 
 use App\Filament\Resources\Produtos\Pages\ManageProdutos;
+use App\Models\Categorias\TipoUnidadeMedida;
 use App\Models\Produto;
 use App\Models\ProdutoComponenteCusto;
 use App\Models\ProdutoInsumo;
@@ -73,15 +74,15 @@ class ProdutoResource extends Resource
                                     ->schema([
                                         TextInput::make('codigo_interno')
                                             ->label('SKU / codigo interno')
-                                            ->required()
-                                            ->maxLength(255)
-                                            ->unique(table: 'produtos', column: 'codigo_interno', ignoreRecord: true)
-                                            ->placeholder('Ex.: UBT-QPCR-RESP-96'),
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->placeholder('Gerado automaticamente ao salvar')
+                                            ->helperText('Esse codigo e criado automaticamente no cadastro do produto.'),
 
                                         Select::make('status')
                                             ->label('Status')
                                             ->options(Produto::statusOptions())
-                                            ->default('em_registro')
+                                            ->default('ativo')
                                             ->required(),
 
                                         TextInput::make('nome')
@@ -107,11 +108,13 @@ class ProdutoResource extends Resource
                                             ->label('Marca / fabricante')
                                             ->maxLength(255),
 
-                                        TextInput::make('unidade_medida')
+                                        Select::make('unidade_medida')
                                             ->label('Unidade de venda')
+                                            ->options(fn (): array => static::unidadeMedidaOptions())
+                                            ->searchable()
+                                            ->preload()
                                             ->required()
-                                            ->maxLength(50)
-                                            ->placeholder('Ex.: kit, un, cx'),
+                                            ->placeholder('Selecione uma unidade'),
 
                                         TextInput::make('ncm')
                                             ->label('NCM')
@@ -206,8 +209,9 @@ class ProdutoResource extends Resource
 
                                                 TextInput::make('unidade_consumo')
                                                     ->hiddenLabel()
-                                                    ->maxLength(50)
-                                                    ->placeholder('Ex.: mL, g, un'),
+                                                    ->disabled()
+                                                    ->dehydrated()
+                                                    ->placeholder('Automatico pelo insumo'),
 
                                                 Hidden::make('custo_unitario_snapshot'),
                                                 Hidden::make('custo_total_snapshot'),
@@ -229,8 +233,8 @@ class ProdutoResource extends Resource
                                             ->reorderableWithButtons(),
                                     ]),
 
-                                Section::make('Encargos, despesas e margem')
-                                    ->description('Percentuais e custos fixos usados no preco sugerido.')
+                                Section::make('Encargos e despesas adicionais')
+                                    ->description('Percentuais sobre a venda e custos fixos usados no preco sugerido.')
                                     ->icon(Heroicon::OutlinedChartBar)
                                     ->columnSpanFull()
                                     ->schema([
@@ -245,7 +249,6 @@ class ProdutoResource extends Resource
                                                 TableColumn::make('Tipo')->markAsRequired(),
                                                 TableColumn::make('Valor')->markAsRequired(),
                                                 TableColumn::make('Obrig.'),
-                                                TableColumn::make('Margem'),
                                             ])
                                             ->live()
                                             ->default(fn(): array => app(ProdutoPricingCalculator::class)->defaultComponentes())
@@ -276,15 +279,6 @@ class ProdutoResource extends Resource
 
                                                 Toggle::make('obrigatorio')
                                                     ->hiddenLabel(),
-
-                                                Toggle::make('is_margem')
-                                                    ->hiddenLabel()
-                                                    ->live()
-                                                    ->afterStateUpdated(function (Set $set, mixed $state): void {
-                                                        if ($state) {
-                                                            $set('tipo', 'percentual_sobre_venda');
-                                                        }
-                                                    }),
                                             ])
                                             ->reorderableWithDragAndDrop(false)
                                             ->reorderableWithButtons(),
@@ -308,22 +302,10 @@ class ProdutoResource extends Resource
                                                 static::buildResumo($get)['custos_adicionais']
                                             )),
 
-                                        Placeholder::make('resumo_percentual_total')
-                                            ->label('Percentual total')
-                                            ->content(fn(Get $get): string => static::formatPercent(
-                                                static::buildResumo($get)['percentual_total']
-                                            )),
-
                                         Placeholder::make('resumo_percentual_sobre_venda')
                                             ->label('Percentual sobre venda')
                                             ->content(fn(Get $get): string => static::formatPercent(
                                                 static::buildResumo($get)['percentual_sobre_venda']
-                                            )),
-
-                                        Placeholder::make('resumo_margem')
-                                            ->label('Margem')
-                                            ->content(fn(Get $get): string => static::formatPercent(
-                                                static::buildResumo($get)['margem']
                                             )),
 
                                         Placeholder::make('resumo_custo_base_formacao')
@@ -413,6 +395,10 @@ class ProdutoResource extends Resource
                     ->label('Status')
                     ->badge()
                     ->formatStateUsing(function (?string $state): string {
+                        if ($state === 'em_registro') {
+                            $state = 'ativo';
+                        }
+
                         if (! $state) {
                             return 'Nao definido';
                         }
@@ -470,6 +456,7 @@ class ProdutoResource extends Resource
     {
         return [
             ...$record->attributesToArray(),
+            'status' => $record->status === 'em_registro' ? 'ativo' : $record->status,
             'produtoInsumos' => $record->produtoInsumos()
                 ->orderBy('ordem')
                 ->get()
@@ -493,7 +480,6 @@ class ProdutoResource extends Resource
                     'tipo' => $item->tipo,
                     'valor' => (float) $item->valor,
                     'obrigatorio' => $item->obrigatorio,
-                    'is_margem' => $item->is_margem,
                     'ordem' => $item->ordem,
                 ])
                 ->all(),
@@ -517,9 +503,28 @@ class ProdutoResource extends Resource
 
     protected static function syncInsumoSnapshotLine(Set $set, Get $get): void
     {
+        $insumoId = $get('insumo_id');
+
+        if (blank($insumoId)) {
+            $set('unidade_consumo', null);
+            $set('custo_unitario_snapshot', 0);
+            $set('custo_total_snapshot', 0);
+
+            return;
+        }
+
+        $insumo = Insumo::query()
+            ->with('tipoUnidadeMedida')
+            ->find($insumoId);
+
+        if ($insumo) {
+            $set('unidade_consumo', static::resolveInsumoUnit($insumo));
+        }
+
         $line = app(ProdutoPricingCalculator::class)->refreshInsumoSnapshots([[
-            'insumo_id' => $get('insumo_id'),
+            'insumo_id' => $insumoId,
             'quantidade' => $get('quantidade'),
+            'unidade_consumo' => $get('unidade_consumo'),
             'custo_unitario_snapshot' => $get('custo_unitario_snapshot'),
             'custo_total_snapshot' => $get('custo_total_snapshot'),
         ]])[0] ?? null;
@@ -553,5 +558,29 @@ class ProdutoResource extends Resource
     protected static function formatQuantity(float|int|null $value): string
     {
         return NumericFormat::decimal($value);
+    }
+
+    protected static function unidadeMedidaOptions(): array
+    {
+        return TipoUnidadeMedida::query()
+            ->orderBy('nome')
+            ->get()
+            ->mapWithKeys(fn (TipoUnidadeMedida $record): array => [
+                (string) ($record->sigla ?: $record->nome) => static::formatUnidadeLabel($record),
+            ])
+            ->all();
+    }
+
+    protected static function formatUnidadeLabel(TipoUnidadeMedida $record): string
+    {
+        return $record->sigla
+            ? "{$record->sigla} - {$record->nome}"
+            : $record->nome;
+    }
+
+    protected static function resolveInsumoUnit(Insumo $insumo): ?string
+    {
+        return $insumo->tipoUnidadeMedida?->sigla
+            ?: $insumo->tipoUnidadeMedida?->nome;
     }
 }

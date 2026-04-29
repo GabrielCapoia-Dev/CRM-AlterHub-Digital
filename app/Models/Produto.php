@@ -39,10 +39,28 @@ class Produto extends Model
         'ativo' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (self $produto): void {
+            if (blank($produto->codigo_interno)) {
+                $produto->codigo_interno = static::generateCodigoInterno();
+            }
+
+            if (blank($produto->status) || $produto->status === 'em_registro') {
+                $produto->status = 'ativo';
+            }
+        });
+
+        static::saving(function (self $produto): void {
+            if ($produto->status === 'em_registro') {
+                $produto->status = 'ativo';
+            }
+        });
+    }
+
     public static function statusOptions(): array
     {
         return [
-            'em_registro' => 'Em registro',
             'ativo' => 'Ativo',
             'inativo' => 'Inativo',
             'descontinuado' => 'Descontinuado',
@@ -118,5 +136,22 @@ class Produto extends Model
             && $estoqueMinimo !== null
             && $estoqueMinimo > 0
             && $estoqueAtual <= $estoqueMinimo;
+    }
+
+    protected static function generateCodigoInterno(): string
+    {
+        $ultimoNumero = static::query()
+            ->where('codigo_interno', 'like', 'PRD-UBT-%')
+            ->pluck('codigo_interno')
+            ->map(function (string $codigo): int {
+                if (preg_match('/PRD-UBT-(\d+)/', $codigo, $matches) !== 1) {
+                    return 0;
+                }
+
+                return (int) $matches[1];
+            })
+            ->max();
+
+        return sprintf('PRD-UBT-%04d', ((int) $ultimoNumero) + 1);
     }
 }

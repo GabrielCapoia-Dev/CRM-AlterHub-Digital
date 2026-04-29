@@ -16,7 +16,6 @@ class ProdutoComponenteCusto extends Model
         'tipo',
         'valor',
         'obrigatorio',
-        'is_margem',
         'ordem',
     ];
 
@@ -24,7 +23,6 @@ class ProdutoComponenteCusto extends Model
         'produto_id' => 'integer',
         'valor' => 'decimal:4',
         'obrigatorio' => 'boolean',
-        'is_margem' => 'boolean',
         'ordem' => 'integer',
     ];
 

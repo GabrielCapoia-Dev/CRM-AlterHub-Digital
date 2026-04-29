@@ -104,7 +104,7 @@ class VendaOperacaoService
             $messages['preco_unitario'] = 'Informe um preco unitario maior que zero.';
         }
 
-        if (! in_array($produto->status, ['ativo', 'em_registro'], true)) {
+        if ($produto->status !== 'ativo') {
             $messages['produto_id'] = 'O produto precisa estar disponivel para registrar vendas.';
         }
 

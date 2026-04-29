@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Produtos;
 
+use App\Models\Categorias\TipoUnidadeMedida;
 use App\Models\Produtos\Insumo;
 use App\Services\Produtos\ProdutoPricingCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,10 +15,16 @@ class ProdutoPricingCalculatorTest extends TestCase
 
     public function test_it_calculates_snapshots_cost_base_and_suggested_price(): void
     {
+        $unidade = TipoUnidadeMedida::query()->create([
+            'nome' => 'Unidade',
+            'sigla' => 'un',
+        ]);
+
         $insumoA = Insumo::query()->create([
             'codigo_interno' => 'INS-A',
             'nome' => 'Insumo A',
             'origem' => 'nacional',
+            'tipo_unidade_medida_id' => $unidade->id,
             'custo_referencia' => 100.0000,
         ]);
 
@@ -25,6 +32,7 @@ class ProdutoPricingCalculatorTest extends TestCase
             'codigo_interno' => 'INS-B',
             'nome' => 'Insumo B',
             'origem' => 'nacional',
+            'tipo_unidade_medida_id' => $unidade->id,
             'custo_referencia' => 50.0000,
         ]);
 
@@ -39,14 +47,16 @@ class ProdutoPricingCalculatorTest extends TestCase
                 ['insumo_id' => $insumoB->id, 'quantidade' => 1],
             ],
             'produtoComponentesCusto' => [
-                $this->makeComponent('Comissão', 'comerciais', 'percentual_sobre_venda', 5),
-                $this->makeComponent('Margem', 'comerciais', 'percentual_sobre_venda', 30, true),
+                $this->makeComponent('Comissao', 'comerciais', 'percentual_sobre_venda', 5),
+                $this->makeComponent('ICMS', 'impostos', 'percentual_sobre_venda', 30),
                 $this->makeComponent('Frete', 'custos_fixos', 'valor_fixo_brl', 20),
             ],
         ]);
 
+        $this->assertSame('un', $prepared['produtoInsumos'][0]['unidade_consumo']);
         $this->assertSame(100.0, $prepared['produtoInsumos'][0]['custo_unitario_snapshot']);
         $this->assertSame(200.0, $prepared['produtoInsumos'][0]['custo_total_snapshot']);
+        $this->assertSame('un', $prepared['produtoInsumos'][1]['unidade_consumo']);
         $this->assertSame(50.0, $prepared['produtoInsumos'][1]['custo_unitario_snapshot']);
         $this->assertSame(50.0, $prepared['produtoInsumos'][1]['custo_total_snapshot']);
         $this->assertSame(270.0, $prepared['custo_base_formacao']);
@@ -66,8 +76,8 @@ class ProdutoPricingCalculatorTest extends TestCase
             'preco_minimo' => 90.00,
             'produtoInsumos' => [],
             'produtoComponentesCusto' => [
-                $this->makeComponent('Comissão', 'comerciais', 'percentual_sobre_venda', 40),
-                $this->makeComponent('Margem', 'comerciais', 'percentual_sobre_venda', 60, true),
+                $this->makeComponent('Comissao', 'comerciais', 'percentual_sobre_venda', 40),
+                $this->makeComponent('ICMS', 'impostos', 'percentual_sobre_venda', 60),
             ],
         ]);
     }
@@ -89,12 +99,19 @@ class ProdutoPricingCalculatorTest extends TestCase
         ]);
     }
 
+    public function test_default_components_do_not_include_margin(): void
+    {
+        $componentes = collect(app(ProdutoPricingCalculator::class)->defaultComponentes())
+            ->pluck('nome');
+
+        $this->assertFalse($componentes->contains('Margem'));
+    }
+
     private function makeComponent(
         string $nome,
         string $categoria,
         string $tipo,
         float $valor,
-        bool $isMargem = false,
     ): array {
         return [
             'nome' => $nome,
@@ -102,7 +119,6 @@ class ProdutoPricingCalculatorTest extends TestCase
             'tipo' => $tipo,
             'valor' => $valor,
             'obrigatorio' => false,
-            'is_margem' => $isMargem,
         ];
     }
 }
