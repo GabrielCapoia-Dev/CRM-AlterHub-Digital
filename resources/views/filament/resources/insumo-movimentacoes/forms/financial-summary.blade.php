@@ -2,6 +2,8 @@
     $summary = $summary ?? ['has_insumo' => false, 'message' => 'Selecione um insumo para ver o resumo financeiro.'];
 @endphp
 
+@include('filament.partials.stock-theme-styles')
+
 <div class="insumo-mov-summary">
     @if (! ($summary['has_insumo'] ?? false))
         <div class="insumo-mov-summary__empty">

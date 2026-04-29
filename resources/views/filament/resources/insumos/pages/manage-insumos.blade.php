@@ -1,4 +1,6 @@
 <x-filament-panels::page>
+    @include('filament.partials.stock-theme-styles')
+
     <style>
         .insumo-modal-window {
             border-radius: 1.5rem;

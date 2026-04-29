@@ -1,4 +1,6 @@
 <x-filament-panels::page>
+    @include('filament.partials.stock-theme-styles')
+
     <style>
         .produto-modal-window {
             border-radius: 1.5rem;

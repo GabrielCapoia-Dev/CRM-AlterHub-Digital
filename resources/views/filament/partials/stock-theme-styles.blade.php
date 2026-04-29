@@ -1,0 +1,355 @@
+@once
+    <style>
+        .crm-resource-page {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .crm-resource-hero {
+            border-radius: 1.5rem;
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96)),
+                linear-gradient(135deg, rgba(37, 99, 235, 0.03), rgba(15, 23, 42, 0.02));
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
+            padding: 1.25rem;
+        }
+
+        .crm-resource-hero__inner {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .crm-resource-hero__content {
+            display: grid;
+            gap: 0.35rem;
+        }
+
+        .crm-resource-hero__eyebrow {
+            margin: 0;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: rgb(100 116 139);
+        }
+
+        .crm-resource-hero__title {
+            margin: 0;
+            font-size: 1.125rem;
+            font-weight: 700;
+            line-height: 1.25;
+            color: rgb(15 23 42);
+        }
+
+        .crm-resource-hero__description {
+            margin: 0;
+            max-width: 42rem;
+            padding: 0.9rem 1rem;
+            border-radius: 1rem;
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            background: rgba(248, 250, 252, 0.92);
+            font-size: 0.92rem;
+            line-height: 1.55;
+            color: rgb(71 85 105);
+        }
+
+        .insumo-mov-summary {
+            display: grid;
+            gap: 1rem;
+            border-radius: 1.25rem;
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            background:
+                radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 28%),
+                linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.98));
+            padding: 1.25rem;
+        }
+
+        .insumo-mov-summary__empty {
+            display: grid;
+            gap: 0.35rem;
+        }
+
+        .insumo-mov-summary__eyebrow,
+        .insumo-mov-summary__panel-title,
+        .insumo-mov-summary__stat-label,
+        .insumo-mov-summary__snapshot-label,
+        .insumo-mov-summary__impact-label {
+            display: block;
+            margin: 0;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgb(100 116 139);
+        }
+
+        .insumo-mov-summary__title {
+            margin: 0.25rem 0 0;
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.35;
+            color: rgb(15 23 42);
+        }
+
+        .insumo-mov-summary__description,
+        .insumo-mov-summary__empty-text,
+        .insumo-mov-summary__panel-empty,
+        .insumo-mov-summary__stat-hint {
+            margin: 0.35rem 0 0;
+            font-size: 0.88rem;
+            line-height: 1.55;
+            color: rgb(100 116 139);
+        }
+
+        .insumo-mov-summary__header {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .insumo-mov-summary__snapshot {
+            display: grid;
+            gap: 0.75rem;
+            padding: 1rem;
+            border-radius: 1rem;
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            background: rgba(255, 255, 255, 0.94);
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+        }
+
+        .insumo-mov-summary__snapshot-item,
+        .insumo-mov-summary__factor,
+        .insumo-mov-summary__impact-row {
+            display: grid;
+            gap: 0.25rem;
+        }
+
+        .insumo-mov-summary__snapshot-value,
+        .insumo-mov-summary__stat-value,
+        .insumo-mov-summary__factor-value,
+        .insumo-mov-summary__impact-value,
+        .insumo-mov-summary__impact-total-value {
+            font-variant-numeric: tabular-nums;
+            color: rgb(15 23 42);
+        }
+
+        .insumo-mov-summary__snapshot-value {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .insumo-mov-summary__stats {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+        }
+
+        .insumo-mov-summary__stat,
+        .insumo-mov-summary__panel {
+            border-radius: 1rem;
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            background: rgba(255, 255, 255, 0.94);
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+        }
+
+        .insumo-mov-summary__stat {
+            padding: 1rem;
+        }
+
+        .insumo-mov-summary__stat--highlight {
+            border-color: rgba(110, 231, 183, 0.62);
+            background:
+                linear-gradient(180deg, rgba(236, 253, 245, 0.98), rgba(209, 250, 229, 0.92)),
+                rgba(255, 255, 255, 0.98);
+        }
+
+        .insumo-mov-summary__stat--highlight .insumo-mov-summary__stat-label,
+        .insumo-mov-summary__stat--highlight .insumo-mov-summary__stat-hint {
+            color: rgb(6 95 70);
+        }
+
+        .insumo-mov-summary__stat-value {
+            margin-top: 0.45rem;
+            font-size: 1.18rem;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        .insumo-mov-summary__details {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .insumo-mov-summary__panel {
+            padding: 1rem;
+        }
+
+        .insumo-mov-summary__panel-body {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 0.9rem;
+        }
+
+        .insumo-mov-summary__factor {
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: start;
+            gap: 0.9rem;
+            padding: 0.9rem 1rem;
+            border-radius: 0.9rem;
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            background: rgba(248, 250, 252, 0.88);
+        }
+
+        .insumo-mov-summary__factor-copy {
+            min-width: 0;
+        }
+
+        .insumo-mov-summary__factor-name {
+            margin: 0;
+            font-size: 0.92rem;
+            font-weight: 700;
+            line-height: 1.4;
+            color: rgb(15 23 42);
+        }
+
+        .insumo-mov-summary__factor-type {
+            margin: 0.15rem 0 0;
+            font-size: 0.8rem;
+            line-height: 1.45;
+            color: rgb(100 116 139);
+        }
+
+        .insumo-mov-summary__factor-value,
+        .insumo-mov-summary__impact-value {
+            font-size: 0.96rem;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .insumo-mov-summary__impact {
+            display: grid;
+            gap: 0.9rem;
+            margin-top: 0.9rem;
+        }
+
+        .insumo-mov-summary__impact-total {
+            padding-top: 1rem;
+            border-top: 1px solid rgba(226, 232, 240, 0.92);
+        }
+
+        .insumo-mov-summary__impact-total-value {
+            display: block;
+            margin-top: 0.35rem;
+            font-size: 1.75rem;
+            font-weight: 800;
+            line-height: 1.1;
+            color: rgb(2 6 23);
+        }
+
+        .dark .crm-resource-hero {
+            border-color: rgba(148, 163, 184, 0.16);
+            background:
+                linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.76)),
+                linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(148, 163, 184, 0.04));
+            box-shadow: 0 18px 42px rgba(2, 6, 23, 0.35);
+        }
+
+        .dark .crm-resource-hero__eyebrow,
+        .dark .insumo-mov-summary__eyebrow,
+        .dark .insumo-mov-summary__panel-title,
+        .dark .insumo-mov-summary__stat-label,
+        .dark .insumo-mov-summary__snapshot-label,
+        .dark .insumo-mov-summary__impact-label {
+            color: rgb(148 163 184);
+        }
+
+        .dark .crm-resource-hero__title,
+        .dark .insumo-mov-summary__title,
+        .dark .insumo-mov-summary__snapshot-value,
+        .dark .insumo-mov-summary__stat-value,
+        .dark .insumo-mov-summary__factor-name,
+        .dark .insumo-mov-summary__factor-value,
+        .dark .insumo-mov-summary__impact-value,
+        .dark .insumo-mov-summary__impact-total-value {
+            color: rgb(248 250 252);
+        }
+
+        .dark .crm-resource-hero__description,
+        .dark .insumo-mov-summary__description,
+        .dark .insumo-mov-summary__empty-text,
+        .dark .insumo-mov-summary__panel-empty,
+        .dark .insumo-mov-summary__stat-hint,
+        .dark .insumo-mov-summary__factor-type {
+            color: rgb(148 163 184);
+        }
+
+        .dark .crm-resource-hero__description {
+            border-color: rgba(148, 163, 184, 0.14);
+            background: rgba(15, 23, 42, 0.52);
+        }
+
+        .dark .insumo-mov-summary {
+            border-color: rgba(148, 163, 184, 0.16);
+            background:
+                radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
+                linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.74));
+        }
+
+        .dark .insumo-mov-summary__snapshot,
+        .dark .insumo-mov-summary__stat,
+        .dark .insumo-mov-summary__panel,
+        .dark .insumo-mov-summary__factor {
+            border-color: rgba(148, 163, 184, 0.14);
+            background: rgba(15, 23, 42, 0.6);
+            box-shadow: 0 18px 34px rgba(2, 6, 23, 0.24);
+        }
+
+        .dark .insumo-mov-summary__stat--highlight {
+            border-color: rgba(52, 211, 153, 0.4);
+            background:
+                linear-gradient(180deg, rgba(6, 78, 59, 0.9), rgba(6, 95, 70, 0.72)),
+                rgba(15, 23, 42, 0.7);
+        }
+
+        .dark .insumo-mov-summary__stat--highlight .insumo-mov-summary__stat-label,
+        .dark .insumo-mov-summary__stat--highlight .insumo-mov-summary__stat-hint {
+            color: rgb(167 243 208);
+        }
+
+        .dark .insumo-mov-summary__impact-total {
+            border-top-color: rgba(148, 163, 184, 0.14);
+        }
+
+        @media (min-width: 640px) {
+            .insumo-mov-summary__snapshot {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .crm-resource-hero__inner,
+            .insumo-mov-summary__header {
+                flex-direction: row;
+                align-items: flex-start;
+                justify-content: space-between;
+            }
+
+            .insumo-mov-summary__details {
+                grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .crm-resource-hero,
+            .insumo-mov-summary {
+                padding: 1rem;
+            }
+
+            .insumo-mov-summary__impact-total-value {
+                font-size: 1.45rem;
+            }
+        }
+    </style>
+@endonce

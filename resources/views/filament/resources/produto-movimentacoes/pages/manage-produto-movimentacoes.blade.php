@@ -1,4 +1,6 @@
 <x-filament-panels::page>
+    @include('filament.partials.stock-theme-styles')
+
     <div class="crm-resource-page">
         <section class="crm-resource-hero">
             <div class="crm-resource-hero__inner">
