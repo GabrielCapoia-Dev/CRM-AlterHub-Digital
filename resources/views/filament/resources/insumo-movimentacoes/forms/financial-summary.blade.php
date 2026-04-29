@@ -2,84 +2,104 @@
     $summary = $summary ?? ['has_insumo' => false, 'message' => 'Selecione um insumo para ver o resumo financeiro.'];
 @endphp
 
-<div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+<div class="insumo-mov-summary">
     @if (! ($summary['has_insumo'] ?? false))
-        <div class="space-y-1">
-            <p class="text-sm font-semibold text-slate-900">Resumo financeiro da movimentacao</p>
-            <p class="text-sm text-slate-500">{{ $summary['message'] ?? 'Selecione um insumo para ver o resumo financeiro.' }}</p>
+        <div class="insumo-mov-summary__empty">
+            <span class="insumo-mov-summary__eyebrow">Resumo financeiro</span>
+            <h3 class="insumo-mov-summary__title">Movimentacao de insumo</h3>
+            <p class="insumo-mov-summary__empty-text">{{ $summary['message'] ?? 'Selecione um insumo para ver o resumo financeiro.' }}</p>
         </div>
     @else
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div class="space-y-1">
-                <p class="text-sm font-semibold text-slate-900">Resumo financeiro da movimentacao</p>
-                <p class="text-sm text-slate-500">
+        <div class="insumo-mov-summary__header">
+            <div>
+                <span class="insumo-mov-summary__eyebrow">Resumo financeiro</span>
+                <h3 class="insumo-mov-summary__title">Movimentacao de insumo</h3>
+                <p class="insumo-mov-summary__description">
                     Tipo {{ strtolower($summary['tipo_label']) }} com base no custo atual do insumo.
                 </p>
             </div>
 
-            <div class="rounded-xl bg-white px-4 py-3 text-sm text-slate-600 shadow-sm ring-1 ring-slate-200">
-                <div><strong class="text-slate-900">Estoque atual:</strong> {{ $summary['estoque_atual'] }}</div>
-                <div><strong class="text-slate-900">Quantidade informada:</strong> {{ $summary['quantidade'] }}</div>
+            <div class="insumo-mov-summary__snapshot">
+                <div class="insumo-mov-summary__snapshot-item">
+                    <span class="insumo-mov-summary__snapshot-label">Estoque atual</span>
+                    <strong class="insumo-mov-summary__snapshot-value">{{ $summary['estoque_atual'] }}</strong>
+                </div>
+
+                <div class="insumo-mov-summary__snapshot-item">
+                    <span class="insumo-mov-summary__snapshot-label">Quantidade informada</span>
+                    <strong class="insumo-mov-summary__snapshot-value">{{ $summary['quantidade'] }}</strong>
+                </div>
             </div>
         </div>
 
-        <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Valor na origem</p>
-                <div class="mt-2 text-lg font-semibold text-slate-900">{{ $summary['valor_origem'] }}</div>
-            </div>
+        <div class="insumo-mov-summary__stats">
+            <article class="insumo-mov-summary__stat">
+                <span class="insumo-mov-summary__stat-label">Valor na origem</span>
+                <div class="insumo-mov-summary__stat-value">{{ $summary['valor_origem'] }}</div>
+            </article>
 
-            <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Cambio</p>
-                <div class="mt-2 text-lg font-semibold text-slate-900">{{ $summary['cambio'] }}</div>
-            </div>
+            <article class="insumo-mov-summary__stat">
+                <span class="insumo-mov-summary__stat-label">Cambio</span>
+                <div class="insumo-mov-summary__stat-value">{{ $summary['cambio'] }}</div>
+            </article>
 
-            <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Custo efetivo</p>
-                <div class="mt-2 text-lg font-semibold text-slate-900">{{ $summary['custo_efetivo'] }}</div>
-                <p class="mt-1 text-xs text-slate-500">Valor convertido antes do custo final nacionalizado.</p>
-            </div>
+            <article class="insumo-mov-summary__stat">
+                <span class="insumo-mov-summary__stat-label">Custo efetivo</span>
+                <div class="insumo-mov-summary__stat-value">{{ $summary['custo_efetivo'] }}</div>
+                <p class="insumo-mov-summary__stat-hint">Valor convertido antes do custo final nacionalizado.</p>
+            </article>
 
-            <div class="rounded-xl bg-emerald-50 p-4 shadow-sm ring-1 ring-emerald-200">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Custo final real</p>
-                <div class="mt-2 text-lg font-semibold text-emerald-900">{{ $summary['custo_final'] }}</div>
-                <p class="mt-1 text-xs text-emerald-700">Valor unitario usado para o impacto financeiro.</p>
-            </div>
+            <article class="insumo-mov-summary__stat insumo-mov-summary__stat--highlight">
+                <span class="insumo-mov-summary__stat-label">Custo final real</span>
+                <div class="insumo-mov-summary__stat-value">{{ $summary['custo_final'] }}</div>
+                <p class="insumo-mov-summary__stat-hint">Valor unitario usado para o impacto financeiro.</p>
+            </article>
         </div>
 
-        <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-            <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Fatores de importacao</p>
+        <div class="insumo-mov-summary__details">
+            <section class="insumo-mov-summary__panel">
+                <span class="insumo-mov-summary__panel-title">Fatores de importacao</span>
 
                 @if (($summary['origem'] ?? 'nacional') !== 'importado')
-                    <p class="mt-3 text-sm text-slate-500">Nao se aplica a insumos nacionais.</p>
+                    <p class="insumo-mov-summary__panel-empty">Nao se aplica a insumos nacionais.</p>
                 @elseif (blank($summary['fatores'] ?? []))
-                    <p class="mt-3 text-sm text-slate-500">Nenhum fator adicional cadastrado para este insumo.</p>
+                    <p class="insumo-mov-summary__panel-empty">Nenhum fator adicional cadastrado para este insumo.</p>
                 @else
-                    <div class="mt-3 space-y-3">
+                    <div class="insumo-mov-summary__panel-body">
                         @foreach (($summary['fatores'] ?? []) as $factor)
-                            <div class="flex items-start justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
-                                <div>
-                                    <div class="text-sm font-semibold text-slate-900">{{ $factor['nome'] }}</div>
-                                    <div class="text-xs text-slate-500">{{ $factor['tipo'] }}</div>
+                            <article class="insumo-mov-summary__factor">
+                                <div class="insumo-mov-summary__factor-copy">
+                                    <h4 class="insumo-mov-summary__factor-name">{{ $factor['nome'] }}</h4>
+                                    <p class="insumo-mov-summary__factor-type">{{ $factor['tipo'] }}</p>
                                 </div>
 
-                                <div class="text-sm font-semibold text-slate-900">{{ $factor['valor'] }}</div>
-                            </div>
+                                <div class="insumo-mov-summary__factor-value">{{ $factor['valor'] }}</div>
+                            </article>
                         @endforeach
                     </div>
                 @endif
-            </div>
+            </section>
 
-            <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Impacto financeiro</p>
-                <div class="mt-3 text-sm text-slate-500">Quantidade considerada financeiramente</div>
-                <div class="mt-1 text-base font-semibold text-slate-900">{{ $summary['quantidade_financeira'] }}</div>
-                <div class="mt-4 text-sm text-slate-500">Formula</div>
-                <div class="mt-1 text-base font-semibold text-slate-900">{{ $summary['impacto_formula'] }}</div>
-                <div class="mt-4 text-sm text-slate-500">Valor total final</div>
-                <div class="mt-1 text-2xl font-semibold text-slate-950">{{ $summary['impacto_total'] }}</div>
-            </div>
+            <section class="insumo-mov-summary__panel">
+                <span class="insumo-mov-summary__panel-title">Impacto financeiro</span>
+
+                <div class="insumo-mov-summary__impact">
+                    <div class="insumo-mov-summary__impact-row">
+                        <span class="insumo-mov-summary__impact-label">Quantidade considerada financeiramente</span>
+                        <strong class="insumo-mov-summary__impact-value">{{ $summary['quantidade_financeira'] }}</strong>
+                    </div>
+
+                    <div class="insumo-mov-summary__impact-row">
+                        <span class="insumo-mov-summary__impact-label">Formula</span>
+                        <strong class="insumo-mov-summary__impact-value">{{ $summary['impacto_formula'] }}</strong>
+                    </div>
+
+                    <div class="insumo-mov-summary__impact-total">
+                        <span class="insumo-mov-summary__impact-label">Valor total final</span>
+                        <strong class="insumo-mov-summary__impact-total-value">{{ $summary['impacto_total'] }}</strong>
+                    </div>
+                </div>
+            </section>
         </div>
     @endif
 </div>
