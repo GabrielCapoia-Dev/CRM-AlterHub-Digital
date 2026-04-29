@@ -11,8 +11,7 @@ use BackedEnum;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
-use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
@@ -20,6 +19,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -68,6 +68,8 @@ class InsumoMovimentacaoResource extends Resource
                             ->live()
                             ->afterStateUpdated(function (?int $state, Set $set): void {
                                 if (! $state) {
+                                    $set('unidade', null);
+
                                     return;
                                 }
 
@@ -106,21 +108,25 @@ class InsumoMovimentacaoResource extends Resource
 
                         TextInput::make('unidade')
                             ->label('Unidade')
+                            ->readOnly()
                             ->maxLength(50)
-                            ->placeholder('Ex.: un, kit, mL')
+                            ->placeholder('Definida pelo insumo selecionado')
+                            ->helperText('A unidade segue o cadastro padrao do insumo e nao pode ser alterada aqui.')
                             ->columnSpan(4),
 
-                        DateTimePicker::make('realizado_em')
+                        DatePicker::make('realizado_em')
                             ->label('Realizado em')
                             ->default(now())
-                            ->seconds(false)
                             ->required()
                             ->columnSpan(4),
 
-                        TextInput::make('responsavel_nome')
+                        Select::make('user_id')
                             ->label('Responsavel')
-                            ->default(fn (): ?string => auth()->user()?->name)
-                            ->maxLength(255)
+                            ->relationship('user', 'name')
+                            ->default(fn (): ?int => auth()->id())
+                            ->searchable()
+                            ->preload()
+                            ->required()
                             ->columnSpan(4),
 
                         TextInput::make('documento_referencia')
@@ -128,6 +134,12 @@ class InsumoMovimentacaoResource extends Resource
                             ->maxLength(255)
                             ->placeholder('NF, ordem interna, requisicao...')
                             ->columnSpan(4),
+
+                        View::make('filament.resources.insumo-movimentacoes.forms.financial-summary')
+                            ->columnSpanFull()
+                            ->viewData(fn (Get $get): array => [
+                                'summary' => static::buildFinancialSummary($get),
+                            ]),
 
                         TextInput::make('origem_destino')
                             ->label('Origem / contexto')
@@ -146,26 +158,6 @@ class InsumoMovimentacaoResource extends Resource
                             ->label('Lote')
                             ->maxLength(255)
                             ->placeholder('Lote / serie')
-                            ->visible(fn (Get $get): bool => $get('tipo') === 'entrada')
-                            ->columnSpan(4),
-
-                        TextInput::make('valor_unitario')
-                            ->label('Valor unitario')
-                            ->numeric()
-                            ->rule('decimal:0,2')
-                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                            ->minValue(0)
-                            ->prefix('R$')
-                            ->placeholder('0,00')
-                            ->visible(fn (Get $get): bool => $get('tipo') === 'entrada')
-                            ->live()
-                            ->columnSpan(4),
-
-                        Placeholder::make('valor_total_preview')
-                            ->label('Valor total previsto')
-                            ->content(fn (Get $get): string => static::formatCurrency(
-                                ((float) ($get('quantidade') ?? 0)) * ((float) ($get('valor_unitario') ?? 0))
-                            ))
                             ->visible(fn (Get $get): bool => $get('tipo') === 'entrada')
                             ->columnSpan(4),
 
@@ -196,7 +188,7 @@ class InsumoMovimentacaoResource extends Resource
             ->columns([
                 TextColumn::make('realizado_em')
                     ->label('Data')
-                    ->dateTime('d/m/Y H:i')
+                    ->date('d/m/Y')
                     ->sortable(),
 
                 TextColumn::make('insumo.codigo_interno')
@@ -310,5 +302,85 @@ class InsumoMovimentacaoResource extends Resource
     protected static function formatCurrency(float|int|null $value): string
     {
         return NumericFormat::money($value);
+    }
+
+    protected static function buildFinancialSummary(Get $get): array
+    {
+        $insumoId = $get('insumo_id');
+
+        if (! $insumoId) {
+            return [
+                'has_insumo' => false,
+                'message' => 'Selecione um insumo para ver o custo unitario, cambio, fatores e o impacto financeiro desta movimentacao.',
+            ];
+        }
+
+        $insumo = Insumo::query()
+            ->with(['tipoUnidadeMedida', 'insumoFatoresCusto'])
+            ->withSum('insumoMovimentacoes as estoque_atual', 'impacto_estoque')
+            ->find($insumoId);
+
+        if (! $insumo) {
+            return [
+                'has_insumo' => false,
+                'message' => 'Insumo nao encontrado para montar o resumo financeiro.',
+            ];
+        }
+
+        $origemMoeda = $insumo->origem === 'importado'
+            ? trim(($insumo->moeda_origem ?? '-') . ' ' . NumericFormat::decimal($insumo->custo_moeda_origem ?? 0))
+            : static::formatCurrency((float) ($insumo->custo_referencia ?? 0));
+        $tipo = $get('tipo') ?? 'entrada';
+        $quantidade = (float) ($get('quantidade') ?? 0);
+        $quantidadeFinanceira = static::resolveFinancialQuantity($insumo, $tipo, $quantidade);
+        $custoFinalUnitario = $insumo->finalCostAmount();
+        $impactoTotal = round($quantidadeFinanceira * $custoFinalUnitario, 4);
+        $unidade = $get('unidade') ?: ($insumo->tipoUnidadeMedida?->sigla ?: $insumo->tipoUnidadeMedida?->nome ?: 'un');
+
+        return [
+            'has_insumo' => true,
+            'origem' => $insumo->origem,
+            'tipo_label' => InsumoMovimentacao::tipoOptions()[$tipo] ?? 'Movimentacao',
+            'valor_origem' => $origemMoeda,
+            'cambio' => $insumo->origem === 'importado'
+                ? NumericFormat::decimal($insumo->taxa_cambio ?? 0)
+                : 'Nao se aplica',
+            'custo_efetivo' => static::formatCurrency($insumo->effectiveCostAmount()),
+            'custo_final' => static::formatCurrency($custoFinalUnitario),
+            'quantidade' => trim(NumericFormat::decimal($quantidade) . ' ' . $unidade),
+            'quantidade_financeira' => trim(NumericFormat::decimal($quantidadeFinanceira) . ' ' . $unidade),
+            'impacto_total' => static::formatCurrency($impactoTotal),
+            'impacto_formula' => NumericFormat::decimal($quantidadeFinanceira) . ' x ' . static::formatCurrency($custoFinalUnitario),
+            'estoque_atual' => $insumo->estoqueAtual() === null
+                ? 'Sem historico'
+                : trim(NumericFormat::decimal($insumo->estoqueAtual()) . ' ' . $unidade),
+            'fatores' => static::buildFinancialFactorLines($insumo),
+        ];
+    }
+
+    protected static function buildFinancialFactorLines(Insumo $insumo): array
+    {
+        return $insumo->insumoFatoresCusto
+            ->map(function ($fator): array {
+                $valor = (float) $fator->valor;
+                $tipo = $fator->tipo;
+
+                return [
+                    'nome' => $fator->nome,
+                    'tipo' => $tipo === 'percentual' ? 'Percentual sobre a base' : 'Valor fixo em BRL',
+                    'valor' => $tipo === 'percentual'
+                        ? ($valor > 0 && $valor < 1 ? NumericFormat::decimal($valor) : NumericFormat::percent($valor))
+                        : static::formatCurrency($valor),
+                ];
+            })
+            ->all();
+    }
+
+    protected static function resolveFinancialQuantity(Insumo $insumo, string $tipo, float $quantidade): float
+    {
+        return match ($tipo) {
+            'ajuste' => abs(round($quantidade - ((float) ($insumo->estoqueAtual() ?? 0)), 4)),
+            default => max($quantidade, 0),
+        };
     }
 }

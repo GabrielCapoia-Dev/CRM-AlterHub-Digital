@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Produtos;
 
+use App\Models\Acesso\User;
 use App\Models\Produto;
 use App\Models\Produtos\Insumo;
 use App\Services\Produtos\MovimentacaoEstoqueService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -15,11 +17,30 @@ class MovimentacaoEstoqueServiceTest extends TestCase
 
     public function test_it_creates_insumo_movements_and_updates_running_balance(): void
     {
+        $responsavel = User::query()->create([
+            'name' => 'Responsavel Teste',
+            'email' => 'responsavel.movimentacao@example.com',
+            'email_verified_at' => now(),
+            'email_approved' => true,
+            'password' => Hash::make('password'),
+        ]);
+
         $insumo = Insumo::query()->create([
             'codigo_interno' => 'INS-MOV-01',
             'nome' => 'Insumo de teste',
-            'origem' => 'nacional',
-            'custo_referencia' => 25.0000,
+            'origem' => 'importado',
+            'moeda_origem' => 'USD',
+            'custo_moeda_origem' => 7.0000,
+            'taxa_cambio' => 5.450000,
+            'custo_referencia' => 42.8652,
+            'custo_nacionalizado' => 42.8652,
+        ]);
+
+        $insumo->insumoFatoresCusto()->create([
+            'nome' => 'Taxa Fiduciaria',
+            'tipo' => 'percentual',
+            'valor' => 0.8900,
+            'ordem' => 1,
         ]);
 
         $service = app(MovimentacaoEstoqueService::class);
@@ -28,7 +49,8 @@ class MovimentacaoEstoqueServiceTest extends TestCase
             'insumo_id' => $insumo->id,
             'tipo' => 'entrada',
             'quantidade' => 5,
-            'realizado_em' => now(),
+            'user_id' => $responsavel->id,
+            'realizado_em' => now()->toDateString(),
         ]);
 
         $saida = $service->createForInsumo([
@@ -36,11 +58,16 @@ class MovimentacaoEstoqueServiceTest extends TestCase
             'tipo' => 'saida',
             'quantidade' => 1,
             'motivo' => 'Consumo interno',
-            'realizado_em' => now()->addMinute(),
+            'user_id' => $responsavel->id,
+            'realizado_em' => now()->addDay()->toDateString(),
         ]);
 
         $this->assertSame(0.0, (float) $entrada->saldo_anterior);
         $this->assertSame(5.0, (float) $entrada->saldo_atual);
+        $this->assertSame(42.8652, (float) $entrada->valor_unitario);
+        $this->assertSame(214.326, (float) $entrada->valor_total);
+        $this->assertSame($responsavel->id, $entrada->user_id);
+        $this->assertSame($responsavel->name, $entrada->responsavel_nome);
         $this->assertSame(-1.0, (float) $saida->impacto_estoque);
         $this->assertSame(4.0, (float) $saida->saldo_atual);
         $this->assertSame(4.0, (float) $insumo->fresh()->estoqueAtual());

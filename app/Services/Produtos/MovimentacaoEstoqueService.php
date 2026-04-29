@@ -48,17 +48,24 @@ class MovimentacaoEstoqueService
     {
         return DB::transaction(function () use ($data, $user): InsumoMovimentacao {
             $insumo = Insumo::query()
-                ->with('tipoUnidadeMedida')
+                ->with(['tipoUnidadeMedida', 'insumoFatoresCusto'])
                 ->findOrFail($data['insumo_id']);
 
-            $prepared = $this->prepareForPersistence($data, $insumo->estoqueAtual() ?? 0.0);
+            $prepared = $this->prepareForPersistence([
+                ...$data,
+                'unidade' => $data['unidade'] ?? $this->resolveInsumoUnidade($insumo),
+                'valor_unitario' => $data['valor_unitario'] ?? $insumo->finalCostAmount(),
+                'valor_total' => $data['valor_total'] ?? ($insumo->finalCostAmount() * ((float) ($data['quantidade'] ?? 0))),
+            ], $insumo->estoqueAtual() ?? 0.0);
+
+            $assignedUser = $this->resolveAssignedUser($prepared['user_id'] ?? null, $user);
 
             return InsumoMovimentacao::query()->create([
                 ...Arr::except($prepared, ['insumo_id']),
                 'insumo_id' => $insumo->id,
-                'user_id' => $user?->id,
+                'user_id' => $assignedUser?->id,
                 'unidade' => $prepared['unidade'] ?? $this->resolveInsumoUnidade($insumo),
-                'responsavel_nome' => $prepared['responsavel_nome'] ?? $user?->name,
+                'responsavel_nome' => $assignedUser?->name ?? $prepared['responsavel_nome'] ?? $user?->name,
             ]);
         });
     }
@@ -69,13 +76,14 @@ class MovimentacaoEstoqueService
             $produto = Produto::query()->findOrFail($data['produto_id']);
 
             $prepared = $this->prepareForPersistence($data, $produto->estoqueAtual() ?? 0.0);
+            $assignedUser = $this->resolveAssignedUser($prepared['user_id'] ?? null, $user);
 
             return ProdutoMovimentacao::query()->create([
                 ...Arr::except($prepared, ['produto_id']),
                 'produto_id' => $produto->id,
-                'user_id' => $user?->id,
+                'user_id' => $assignedUser?->id,
                 'unidade' => $prepared['unidade'] ?? $produto->unidade_medida,
-                'responsavel_nome' => $prepared['responsavel_nome'] ?? $user?->name,
+                'responsavel_nome' => $assignedUser?->name ?? $prepared['responsavel_nome'] ?? $user?->name,
             ]);
         });
     }
@@ -94,6 +102,10 @@ class MovimentacaoEstoqueService
 
         if (in_array($data['tipo'], ['saida', 'consumo_interno', 'perda'], true) && $data['quantidade'] > $saldoAnterior) {
             $messages['quantidade'] = 'A quantidade informada ultrapassa o saldo atual disponivel.';
+        }
+
+        if (($data['user_id'] ?? null) !== null && User::query()->whereKey($data['user_id'])->doesntExist()) {
+            $messages['user_id'] = 'Selecione um responsavel valido para esta movimentacao.';
         }
 
         if (in_array($data['tipo'], ['saida', 'consumo_interno', 'perda', 'ajuste'], true) && blank($data['motivo'] ?? null)) {
@@ -124,6 +136,7 @@ class MovimentacaoEstoqueService
         return [
             ...$data,
             'tipo' => $data['tipo'] ?? 'entrada',
+            'user_id' => isset($data['user_id']) && $data['user_id'] !== '' ? (int) $data['user_id'] : null,
             'quantidade' => $this->toNullableFloat($data['quantidade'] ?? null) ?? 0.0,
             'unidade' => $this->trimOrNull($data['unidade'] ?? null),
             'documento_referencia' => $this->trimOrNull($data['documento_referencia'] ?? null),
@@ -155,6 +168,15 @@ class MovimentacaoEstoqueService
     {
         return $insumo->tipoUnidadeMedida?->sigla
             ?: $insumo->tipoUnidadeMedida?->nome;
+    }
+
+    protected function resolveAssignedUser(?int $userId, ?User $fallbackUser): ?User
+    {
+        if ($userId) {
+            return User::query()->find($userId);
+        }
+
+        return $fallbackUser;
     }
 
     protected function trimOrNull(mixed $value): ?string
