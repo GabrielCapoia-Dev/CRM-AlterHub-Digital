@@ -214,7 +214,7 @@
             border-radius: 1rem;
             border: 1px solid rgba(226, 232, 240, 0.92);
             background: rgba(255, 255, 255, 0.98);
-            overflow: hidden;
+            overflow: visible;
         }
 
         .insumo-modal-window .fi-fo-table-repeater table {

@@ -288,6 +288,101 @@ html.dark {
     border-top: 1px solid var(--ub-neutral-100);
 }
 
+/* Overlay and stacking fixes for dropdowns, filters and selects */
+.fi-ta,
+.fi-ta-ctn,
+.fi-ta-main,
+.fi-ta-header-ctn,
+.fi-ta-header,
+.fi-ta-header-toolbar,
+.fi-ta-filters,
+.fi-ta-col-manager,
+.fi-ta-col-manager-ctn,
+.fi-dropdown,
+.fi-fo-field-wrp,
+.fi-fo-select-wrp,
+.fi-fo-select,
+.fi-input-wrp,
+.fi-input-wrp-content-ctn,
+.fi-select-input,
+.fi-select-input-ctn {
+    position: relative;
+}
+
+.fi-ta-ctn,
+.fi-ta-main,
+.fi-ta-header-ctn,
+.fi-ta-header,
+.fi-ta-header-toolbar,
+.fi-ta-filters,
+.fi-ta-col-manager,
+.fi-ta-col-manager-ctn,
+.fi-modal-window,
+.fi-modal-window-ctn,
+.fi-modal-window .fi-modal-content,
+.fi-modal-window .fi-sc-component,
+.fi-modal-window .fi-sc-component>.fi-section,
+.fi-modal-window .fi-sc-component>.fi-section-content-ctn,
+.fi-modal-window .fi-sc-component>.fi-section-content-ctn>.fi-section,
+.fi-modal-window .fi-fo-repeater,
+.fi-modal-window .fi-fo-table-repeater,
+.fi-modal-window .fi-fo-field-wrp,
+.fi-modal-window .fi-fo-select-wrp,
+.fi-modal-window .fi-fo-select,
+.fi-modal-window .fi-input-wrp,
+.fi-modal-window .fi-input-wrp-content-ctn,
+.fi-modal-window .fi-select-input,
+.fi-modal-window .fi-select-input-ctn {
+    overflow: visible !important;
+}
+
+.fi-ta-header-ctn,
+.fi-ta-header-toolbar,
+.fi-ta-filters,
+.fi-ta-col-manager,
+.fi-ta-col-manager-ctn,
+.fi-dropdown,
+.fi-modal-window .fi-fo-field-wrp,
+.fi-modal-window .fi-fo-select-wrp,
+.fi-modal-window .fi-fo-select,
+.fi-modal-window .fi-input-wrp,
+.fi-modal-window .fi-select-input,
+.fi-modal-window .fi-select-input-ctn {
+    z-index: 1;
+    isolation: isolate;
+}
+
+.fi-ta-header-ctn:focus-within,
+.fi-ta-header-toolbar:focus-within,
+.fi-ta-filters:focus-within,
+.fi-ta-col-manager:focus-within,
+.fi-ta-col-manager-ctn:focus-within,
+.fi-dropdown:focus-within,
+.fi-fo-field-wrp:focus-within,
+.fi-fo-select-wrp:focus-within,
+.fi-fo-select:focus-within,
+.fi-input-wrp:focus-within,
+.fi-select-input:focus-within,
+.fi-select-input-ctn:focus-within {
+    z-index: 90;
+}
+
+.fi-dropdown-panel,
+.fi-select-input-options-ctn,
+.choices__list--dropdown,
+.choices__list[aria-expanded],
+.ts-dropdown {
+    z-index: 1400 !important;
+}
+
+.fi-modal-window .fi-dropdown-panel,
+.fi-modal-window .fi-select-input-options-ctn,
+.fi-modal-window .choices__list--dropdown,
+.fi-modal-window .choices__list[aria-expanded],
+.fi-modal-window .ts-dropdown {
+    z-index: 1600 !important;
+}
+
 /* ═══════════════════════════════════════════════
    TABLES
    ═══════════════════════════════════════════════ */
@@ -297,7 +392,7 @@ html.dark {
     border: 1px solid var(--ub-neutral-200);
     border-radius: 16px;
     box-shadow: var(--ub-shadow-md);
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* Header da tabela (toolbar: busca, filtros, botões) */

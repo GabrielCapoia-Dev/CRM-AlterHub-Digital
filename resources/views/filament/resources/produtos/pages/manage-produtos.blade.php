@@ -4,7 +4,7 @@
     <style>
         .produto-modal-window {
             border-radius: 1.5rem;
-            overflow: hidden;
+            overflow: visible;
             border: 1px solid rgba(148, 163, 184, 0.22);
             box-shadow: 0 28px 80px rgba(15, 23, 42, 0.16);
         }
@@ -19,6 +19,7 @@
 
         .produto-modal-window .fi-modal-content {
             padding: 1.25rem 1.5rem 1.5rem;
+            overflow: visible;
             background:
                 radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 24%),
                 linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(255, 255, 255, 1));
@@ -31,6 +32,8 @@
 
         .produto-modal-window .fi-sc-component > .fi-section,
         .produto-modal-window .fi-sc-component > .fi-section-content-ctn > .fi-section {
+            position: relative;
+            overflow: visible;
             border-radius: 1.25rem;
             border: 1px solid rgba(226, 232, 240, 0.92);
             box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
@@ -40,7 +43,7 @@
         .produto-modal-window .fi-fo-repeater {
             border-radius: 1rem;
             border: 1px solid rgba(226, 232, 240, 0.92);
-            overflow: hidden;
+            overflow: visible;
             background: rgba(255, 255, 255, 0.98);
         }
 
