@@ -51,7 +51,7 @@ class InsumoMovimentacaoResource extends Resource
         return $schema
             ->components([
                 Section::make('Movimentacao')
-                    ->description('Historico operacional de entradas, saidas, ajustes e transferencias.')
+                    ->description('Historico operacional de entradas, saidas, consumo interno e perdas.')
                     ->icon(Heroicon::OutlinedClipboardDocumentList)
                     ->columns(12)
                     ->columnSpanFull()
@@ -100,9 +100,7 @@ class InsumoMovimentacaoResource extends Resource
                             ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->minValue(0.0001)
                             ->required()
-                            ->helperText(fn (Get $get): string => $get('tipo') === 'ajuste'
-                                ? 'Em ajustes, a quantidade informada passa a ser o novo saldo do insumo.'
-                                : 'Quantidade movimentada nesta operacao.')
+                            ->helperText('Entradas somam ao estoque. Saidas, consumo interno e perdas reduzem o saldo informado.')
                             ->live()
                             ->columnSpan(4),
 
@@ -151,7 +149,7 @@ class InsumoMovimentacaoResource extends Resource
                             ->label('Destino')
                             ->maxLength(255)
                             ->placeholder('Informe o destino quando aplicavel')
-                            ->visible(fn (Get $get): bool => in_array($get('tipo'), ['saida', 'transferencia', 'consumo_interno', 'perda'], true))
+                            ->visible(fn (Get $get): bool => in_array($get('tipo'), ['saida', 'consumo_interno', 'perda'], true))
                             ->columnSpan(6),
 
                         TextInput::make('lote')
@@ -164,8 +162,9 @@ class InsumoMovimentacaoResource extends Resource
                         TextInput::make('motivo')
                             ->label('Motivo')
                             ->maxLength(255)
-                            ->placeholder('Obrigatorio para saida, ajuste, consumo e perda')
-                            ->visible(fn (Get $get): bool => in_array($get('tipo'), ['saida', 'ajuste', 'consumo_interno', 'perda'], true))
+                            ->placeholder('Obrigatorio para saida, consumo interno e perda')
+                            ->required(fn (Get $get): bool => in_array($get('tipo'), ['saida', 'consumo_interno', 'perda'], true))
+                            ->visible(fn (Get $get): bool => in_array($get('tipo'), ['saida', 'consumo_interno', 'perda'], true))
                             ->columnSpanFull(),
 
                         Textarea::make('observacao')
@@ -330,9 +329,9 @@ class InsumoMovimentacaoResource extends Resource
         $origemMoeda = $insumo->origem === 'importado'
             ? trim(($insumo->moeda_origem ?? '-') . ' ' . NumericFormat::decimal($insumo->custo_moeda_origem ?? 0))
             : static::formatCurrency((float) ($insumo->custo_referencia ?? 0));
-        $tipo = $get('tipo') ?? 'entrada';
         $quantidade = (float) ($get('quantidade') ?? 0);
-        $quantidadeFinanceira = static::resolveFinancialQuantity($insumo, $tipo, $quantidade);
+        $tipo = $get('tipo') ?? 'entrada';
+        $quantidadeFinanceira = static::resolveFinancialQuantity($quantidade);
         $custoFinalUnitario = $insumo->finalCostAmount();
         $impactoTotal = round($quantidadeFinanceira * $custoFinalUnitario, 4);
         $unidade = $get('unidade') ?: ($insumo->tipoUnidadeMedida?->sigla ?: $insumo->tipoUnidadeMedida?->nome ?: 'un');
@@ -376,11 +375,8 @@ class InsumoMovimentacaoResource extends Resource
             ->all();
     }
 
-    protected static function resolveFinancialQuantity(Insumo $insumo, string $tipo, float $quantidade): float
+    protected static function resolveFinancialQuantity(float $quantidade): float
     {
-        return match ($tipo) {
-            'ajuste' => abs(round($quantidade - ((float) ($insumo->estoqueAtual() ?? 0)), 4)),
-            default => max($quantidade, 0),
-        };
+        return max($quantidade, 0);
     }
 }

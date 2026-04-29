@@ -13,6 +13,12 @@ use Illuminate\Validation\ValidationException;
 
 class MovimentacaoEstoqueService
 {
+    protected const OUTBOUND_TYPES = [
+        'saida',
+        'consumo_interno',
+        'perda',
+    ];
+
     public function prepareForPersistence(array $data, float $saldoAnterior): array
     {
         $normalized = $this->normalizePayload($data);
@@ -22,12 +28,9 @@ class MovimentacaoEstoqueService
         $impactoEstoque = $this->resolveImpactoEstoque(
             tipo: $normalized['tipo'],
             quantidade: $normalized['quantidade'],
-            saldoAnterior: $saldoAnterior,
         );
 
-        $saldoAtual = $normalized['tipo'] === 'ajuste'
-            ? round($normalized['quantidade'], 4)
-            : round($saldoAnterior + $impactoEstoque, 4);
+        $saldoAtual = round($saldoAnterior + $impactoEstoque, 4);
 
         $valorTotal = $normalized['valor_total'];
 
@@ -100,7 +103,7 @@ class MovimentacaoEstoqueService
             $messages['quantidade'] = 'Informe uma quantidade maior que zero.';
         }
 
-        if (in_array($data['tipo'], ['saida', 'consumo_interno', 'perda'], true) && $data['quantidade'] > $saldoAnterior) {
+        if ($this->isOutboundType($data['tipo']) && $data['quantidade'] > $saldoAnterior) {
             $messages['quantidade'] = 'A quantidade informada ultrapassa o saldo atual disponivel.';
         }
 
@@ -108,22 +111,8 @@ class MovimentacaoEstoqueService
             $messages['user_id'] = 'Selecione um responsavel valido para esta movimentacao.';
         }
 
-        if (in_array($data['tipo'], ['saida', 'consumo_interno', 'perda', 'ajuste'], true) && blank($data['motivo'] ?? null)) {
+        if ($this->isOutboundType($data['tipo']) && blank($data['motivo'] ?? null)) {
             $messages['motivo'] = 'Informe o motivo desta movimentacao.';
-        }
-
-        if ($data['tipo'] === 'transferencia') {
-            if (blank($data['origem_destino'] ?? null) || blank($data['destino'] ?? null)) {
-                $messages['origem_destino'] = 'Preencha origem e destino para registrar a transferencia.';
-            }
-
-            if (
-                filled($data['origem_destino'] ?? null)
-                && filled($data['destino'] ?? null)
-                && strcasecmp((string) $data['origem_destino'], (string) $data['destino']) === 0
-            ) {
-                $messages['destino'] = 'Origem e destino precisam ser diferentes.';
-            }
         }
 
         if ($messages !== []) {
@@ -153,15 +142,18 @@ class MovimentacaoEstoqueService
         ];
     }
 
-    protected function resolveImpactoEstoque(string $tipo, float $quantidade, float $saldoAnterior): float
+    protected function resolveImpactoEstoque(string $tipo, float $quantidade): float
     {
         return match ($tipo) {
             'entrada' => round($quantidade, 4),
             'saida', 'consumo_interno', 'perda' => round($quantidade * -1, 4),
-            'ajuste' => round($quantidade - $saldoAnterior, 4),
-            'transferencia' => 0.0,
             default => 0.0,
         };
+    }
+
+    protected function isOutboundType(string $tipo): bool
+    {
+        return in_array($tipo, self::OUTBOUND_TYPES, true);
     }
 
     protected function resolveInsumoUnidade(Insumo $insumo): ?string

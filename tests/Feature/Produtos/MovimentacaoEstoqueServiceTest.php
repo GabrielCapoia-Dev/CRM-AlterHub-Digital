@@ -73,19 +73,40 @@ class MovimentacaoEstoqueServiceTest extends TestCase
         $this->assertSame(4.0, (float) $insumo->fresh()->estoqueAtual());
     }
 
-    public function test_it_supports_inventory_adjustments(): void
+    public function test_it_applies_negative_stock_impact_for_outbound_types(): void
     {
         $service = app(MovimentacaoEstoqueService::class);
 
-        $prepared = $service->prepareForPersistence([
-            'tipo' => 'ajuste',
-            'quantidade' => 3,
-            'motivo' => 'Inventario ciclico',
-        ], 10);
+        foreach (['saida', 'consumo_interno', 'perda'] as $tipo) {
+            $prepared = $service->prepareForPersistence([
+                'tipo' => $tipo,
+                'quantidade' => 3,
+                'motivo' => 'Baixa operacional',
+            ], 10);
 
-        $this->assertSame(-7.0, $prepared['impacto_estoque']);
-        $this->assertSame(10.0, $prepared['saldo_anterior']);
-        $this->assertSame(3.0, $prepared['saldo_atual']);
+            $this->assertSame(-3.0, $prepared['impacto_estoque']);
+            $this->assertSame(10.0, $prepared['saldo_anterior']);
+            $this->assertSame(7.0, $prepared['saldo_atual']);
+        }
+    }
+
+    public function test_it_rejects_removed_movement_types(): void
+    {
+        $service = app(MovimentacaoEstoqueService::class);
+
+        foreach (['ajuste', 'transferencia'] as $tipo) {
+            try {
+                $service->prepareForPersistence([
+                    'tipo' => $tipo,
+                    'quantidade' => 3,
+                    'motivo' => 'Tipo legado',
+                ], 10);
+
+                $this->fail("O tipo {$tipo} deveria ser rejeitado.");
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('tipo', $exception->errors());
+            }
+        }
     }
 
     public function test_it_creates_product_movements_and_computes_total_value(): void
@@ -140,5 +161,17 @@ class MovimentacaoEstoqueServiceTest extends TestCase
             'motivo' => 'Separacao',
             'realizado_em' => now()->addMinute(),
         ]);
+    }
+
+    public function test_it_requires_reason_for_outbound_movements(): void
+    {
+        $service = app(MovimentacaoEstoqueService::class);
+
+        $this->expectException(ValidationException::class);
+
+        $service->prepareForPersistence([
+            'tipo' => 'saida',
+            'quantidade' => 1,
+        ], 10);
     }
 }

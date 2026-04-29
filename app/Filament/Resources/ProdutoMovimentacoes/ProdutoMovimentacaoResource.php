@@ -51,7 +51,7 @@ class ProdutoMovimentacaoResource extends Resource
         return $schema
             ->components([
                 Section::make('Movimentacao')
-                    ->description('Historico geral de entradas, saidas e ajustes dos produtos.')
+                    ->description('Historico geral de entradas, saidas, consumo interno e perdas dos produtos.')
                     ->icon(Heroicon::OutlinedClipboardDocumentList)
                     ->columns(12)
                     ->columnSpanFull()
@@ -96,9 +96,7 @@ class ProdutoMovimentacaoResource extends Resource
                             ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->minValue(0.0001)
                             ->required()
-                            ->helperText(fn (Get $get): string => $get('tipo') === 'ajuste'
-                                ? 'Em ajustes, a quantidade informada passa a ser o novo saldo do produto.'
-                                : 'Quantidade movimentada nesta operacao.')
+                            ->helperText('Entradas somam ao estoque. Saidas, consumo interno e perdas reduzem o saldo informado.')
                             ->live()
                             ->columnSpan(4),
 
@@ -137,7 +135,7 @@ class ProdutoMovimentacaoResource extends Resource
                             ->label('Destino')
                             ->maxLength(255)
                             ->placeholder('Informe o destino quando aplicavel')
-                            ->visible(fn (Get $get): bool => in_array($get('tipo'), ['saida', 'transferencia', 'consumo_interno', 'perda'], true))
+                            ->visible(fn (Get $get): bool => in_array($get('tipo'), ['saida', 'consumo_interno', 'perda'], true))
                             ->columnSpan(6),
 
                         TextInput::make('valor_unitario')
@@ -163,8 +161,9 @@ class ProdutoMovimentacaoResource extends Resource
                         TextInput::make('motivo')
                             ->label('Motivo')
                             ->maxLength(255)
-                            ->placeholder('Obrigatorio para saida, ajuste, consumo e perda')
-                            ->visible(fn (Get $get): bool => in_array($get('tipo'), ['saida', 'ajuste', 'consumo_interno', 'perda'], true))
+                            ->placeholder('Obrigatorio para saida, consumo interno e perda')
+                            ->required(fn (Get $get): bool => in_array($get('tipo'), ['saida', 'consumo_interno', 'perda'], true))
+                            ->visible(fn (Get $get): bool => in_array($get('tipo'), ['saida', 'consumo_interno', 'perda'], true))
                             ->columnSpanFull(),
 
                         Textarea::make('observacao')

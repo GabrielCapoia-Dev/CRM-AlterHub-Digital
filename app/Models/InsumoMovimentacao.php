@@ -48,8 +48,6 @@ class InsumoMovimentacao extends Model
         return [
             'entrada' => 'Entrada',
             'saida' => 'Saida',
-            'transferencia' => 'Transferencia',
-            'ajuste' => 'Ajuste',
             'consumo_interno' => 'Consumo interno',
             'perda' => 'Perda',
         ];
@@ -60,8 +58,6 @@ class InsumoMovimentacao extends Model
         return [
             'entrada' => 'success',
             'saida' => 'warning',
-            'transferencia' => 'info',
-            'ajuste' => 'gray',
             'consumo_interno' => 'danger',
             'perda' => 'danger',
         ];
