@@ -9,6 +9,7 @@ use App\Models\Categorias\TipoUnidadeMedida;
 use App\Models\Empresas\Fornecedor;
 use App\Models\ProdutoInsumo;
 use App\Models\Status\StatusInsumo;
+use App\Services\Produtos\InsumoCostCalculator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -170,6 +171,43 @@ class Insumo extends Model
             && $estoqueMinimo !== null
             && $estoqueMinimo > 0
             && $estoqueAtual <= $estoqueMinimo;
+    }
+
+    public function effectiveCostAmount(): float
+    {
+        return (float) $this->costCalculation()['valor_convertido_brl'];
+    }
+
+    public function finalCostAmount(): float
+    {
+        return (float) $this->costCalculation()['custo_nacionalizado'];
+    }
+
+    public function costCalculation(): array
+    {
+        return app(InsumoCostCalculator::class)->calculate(
+            origem: $this->origem ?? 'nacional',
+            custoUnitarioBrl: $this->custo_referencia !== null ? (float) $this->custo_referencia : null,
+            custoMoedaOrigem: $this->custo_moeda_origem !== null ? (float) $this->custo_moeda_origem : null,
+            taxaCambio: $this->taxa_cambio !== null ? (float) $this->taxa_cambio : null,
+            fatores: $this->costFactorsPayload(),
+        );
+    }
+
+    protected function costFactorsPayload(): array
+    {
+        $fatores = $this->relationLoaded('insumoFatoresCusto')
+            ? $this->insumoFatoresCusto
+            : $this->insumoFatoresCusto()->get();
+
+        return $fatores
+            ->map(fn (InsumoFatorCusto $fator): array => [
+                'nome' => $fator->nome,
+                'tipo' => $fator->tipo,
+                'valor' => (float) $fator->valor,
+                'ordem' => $fator->ordem,
+            ])
+            ->all();
     }
 
     protected static function generateCodigoInterno(): string

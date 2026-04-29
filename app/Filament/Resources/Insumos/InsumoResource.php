@@ -77,7 +77,7 @@ class InsumoResource extends Resource
     {
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query
-                ->with(['fornecedor', 'tipoInsumo', 'statusInsumo', 'tipoUnidadeMedida'])
+                ->with(['fornecedor', 'tipoInsumo', 'statusInsumo', 'tipoUnidadeMedida', 'insumoFatoresCusto'])
                 ->withSum('insumoMovimentacoes as estoque_atual', 'impacto_estoque')
                 ->withCount('insumoMovimentacoes'))
             ->columns([
@@ -163,14 +163,14 @@ class InsumoResource extends Resource
                         return trim(static::formatDecimal((float) $state, 0) . ' ' . $unit);
                     }),
 
-                TextColumn::make('custo_referencia')
+                TextColumn::make('valor_convertido_brl')
                     ->label('Custo efetivo')
-                    ->money('BRL')
+                    ->formatStateUsing(fn ($state, Insumo $record): string => static::formatCurrency($record->effectiveCostAmount()))
                     ->sortable(),
 
                 TextColumn::make('custo_nacionalizado')
                     ->label('Custo final')
-                    ->money('BRL')
+                    ->formatStateUsing(fn ($state, Insumo $record): string => static::formatCurrency($record->finalCostAmount()))
                     ->sortable(),
 
                 TextColumn::make('statusInsumo.nome')
