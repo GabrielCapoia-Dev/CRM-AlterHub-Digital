@@ -88,15 +88,16 @@
 
         .insumo-modal-window .fi-dropdown-panel {
             z-index: 9999;
-            max-height: min(18rem, calc(100vh - 7rem));
-            overflow-y: auto;
+            max-height: none;
+            overflow: visible;
             overscroll-behavior: contain;
             box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
         }
 
         .insumo-modal-window .fi-dropdown-list,
         .insumo-modal-window .fi-select-input-options-ctn {
-            max-height: none;
+            max-height: min(18rem, calc(100vh - 8rem));
+            overflow-y: auto;
         }
 
         .insumo-modal-chip {

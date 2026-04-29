@@ -246,7 +246,7 @@ html.dark {
     border: 1px solid var(--ub-neutral-200);
     border-radius: 12px;
     box-shadow: var(--ub-shadow-lg);
-    overflow: hidden;
+    overflow: visible;
 }
 
 .fi-dropdown-list-item {
@@ -345,11 +345,12 @@ html.dark {
 .fi-modal-window .fi-fo-field-wrp,
 .fi-modal-window .fi-fo-select-wrp,
 .fi-modal-window .fi-fo-select,
+.ts-wrapper,
+.choices,
 .fi-modal-window .fi-input-wrp,
 .fi-modal-window .fi-select-input,
 .fi-modal-window .fi-select-input-ctn {
     z-index: 1;
-    isolation: isolate;
 }
 
 .fi-ta-header-ctn:focus-within,
@@ -362,25 +363,44 @@ html.dark {
 .fi-fo-select-wrp:focus-within,
 .fi-fo-select:focus-within,
 .fi-input-wrp:focus-within,
+.ts-wrapper.focus,
+.ts-wrapper.dropdown-active,
+.choices.is-open,
 .fi-select-input:focus-within,
 .fi-select-input-ctn:focus-within {
-    z-index: 90;
+    z-index: 2000 !important;
 }
 
 .fi-dropdown-panel,
 .fi-select-input-options-ctn,
+.fi-select-input-options-ctn .fi-select-input-option-list,
 .choices__list--dropdown,
 .choices__list[aria-expanded],
-.ts-dropdown {
+.choices__list--dropdown .choices__list,
+.choices__list[aria-expanded] .choices__list,
+.ts-dropdown,
+.ts-dropdown .ts-dropdown-content,
+.ts-dropdown-content {
     z-index: 1400 !important;
+    max-height: min(18rem, calc(100vh - 8rem)) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
 }
 
 .fi-modal-window .fi-dropdown-panel,
 .fi-modal-window .fi-select-input-options-ctn,
+.fi-modal-window .fi-select-input-options-ctn .fi-select-input-option-list,
 .fi-modal-window .choices__list--dropdown,
 .fi-modal-window .choices__list[aria-expanded],
-.fi-modal-window .ts-dropdown {
+.fi-modal-window .choices__list--dropdown .choices__list,
+.fi-modal-window .choices__list[aria-expanded] .choices__list,
+.fi-modal-window .ts-dropdown,
+.fi-modal-window .ts-dropdown .ts-dropdown-content,
+.fi-modal-window .ts-dropdown-content {
     z-index: 1600 !important;
+    max-height: min(18rem, calc(100vh - 8rem)) !important;
+    overflow-y: auto !important;
 }
 
 /* ═══════════════════════════════════════════════
