@@ -153,7 +153,15 @@ class InsumoResource extends Resource
                 TextColumn::make('estoque_minimo')
                     ->label('Minimo')
                     ->alignEnd()
-                    ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatQuantity((float) $state)),
+                    ->formatStateUsing(function ($state, Insumo $record): string {
+                        if ($state === null) {
+                            return '-';
+                        }
+
+                        $unit = $record->tipoUnidadeMedida?->sigla ?: $record->tipoUnidadeMedida?->nome;
+
+                        return trim(static::formatDecimal((float) $state, 0) . ' ' . $unit);
+                    }),
 
                 TextColumn::make('custo_referencia')
                     ->label('Custo efetivo')
