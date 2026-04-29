@@ -42,18 +42,28 @@ class InsumoCostCalculator
         ?float $taxaCambio,
         array $fatores = [],
     ): array {
-        $somaFixosBrl = collect($fatores)
-            ->filter(fn (array $fator): bool => ($fator['tipo'] ?? null) === 'valor_fixo_brl')
+        $fatoresColetados = collect($fatores);
+
+        $fatorDivisor = $fatoresColetados
+            // Valores fracionarios vindos do formulario representam o fator aplicado ao custo importado.
+            ->filter(fn (array $fator): bool => $this->isImportedDivisorFactor($fator))
+            ->reduce(
+                fn (float $acumulado, array $fator): float => $acumulado * (float) ($fator['valor'] ?? 1),
+                1.0,
+            );
+
+        $somaFixosBrl = $fatoresColetados
+            ->filter(fn (array $fator): bool => ($fator['tipo'] ?? null) === 'valor_fixo_brl' && ! $this->isImportedDivisorFactor($fator))
             ->sum(fn (array $fator): float => (float) ($fator['valor'] ?? 0));
 
-        $somaPercentuais = collect($fatores)
+        $somaPercentuais = $fatoresColetados
             ->filter(fn (array $fator): bool => ($fator['tipo'] ?? null) === 'percentual')
             ->sum(fn (array $fator): float => (float) ($fator['valor'] ?? 0));
 
         if ($origem === 'importado') {
             $valorConvertido = round(((float) $custoMoedaOrigem) * ((float) $taxaCambio), 4);
             $custoNacionalizado = round(
-                ($valorConvertido + $somaFixosBrl) * (1 + ($somaPercentuais / 100)),
+                (($valorConvertido + $somaFixosBrl) / $fatorDivisor) * (1 + ($somaPercentuais / 100)),
                 4,
             );
 
@@ -61,6 +71,7 @@ class InsumoCostCalculator
                 'valor_convertido_brl' => $valorConvertido,
                 'custo_nacionalizado' => $custoNacionalizado,
                 'custo_referencia' => $custoNacionalizado,
+                'fator_divisor' => round($fatorDivisor, 6),
                 'soma_fixos_brl' => round($somaFixosBrl, 4),
                 'soma_percentuais' => round($somaPercentuais, 4),
             ];
@@ -72,6 +83,7 @@ class InsumoCostCalculator
             'valor_convertido_brl' => $custoUnitarioBrl,
             'custo_nacionalizado' => $custoUnitarioBrl,
             'custo_referencia' => $custoUnitarioBrl,
+            'fator_divisor' => 1.0,
             'soma_fixos_brl' => 0.0,
             'soma_percentuais' => 0.0,
         ];
@@ -172,5 +184,16 @@ class InsumoCostCalculator
         }
 
         return round((float) $value, 6);
+    }
+
+    protected function isImportedDivisorFactor(array $fator): bool
+    {
+        if (($fator['tipo'] ?? null) !== 'valor_fixo_brl') {
+            return false;
+        }
+
+        $valor = (float) ($fator['valor'] ?? 0);
+
+        return $valor > 0 && $valor < 1;
     }
 }
