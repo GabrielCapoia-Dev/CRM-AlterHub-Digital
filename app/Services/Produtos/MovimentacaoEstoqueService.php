@@ -78,7 +78,14 @@ class MovimentacaoEstoqueService
         return DB::transaction(function () use ($data, $user): ProdutoMovimentacao {
             $produto = Produto::query()->findOrFail($data['produto_id']);
 
-            $prepared = $this->prepareForPersistence($data, $produto->estoqueAtual() ?? 0.0);
+            $custoBase = $this->resolveProdutoCustoBase($produto);
+
+            $prepared = $this->prepareForPersistence([
+                ...$data,
+                'unidade' => $data['unidade'] ?? $produto->unidade_medida,
+                'valor_unitario' => $data['valor_unitario'] ?? $custoBase,
+                'valor_total' => $data['valor_total'] ?? ($custoBase * ((float) ($data['quantidade'] ?? 0))),
+            ], $produto->estoqueAtual() ?? 0.0);
             $assignedUser = $this->resolveAssignedUser($prepared['user_id'] ?? null, $user);
 
             return ProdutoMovimentacao::query()->create([
@@ -189,5 +196,10 @@ class MovimentacaoEstoqueService
         }
 
         return round((float) $value, 4);
+    }
+
+    protected function resolveProdutoCustoBase(Produto $produto): float
+    {
+        return round((float) ($produto->custo_base_formacao ?? 0), 4);
     }
 }

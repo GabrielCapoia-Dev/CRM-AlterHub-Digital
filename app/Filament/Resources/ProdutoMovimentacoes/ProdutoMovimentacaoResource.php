@@ -11,8 +11,7 @@ use BackedEnum;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
-use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
@@ -20,6 +19,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -68,6 +68,8 @@ class ProdutoMovimentacaoResource extends Resource
                             ->live()
                             ->afterStateUpdated(function (?int $state, Set $set): void {
                                 if (! $state) {
+                                    $set('unidade', null);
+
                                     return;
                                 }
 
@@ -102,33 +104,43 @@ class ProdutoMovimentacaoResource extends Resource
 
                         TextInput::make('unidade')
                             ->label('Unidade')
+                            ->readOnly()
                             ->maxLength(50)
-                            ->placeholder('Ex.: un, kit, cx')
+                            ->placeholder('Definida pelo produto selecionado')
+                            ->helperText('A unidade segue o cadastro padrao do produto e nao pode ser alterada aqui.')
                             ->columnSpan(4),
 
-                        DateTimePicker::make('realizado_em')
+                        DatePicker::make('realizado_em')
                             ->label('Realizado em')
                             ->default(now())
-                            ->seconds(false)
                             ->required()
                             ->columnSpan(4),
 
-                        TextInput::make('responsavel_nome')
+                        Select::make('user_id')
                             ->label('Responsavel')
-                            ->default(fn (): ?string => auth()->user()?->name)
-                            ->maxLength(255)
+                            ->relationship('user', 'name')
+                            ->default(fn (): ?int => auth()->id())
+                            ->searchable()
+                            ->preload()
+                            ->required()
                             ->columnSpan(4),
 
                         TextInput::make('documento_referencia')
                             ->label('Documento / referencia')
                             ->maxLength(255)
-                            ->placeholder('NF, pedido, romaneio...')
+                            ->placeholder('NF, ordem interna, requisicao...')
                             ->columnSpan(4),
+
+                        View::make('filament.resources.produto-movimentacoes.forms.financial-summary')
+                            ->columnSpanFull()
+                            ->viewData(fn (Get $get): array => [
+                                'summary' => static::buildFinancialSummary($get),
+                            ]),
 
                         TextInput::make('origem_destino')
                             ->label('Origem / contexto')
                             ->maxLength(255)
-                            ->placeholder('Loja, estoque, operacao...')
+                            ->placeholder('Loja, producao, estoque, setor...')
                             ->columnSpan(6),
 
                         TextInput::make('destino')
@@ -137,26 +149,6 @@ class ProdutoMovimentacaoResource extends Resource
                             ->placeholder('Informe o destino quando aplicavel')
                             ->visible(fn (Get $get): bool => in_array($get('tipo'), ['saida', 'consumo_interno', 'perda'], true))
                             ->columnSpan(6),
-
-                        TextInput::make('valor_unitario')
-                            ->label('Valor unitario')
-                            ->numeric()
-                            ->rule('decimal:0,2')
-                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                            ->minValue(0)
-                            ->prefix('R$')
-                            ->placeholder('0,00')
-                            ->visible(fn (Get $get): bool => $get('tipo') === 'entrada')
-                            ->live()
-                            ->columnSpan(4),
-
-                        Placeholder::make('valor_total_preview')
-                            ->label('Valor total previsto')
-                            ->content(fn (Get $get): string => static::formatCurrency(
-                                ((float) ($get('quantidade') ?? 0)) * ((float) ($get('valor_unitario') ?? 0))
-                            ))
-                            ->visible(fn (Get $get): bool => $get('tipo') === 'entrada')
-                            ->columnSpan(4),
 
                         TextInput::make('motivo')
                             ->label('Motivo')
@@ -186,7 +178,7 @@ class ProdutoMovimentacaoResource extends Resource
             ->columns([
                 TextColumn::make('realizado_em')
                     ->label('Data')
-                    ->dateTime('d/m/Y H:i')
+                    ->date('d/m/Y')
                     ->sortable(),
 
                 TextColumn::make('produto.codigo_interno')
@@ -300,5 +292,63 @@ class ProdutoMovimentacaoResource extends Resource
     protected static function formatCurrency(float|int|null $value): string
     {
         return NumericFormat::money($value);
+    }
+
+    protected static function buildFinancialSummary(Get $get): array
+    {
+        $produtoId = $get('produto_id');
+
+        if (! $produtoId) {
+            return [
+                'has_produto' => false,
+                'message' => 'Selecione um produto para ver o custo base, os precos de referencia e o impacto financeiro desta movimentacao.',
+            ];
+        }
+
+        $produto = Produto::query()
+            ->withSum('produtoMovimentacoes as estoque_atual', 'impacto_estoque')
+            ->find($produtoId);
+
+        if (! $produto) {
+            return [
+                'has_produto' => false,
+                'message' => 'Produto nao encontrado para montar o resumo financeiro.',
+            ];
+        }
+
+        $quantidade = (float) ($get('quantidade') ?? 0);
+        $tipo = $get('tipo') ?? 'entrada';
+        $quantidadeFinanceira = static::resolveFinancialQuantity($quantidade);
+        $custoBase = (float) ($produto->custo_base_formacao ?? 0);
+        $impactoTotal = round($quantidadeFinanceira * $custoBase, 4);
+        $unidade = $get('unidade') ?: ($produto->unidade_medida ?: 'un');
+
+        return [
+            'has_produto' => true,
+            'tipo_label' => ProdutoMovimentacao::tipoOptions()[$tipo] ?? 'Movimentacao',
+            'custo_base' => static::formatCurrency($custoBase),
+            'preco_sugerido' => $produto->preco_sugerido !== null
+                ? static::formatCurrency((float) $produto->preco_sugerido)
+                : 'Nao definido',
+            'preco_tabela' => $produto->preco_tabela !== null
+                ? static::formatCurrency((float) $produto->preco_tabela)
+                : 'Nao definido',
+            'preco_minimo' => $produto->preco_minimo !== null
+                ? static::formatCurrency((float) $produto->preco_minimo)
+                : 'Nao definido',
+            'status' => Produto::statusOptions()[$produto->status] ?? 'Nao definido',
+            'quantidade' => trim(NumericFormat::decimal($quantidade) . ' ' . $unidade),
+            'quantidade_financeira' => trim(NumericFormat::decimal($quantidadeFinanceira) . ' ' . $unidade),
+            'impacto_total' => static::formatCurrency($impactoTotal),
+            'impacto_formula' => NumericFormat::decimal($quantidadeFinanceira) . ' x ' . static::formatCurrency($custoBase),
+            'estoque_atual' => $produto->estoqueAtual() === null
+                ? 'Sem historico'
+                : trim(NumericFormat::decimal($produto->estoqueAtual()) . ' ' . $unidade),
+        ];
+    }
+
+    protected static function resolveFinancialQuantity(float $quantidade): float
+    {
+        return max($quantidade, 0);
     }
 }

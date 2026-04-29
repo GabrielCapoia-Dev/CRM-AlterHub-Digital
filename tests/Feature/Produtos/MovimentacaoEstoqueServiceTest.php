@@ -115,6 +115,8 @@ class MovimentacaoEstoqueServiceTest extends TestCase
             'codigo_interno' => 'PROD-MOV-01',
             'nome' => 'Produto de teste',
             'status' => 'ativo',
+            'unidade_medida' => 'un',
+            'custo_base_formacao' => 10.0000,
             'preco_tabela' => 120.00,
             'preco_minimo' => 100.00,
         ]);
@@ -125,10 +127,11 @@ class MovimentacaoEstoqueServiceTest extends TestCase
             'produto_id' => $produto->id,
             'tipo' => 'entrada',
             'quantidade' => 2,
-            'valor_unitario' => 10,
             'realizado_em' => now(),
         ]);
 
+        $this->assertSame('un', $movimentacao->unidade);
+        $this->assertSame(10.0, (float) $movimentacao->valor_unitario);
         $this->assertSame(20.0, (float) $movimentacao->valor_total);
         $this->assertSame(2.0, (float) $movimentacao->saldo_atual);
         $this->assertSame(2.0, (float) $produto->fresh()->estoqueAtual());
