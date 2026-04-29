@@ -45,19 +45,18 @@ class InsumoCostCalculator
         $fatoresColetados = collect($fatores);
 
         $fatorDivisor = $fatoresColetados
-            // Valores fracionarios vindos do formulario representam o fator aplicado ao custo importado.
-            ->filter(fn (array $fator): bool => $this->isImportedDivisorFactor($fator))
+            ->filter(fn (array $fator): bool => $this->isDivisorPercentualFactor($fator))
             ->reduce(
                 fn (float $acumulado, array $fator): float => $acumulado * (float) ($fator['valor'] ?? 1),
                 1.0,
             );
 
         $somaFixosBrl = $fatoresColetados
-            ->filter(fn (array $fator): bool => ($fator['tipo'] ?? null) === 'valor_fixo_brl' && ! $this->isImportedDivisorFactor($fator))
+            ->filter(fn (array $fator): bool => ($fator['tipo'] ?? null) === 'valor_fixo_brl')
             ->sum(fn (array $fator): float => (float) ($fator['valor'] ?? 0));
 
         $somaPercentuais = $fatoresColetados
-            ->filter(fn (array $fator): bool => ($fator['tipo'] ?? null) === 'percentual')
+            ->filter(fn (array $fator): bool => $this->isAdditionalPercentualFactor($fator))
             ->sum(fn (array $fator): float => (float) ($fator['valor'] ?? 0));
 
         if ($origem === 'importado') {
@@ -186,14 +185,23 @@ class InsumoCostCalculator
         return round((float) $value, 6);
     }
 
-    protected function isImportedDivisorFactor(array $fator): bool
+    protected function isDivisorPercentualFactor(array $fator): bool
     {
-        if (($fator['tipo'] ?? null) !== 'valor_fixo_brl') {
+        if (($fator['tipo'] ?? null) !== 'percentual') {
             return false;
         }
 
         $valor = (float) ($fator['valor'] ?? 0);
 
         return $valor > 0 && $valor < 1;
+    }
+
+    protected function isAdditionalPercentualFactor(array $fator): bool
+    {
+        if (($fator['tipo'] ?? null) !== 'percentual') {
+            return false;
+        }
+
+        return (float) ($fator['valor'] ?? 0) >= 1;
     }
 }

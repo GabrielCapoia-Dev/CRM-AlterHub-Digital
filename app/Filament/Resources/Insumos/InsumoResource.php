@@ -650,9 +650,7 @@ class InsumoResource extends Resource
                 return [
                     'nome' => $fator['nome'],
                     'tipo' => InsumoFatorCusto::tipoOptions()[$tipo] ?? 'Nao definido',
-                    'valor' => $tipo === 'percentual'
-                        ? static::formatPercent($valor)
-                        : static::formatCurrency($valor),
+                    'valor' => static::formatCostFactorValue($tipo, $valor),
                 ];
             })
             ->values()
@@ -736,11 +734,23 @@ class InsumoResource extends Resource
 
     protected static function formatFactorTemplateLabel(array|InsumoFatorCusto $template): string
     {
-        $tipo = ($template['tipo'] ?? null) === 'percentual'
-            ? static::formatPercent((float) ($template['valor'] ?? 0))
-            : static::formatCurrency((float) ($template['valor'] ?? 0));
+        $tipo = static::formatCostFactorValue(
+            $template['tipo'] ?? null,
+            (float) ($template['valor'] ?? 0),
+        );
 
         return "{$template['nome']} ({$tipo})";
+    }
+
+    protected static function formatCostFactorValue(?string $tipo, float $valor): string
+    {
+        if ($tipo !== 'percentual') {
+            return static::formatCurrency($valor);
+        }
+
+        return $valor > 0 && $valor < 1
+            ? static::formatDecimal($valor)
+            : static::formatPercent($valor);
     }
 
     protected static function formatFornecedorLabel(Fornecedor $record): string

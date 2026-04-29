@@ -22,7 +22,7 @@ class InsumoDisplayCostTest extends TestCase
         $insumo->setRelation('insumoFatoresCusto', collect([
             new InsumoFatorCusto([
                 'nome' => 'Taxa Fiduciaria',
-                'tipo' => 'valor_fixo_brl',
+                'tipo' => 'percentual',
                 'valor' => 0.8900,
                 'ordem' => 1,
             ]),

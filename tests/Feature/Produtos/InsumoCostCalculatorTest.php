@@ -50,7 +50,7 @@ class InsumoCostCalculatorTest extends TestCase
         $this->assertSame(57.2, $prepared['custo_referencia']);
     }
 
-    public function test_it_uses_fractional_fixed_factor_as_divisor_for_imported_cost(): void
+    public function test_it_uses_fractional_percentual_factor_as_divisor_for_imported_cost(): void
     {
         $service = app(InsumoCostCalculator::class);
 
@@ -61,13 +61,33 @@ class InsumoCostCalculatorTest extends TestCase
             'custo_moeda_origem' => 7.0000,
             'taxa_cambio' => 5.450000,
             'insumoFatoresCusto' => [
-                ['nome' => 'Taxa', 'tipo' => 'valor_fixo_brl', 'valor' => 0.8900],
+                ['nome' => 'Taxa', 'tipo' => 'percentual', 'valor' => 0.8900],
             ],
         ]);
 
         $this->assertSame(38.15, $prepared['valor_convertido_brl']);
         $this->assertSame(42.8652, $prepared['custo_nacionalizado']);
         $this->assertSame(42.8652, $prepared['custo_referencia']);
+    }
+
+    public function test_it_keeps_fixed_brl_as_absolute_addition_for_imported_cost(): void
+    {
+        $service = app(InsumoCostCalculator::class);
+
+        $prepared = $service->prepareForPersistence([
+            'fornecedor_id' => 'fornecedor-teste',
+            'origem' => 'importado',
+            'moeda_origem' => 'USD',
+            'custo_moeda_origem' => 7.0000,
+            'taxa_cambio' => 5.450000,
+            'insumoFatoresCusto' => [
+                ['nome' => 'Frete', 'tipo' => 'valor_fixo_brl', 'valor' => 2.0000],
+            ],
+        ]);
+
+        $this->assertSame(38.15, $prepared['valor_convertido_brl']);
+        $this->assertSame(40.15, $prepared['custo_nacionalizado']);
+        $this->assertSame(40.15, $prepared['custo_referencia']);
     }
 
     public function test_it_requires_manual_exchange_rate_for_imported_insumos(): void
