@@ -2,16 +2,20 @@
 
 namespace App\Filament\Resources\Produtos;
 
+use App\Enum\RolesEnum;
 use App\Filament\Resources\Produtos\Actions\ApplyBulkCostAction;
 use App\Filament\Resources\Produtos\Pages\ManageProdutos;
 use App\Models\Categorias\TipoUnidadeMedida;
 use App\Models\Produto;
 use App\Models\ProdutoComponenteCusto;
 use App\Models\Produtos\Insumo;
+use App\Services\Produtos\CatalogFormFillService;
 use App\Services\Produtos\ProdutoCostingService;
 use App\Services\Produtos\ProdutoPricingCalculator;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
+use DomainException;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -24,13 +28,16 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Actions as SchemaActions;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Alignment;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -63,6 +70,12 @@ class ProdutoResource extends Resource
                 Hidden::make('ativo')->default(true),
                 Hidden::make('custo_base_formacao'),
                 Hidden::make('preco_sugerido'),
+
+                SchemaActions::make([
+                    static::makeAutoFillAction(),
+                ])
+                    ->alignment(Alignment::End)
+                    ->columnSpanFull(),
 
                 Tabs::make('Cadastro de produto')
                     ->columnSpanFull()
@@ -478,6 +491,47 @@ class ProdutoResource extends Resource
                 'class' => 'produto-modal-window',
             ])
             ->stickyModalHeader();
+    }
+
+    protected static function makeAutoFillAction(): Action
+    {
+        return Action::make('fillProdutoForm')
+            ->label('Fill')
+            ->icon(Heroicon::OutlinedSparkles)
+            ->color('gray')
+            ->authorize(fn (): bool => static::canUseAutoFill())
+            ->requiresConfirmation()
+            ->modalHeading('Aplicar fill do formulario?')
+            ->modalDescription('Os valores atuais serao substituidos por um preenchimento automatico de exemplo.')
+            ->action(function (Set $set): void {
+                try {
+                    static::fillFormState($set, app(CatalogFormFillService::class)->produto());
+
+                    Notification::make()
+                        ->title('Formulario preenchido')
+                        ->body('Os campos do produto receberam um exemplo completo para agilizar o cadastro.')
+                        ->success()
+                        ->send();
+                } catch (DomainException $exception) {
+                    Notification::make()
+                        ->title('Fill indisponivel')
+                        ->body($exception->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
+    protected static function canUseAutoFill(): bool
+    {
+        return auth()->user()?->hasRole(RolesEnum::SuperAdmin->value) ?? false;
+    }
+
+    protected static function fillFormState(Set $set, array $data): void
+    {
+        foreach ($data as $key => $value) {
+            $set($key, $value);
+        }
     }
 
     protected static function syncInsumoSnapshotLine(Set $set, Get $get): void

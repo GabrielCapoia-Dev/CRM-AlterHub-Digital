@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Insumos;
 
+use App\Enum\RolesEnum;
 use App\Filament\Resources\Insumos\Actions\ApplyBulkCostAction;
 use App\Filament\Resources\Insumos\Pages\ManageInsumos;
 use App\Models\Categorias\TipoArmazenamento;
@@ -11,10 +12,12 @@ use App\Models\Empresas\Fornecedor;
 use App\Models\Produtos\Insumo;
 use App\Models\Produtos\InsumoFatorCusto;
 use App\Models\Status\StatusInsumo;
+use App\Services\Produtos\CatalogFormFillService;
 use App\Services\Produtos\InsumoCostCalculator;
 use App\Services\Produtos\InsumoCostingService;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
+use DomainException;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -27,6 +30,7 @@ use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Actions as SchemaActions;
 use Filament\Schemas\Components\Section;
@@ -67,6 +71,12 @@ class InsumoResource extends Resource
                     ->viewData(fn ($record): array => [
                         'codigoInterno' => $record?->codigo_interno,
                     ])
+                    ->columnSpanFull(),
+
+                SchemaActions::make([
+                    static::makeAutoFillAction(),
+                ])
+                    ->alignment(Alignment::End)
                     ->columnSpanFull(),
 
                 static::makeIdentificacaoSection(),
@@ -281,6 +291,47 @@ class InsumoResource extends Resource
         }
 
         return $footerActions;
+    }
+
+    protected static function makeAutoFillAction(): Action
+    {
+        return Action::make('fillInsumoForm')
+            ->label('Fill')
+            ->icon(Heroicon::OutlinedSparkles)
+            ->color('gray')
+            ->authorize(fn (): bool => static::canUseAutoFill())
+            ->requiresConfirmation()
+            ->modalHeading('Aplicar fill do formulario?')
+            ->modalDescription('Os valores atuais serao substituidos por um preenchimento automatico de exemplo.')
+            ->action(function (Set $set): void {
+                try {
+                    static::fillFormState($set, app(CatalogFormFillService::class)->insumo());
+
+                    Notification::make()
+                        ->title('Formulario preenchido')
+                        ->body('Os campos do insumo receberam um exemplo completo para agilizar o cadastro.')
+                        ->success()
+                        ->send();
+                } catch (DomainException $exception) {
+                    Notification::make()
+                        ->title('Fill indisponivel')
+                        ->body($exception->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
+    protected static function canUseAutoFill(): bool
+    {
+        return auth()->user()?->hasRole(RolesEnum::SuperAdmin->value) ?? false;
+    }
+
+    protected static function fillFormState(Set $set, array $data): void
+    {
+        foreach ($data as $key => $value) {
+            $set($key, $value);
+        }
     }
 
     protected static function makeIdentificacaoSection(): Section

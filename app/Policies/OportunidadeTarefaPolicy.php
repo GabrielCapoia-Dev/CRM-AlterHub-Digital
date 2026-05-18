@@ -32,4 +32,9 @@ class OportunidadeTarefaPolicy
     {
         return $user->hasPermissionTo(PermissoesEnum::ExcluirTarefasDeOportunidade->value);
     }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->hasPermissionTo(PermissoesEnum::ExcluirTarefasDeOportunidade->value);
+    }
 }

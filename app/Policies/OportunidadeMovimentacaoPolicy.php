@@ -32,4 +32,9 @@ class OportunidadeMovimentacaoPolicy
     {
         return $user->hasPermissionTo(PermissoesEnum::ExcluirMovimentacoesDeOportunidade->value);
     }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->hasPermissionTo(PermissoesEnum::ExcluirMovimentacoesDeOportunidade->value);
+    }
 }

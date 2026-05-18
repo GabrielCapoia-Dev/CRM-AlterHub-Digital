@@ -32,4 +32,9 @@ class RolePolicy
     {
         return $user->hasPermissionTo(PermissoesEnum::ExcluirNiveisDeAcesso->value);
     }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->hasPermissionTo(PermissoesEnum::ExcluirNiveisDeAcesso->value);
+    }
 }

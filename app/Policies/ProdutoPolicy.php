@@ -32,4 +32,9 @@ class ProdutoPolicy
     {
         return $user->hasPermissionTo(PermissoesEnum::ExcluirProdutosCRM->value);
     }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->hasPermissionTo(PermissoesEnum::ExcluirProdutosCRM->value);
+    }
 }

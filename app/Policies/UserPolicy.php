@@ -31,4 +31,9 @@ class UserPolicy
     {
         return $user->hasPermissionTo(PermissoesEnum::ExcluirUsuarios->value);
     }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->hasPermissionTo(PermissoesEnum::ExcluirUsuarios->value);
+    }
 }

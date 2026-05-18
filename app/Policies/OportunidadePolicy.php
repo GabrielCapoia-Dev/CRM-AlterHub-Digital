@@ -32,4 +32,9 @@ class OportunidadePolicy
     {
         return $user->hasPermissionTo(PermissoesEnum::ExcluirOportunidades->value);
     }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->hasPermissionTo(PermissoesEnum::ExcluirOportunidades->value);
+    }
 }

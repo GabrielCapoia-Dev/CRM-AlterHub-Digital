@@ -32,4 +32,9 @@ class EtapaPolicy
     {
         return $user->hasPermissionTo(PermissoesEnum::ExcluirEtapasCRM->value);
     }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->hasPermissionTo(PermissoesEnum::ExcluirEtapasCRM->value);
+    }
 }

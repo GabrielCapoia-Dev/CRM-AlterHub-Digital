@@ -2,16 +2,17 @@
 
 namespace App\Filament\Resources\Insumos\Actions;
 
-use App\Models\Categorias\TipoInsumo;
+use App\Enum\PermissoesEnum;
 use App\Models\Categorias\TipoArmazenamento;
+use App\Models\Categorias\TipoInsumo;
 use App\Models\Categorias\TipoUnidadeMedida;
 use App\Models\Status\StatusInsumo;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
-use Filament\Schemas\Components\Tabs;
-use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Support\Icons\Heroicon;
 
 class GerenciarDependenciasAction extends Action
@@ -29,6 +30,7 @@ class GerenciarDependenciasAction extends Action
             ->label('Gerenciar dependências')
             ->icon(Heroicon::OutlinedCog6Tooth)
             ->color('gray')
+            ->authorize(fn (): bool => auth()->user()?->hasPermissionTo(PermissoesEnum::EditarInsumos->value) ?? false)
             ->modalWidth('4xl')
             ->modalHeading('Gerenciar dependências')
             ->modalDescription('Cadastre e edite as opções disponíveis nos selects do formulário de insumos.')
@@ -36,16 +38,15 @@ class GerenciarDependenciasAction extends Action
             ->slideOver(false)
             ->fillForm(function (): array {
                 return [
-                    'tipos_insumo'       => TipoInsumo::orderBy('nome')->get(['id', 'nome'])->toArray(),
-                    'armazenamentos'     => TipoArmazenamento::orderBy('nome')->get(['id', 'nome'])->toArray(),
-                    'unidades_medida'    => TipoUnidadeMedida::orderBy('nome')->get(['id', 'nome', 'sigla'])->toArray(),
-                    'status'             => StatusInsumo::orderBy('nome')->get(['id', 'nome'])->toArray(),
+                    'tipos_insumo' => TipoInsumo::orderBy('nome')->get(['id', 'nome'])->toArray(),
+                    'armazenamentos' => TipoArmazenamento::orderBy('nome')->get(['id', 'nome'])->toArray(),
+                    'unidades_medida' => TipoUnidadeMedida::orderBy('nome')->get(['id', 'nome', 'sigla'])->toArray(),
+                    'status' => StatusInsumo::orderBy('nome')->get(['id', 'nome'])->toArray(),
                 ];
             })
             ->schema([
                 Tabs::make('dependencias')
                     ->tabs([
-
                         Tab::make('Tipos de insumo')
                             ->icon(Heroicon::OutlinedBeaker)
                             ->schema([
@@ -115,9 +116,13 @@ class GerenciarDependenciasAction extends Action
                                     ->collapsible(false)
                                     ->cloneable(false)
                                     ->itemLabel(function (array $state): ?string {
-                                        $nome  = $state['nome']  ?? '';
+                                        $nome = $state['nome'] ?? '';
                                         $sigla = $state['sigla'] ?? '';
-                                        if ($nome && $sigla) return "{$nome} ({$sigla})";
+
+                                        if ($nome && $sigla) {
+                                            return "{$nome} ({$sigla})";
+                                        }
+
                                         return $nome ?: 'Nova unidade';
                                     })
                                     ->defaultItems(0)
@@ -147,15 +152,14 @@ class GerenciarDependenciasAction extends Action
                                     ->grid(1)
                                     ->extraAttributes(['class' => 'dep-table-repeater']),
                             ]),
-
                     ])
                     ->columnSpanFull(),
             ])
             ->action(function (array $data): void {
-                $this->sincronizar(TipoInsumo::class,       $data['tipos_insumo']    ?? [], ['nome']);
+                $this->sincronizar(TipoInsumo::class, $data['tipos_insumo'] ?? [], ['nome']);
                 $this->sincronizar(TipoArmazenamento::class, $data['armazenamentos'] ?? [], ['nome']);
                 $this->sincronizarUnidades($data['unidades_medida'] ?? []);
-                $this->sincronizar(StatusInsumo::class,     $data['status']          ?? [], ['nome']);
+                $this->sincronizar(StatusInsumo::class, $data['status'] ?? [], ['nome']);
 
                 Notification::make()
                     ->title('Dependências atualizadas')
@@ -169,7 +173,8 @@ class GerenciarDependenciasAction extends Action
     {
         foreach ($itens as $item) {
             $payload = array_intersect_key($item, array_flip($campos));
-            if (!empty($item['id'])) {
+
+            if (! empty($item['id'])) {
                 $model::where('id', $item['id'])->update($payload);
             } else {
                 $model::create($payload);
@@ -181,10 +186,11 @@ class GerenciarDependenciasAction extends Action
     {
         foreach ($itens as $item) {
             $payload = [
-                'nome'  => $item['nome']  ?? '',
+                'nome' => $item['nome'] ?? '',
                 'sigla' => $item['sigla'] ?? null,
             ];
-            if (!empty($item['id'])) {
+
+            if (! empty($item['id'])) {
                 TipoUnidadeMedida::where('id', $item['id'])->update($payload);
             } else {
                 TipoUnidadeMedida::create($payload);

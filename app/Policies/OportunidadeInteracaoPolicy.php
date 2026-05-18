@@ -32,4 +32,9 @@ class OportunidadeInteracaoPolicy
     {
         return $user->hasPermissionTo(PermissoesEnum::ExcluirInteracoesDeOportunidade->value);
     }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->hasPermissionTo(PermissoesEnum::ExcluirInteracoesDeOportunidade->value);
+    }
 }

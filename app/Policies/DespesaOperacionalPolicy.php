@@ -32,4 +32,9 @@ class DespesaOperacionalPolicy
     {
         return $user->hasPermissionTo(PermissoesEnum::ExcluirDespesasOperacionais->value);
     }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->hasPermissionTo(PermissoesEnum::ExcluirDespesasOperacionais->value);
+    }
 }

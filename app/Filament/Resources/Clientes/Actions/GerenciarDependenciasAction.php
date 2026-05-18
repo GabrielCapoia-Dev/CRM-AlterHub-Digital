@@ -2,14 +2,15 @@
 
 namespace App\Filament\Resources\Clientes\Actions;
 
+use App\Enum\PermissoesEnum;
 use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Status\StatusCliente;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
-use Filament\Schemas\Components\Tabs;
-use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Support\Icons\Heroicon;
 
 class GerenciarDependenciasAction extends Action
@@ -27,6 +28,7 @@ class GerenciarDependenciasAction extends Action
             ->label('Gerenciar dependências')
             ->icon(Heroicon::OutlinedCog6Tooth)
             ->color('gray')
+            ->authorize(fn (): bool => auth()->user()?->hasPermissionTo(PermissoesEnum::EditarClientes->value) ?? false)
             ->modalWidth('3xl')
             ->modalHeading('Gerenciar dependências')
             ->modalDescription('Cadastre e edite as opções disponíveis nos selects do formulário de clientes.')
@@ -35,13 +37,12 @@ class GerenciarDependenciasAction extends Action
             ->fillForm(function (): array {
                 return [
                     'segmentos' => CategoriaSegmento::orderBy('nome')->get(['id', 'nome'])->toArray(),
-                    'status'    => StatusCliente::orderBy('nome')->get(['id', 'nome'])->toArray(),
+                    'status' => StatusCliente::orderBy('nome')->get(['id', 'nome'])->toArray(),
                 ];
             })
             ->form([
                 Tabs::make('dependencias')
                     ->tabs([
-
                         Tab::make('Segmentos')
                             ->icon(Heroicon::OutlinedTag)
                             ->schema([
@@ -87,13 +88,12 @@ class GerenciarDependenciasAction extends Action
                                     ->grid(1)
                                     ->extraAttributes(['class' => 'dep-table-repeater']),
                             ]),
-
                     ])
                     ->columnSpanFull(),
             ])
             ->action(function (array $data): void {
                 $this->sincronizar(CategoriaSegmento::class, $data['segmentos'] ?? []);
-                $this->sincronizar(StatusCliente::class,     $data['status']    ?? []);
+                $this->sincronizar(StatusCliente::class, $data['status'] ?? []);
 
                 Notification::make()
                     ->title('Dependências atualizadas')
@@ -106,7 +106,7 @@ class GerenciarDependenciasAction extends Action
     private function sincronizar(string $model, array $itens): void
     {
         foreach ($itens as $item) {
-            if (!empty($item['id'])) {
+            if (! empty($item['id'])) {
                 $model::where('id', $item['id'])->update(['nome' => $item['nome']]);
             } else {
                 $model::create(['nome' => $item['nome']]);
