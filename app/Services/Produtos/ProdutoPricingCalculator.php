@@ -5,6 +5,7 @@ namespace App\Services\Produtos;
 use App\Models\Produto;
 use App\Models\ProdutoComponenteCusto;
 use App\Models\Produtos\Insumo;
+use App\Support\Ui\NumericFormat;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
@@ -258,11 +259,7 @@ class ProdutoPricingCalculator
 
     protected function toNullableFloat(mixed $value): ?float
     {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        return round((float) $value, 4);
+        return NumericFormat::parse($value, 4);
     }
 
     protected function resolveInsumoUnit(Insumo $insumo): ?string

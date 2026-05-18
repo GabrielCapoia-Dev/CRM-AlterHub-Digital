@@ -4,6 +4,7 @@ namespace App\Services\CRM;
 
 use App\Models\Clientes\Cliente;
 use App\Models\Status\StatusCliente;
+use App\Support\Ui\NumericFormat;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
@@ -129,7 +130,7 @@ class OportunidadeClienteService
             'etapa_id' => (int) Arr::get($data, 'etapa_id'),
             'user_id' => (int) Arr::get($data, 'user_id'),
             'temperatura' => Arr::get($data, 'temperatura'),
-            'valor_estimado' => blank(Arr::get($data, 'valor_estimado')) ? null : (float) Arr::get($data, 'valor_estimado'),
+            'valor_estimado' => NumericFormat::parse(Arr::get($data, 'valor_estimado'), 2),
             'motivo_fechamento' => blank(Arr::get($data, 'motivo_fechamento')) ? null : trim((string) Arr::get($data, 'motivo_fechamento')),
             'notas' => blank(Arr::get($data, 'notas')) ? null : trim((string) Arr::get($data, 'notas')),
         ];
@@ -167,7 +168,7 @@ class OportunidadeClienteService
         }
 
         throw ValidationException::withMessages([
-            'client_lookup' => 'Busque um cliente existente por código ou CNPJ, ou clique em Novo Cliente.',
+            'client_lookup' => 'Busque um cliente existente por codigo ou documento fiscal, ou clique em Novo Cliente.',
         ]);
     }
 
@@ -176,14 +177,14 @@ class OportunidadeClienteService
      */
     protected function createClientFromData(array $data): Cliente
     {
-        $cnpj = trim((string) Arr::get($data, 'client_cnpj'));
+        $documentoFiscal = trim((string) Arr::get($data, 'client_cnpj'));
 
-        if ($cnpj !== '') {
-            $clienteExistente = $this->findByLookup($cnpj);
+        if ($documentoFiscal !== '') {
+            $clienteExistente = $this->findByLookup($documentoFiscal);
 
             if ($clienteExistente) {
                 throw ValidationException::withMessages([
-                    'client_cnpj' => 'Este CNPJ já está cadastrado. Use a busca para vincular o cliente existente.',
+                    'client_cnpj' => 'Este documento fiscal ja esta cadastrado. Use a busca para vincular o cliente existente.',
                 ]);
             }
         }
@@ -191,7 +192,7 @@ class OportunidadeClienteService
         $cliente = Cliente::create([
             'razao_social' => trim((string) Arr::get($data, 'client_razao_social')),
             'nome_fantasia' => blank(Arr::get($data, 'client_nome_fantasia')) ? null : trim((string) Arr::get($data, 'client_nome_fantasia')),
-            'cnpj' => $cnpj === '' ? null : $cnpj,
+            'cnpj' => $documentoFiscal === '' ? null : $documentoFiscal,
             'id_categoria_segmento' => blank(Arr::get($data, 'client_segmento_id')) ? null : (int) Arr::get($data, 'client_segmento_id'),
             'id_status_cliente' => blank(Arr::get($data, 'client_status_id')) ? null : (int) Arr::get($data, 'client_status_id'),
             'nome_completo' => blank(Arr::get($data, 'client_nome_completo')) ? null : trim((string) Arr::get($data, 'client_nome_completo')),

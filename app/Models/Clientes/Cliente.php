@@ -5,6 +5,7 @@ namespace App\Models\Clientes;
 use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Oportunidade;
 use App\Models\Status\StatusCliente;
+use App\Support\Fiscal\TaxIdentifier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,6 +52,10 @@ class Cliente extends Model
                 $cliente->codigo_interno = static::generateCodigoInterno();
             }
         });
+
+        static::saving(function (self $cliente): void {
+            $cliente->cnpj = TaxIdentifier::normalizeForStorage($cliente->cnpj);
+        });
     }
 
     /*
@@ -86,15 +91,15 @@ class Cliente extends Model
     public function scopeLookupByCodigoOuCnpj(Builder $query, string $termo): Builder
     {
         $termo = trim($termo);
-        $digits = preg_replace('/\D+/', '', $termo) ?? '';
+        $normalized = TaxIdentifier::normalizeForLookup($termo) ?? '';
 
-        return $query->where(function (Builder $builder) use ($termo, $digits): void {
+        return $query->where(function (Builder $builder) use ($termo, $normalized): void {
             $builder->whereRaw('LOWER(codigo_interno) = ?', [mb_strtolower($termo)]);
 
-            if ($digits !== '') {
+            if ($normalized !== '') {
                 $builder->orWhereRaw(
-                    "REPLACE(REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', ''), ' ', '') = ?",
-                    [$digits],
+                    TaxIdentifier::comparableExpression('cnpj') . ' = ?',
+                    [$normalized],
                 );
             }
         });

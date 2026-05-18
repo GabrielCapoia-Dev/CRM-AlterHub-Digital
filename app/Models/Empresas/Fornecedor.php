@@ -5,6 +5,7 @@ namespace App\Models\Empresas;
 use App\Models\Categorias\CategoriaFornecimento;
 use App\Models\Produtos\Insumo;
 use App\Models\Status\StatusHomologacao;
+use App\Support\Fiscal\TaxIdentifier;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -69,10 +70,14 @@ class Fornecedor extends Model
 
     protected static function booted(): void
     {
-        static::creating(function ($model) {
+        static::creating(function (self $model) {
             if (empty($model->uuid)) {
                 $model->uuid = (string) Str::uuid();
             }
+        });
+
+        static::saving(function (self $model): void {
+            $model->cnpj = TaxIdentifier::normalizeForStorage($model->cnpj);
         });
     }
 

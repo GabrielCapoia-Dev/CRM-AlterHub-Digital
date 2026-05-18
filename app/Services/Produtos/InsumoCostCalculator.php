@@ -2,6 +2,7 @@
 
 namespace App\Services\Produtos;
 
+use App\Support\Ui\NumericFormat;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
@@ -178,11 +179,7 @@ class InsumoCostCalculator
 
     protected function toNullableFloat(mixed $value): ?float
     {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        return round((float) $value, 6);
+        return NumericFormat::parse($value, 6);
     }
 
     protected function isDivisorPercentualFactor(array $fator): bool

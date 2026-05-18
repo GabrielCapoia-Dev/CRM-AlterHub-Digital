@@ -2,15 +2,17 @@
 
 namespace App\Filament\Resources\Produtos;
 
+use App\Filament\Resources\Produtos\Actions\ApplyBulkCostAction;
 use App\Filament\Resources\Produtos\Pages\ManageProdutos;
 use App\Models\Categorias\TipoUnidadeMedida;
 use App\Models\Produto;
 use App\Models\ProdutoComponenteCusto;
-use App\Models\ProdutoInsumo;
 use App\Models\Produtos\Insumo;
+use App\Services\Produtos\ProdutoCostingService;
 use App\Services\Produtos\ProdutoPricingCalculator;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -337,6 +339,7 @@ class ProdutoResource extends Resource
                 ->with(['categoriaProduto'])
                 ->withSum('produtoMovimentacoes as estoque_atual', 'impacto_estoque')
                 ->withCount('produtoMovimentacoes'))
+            ->checkIfRecordIsSelectableUsing(fn (Produto $record): bool => auth()->user()?->can('update', $record) ?? false)
             ->columns([
                 TextColumn::make('codigo_interno')
                     ->label('Codigo')
@@ -427,6 +430,11 @@ class ProdutoResource extends Resource
             ->recordActions([
                 static::configureEditAction(EditAction::make()->label('Editar')),
                 DeleteAction::make()->label('Excluir'),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    ApplyBulkCostAction::make(),
+                ]),
             ]);
     }
 
@@ -454,36 +462,7 @@ class ProdutoResource extends Resource
 
     public static function getModalFormData(Produto $record): array
     {
-        return [
-            ...$record->attributesToArray(),
-            'status' => $record->status === 'em_registro' ? 'ativo' : $record->status,
-            'produtoInsumos' => $record->produtoInsumos()
-                ->orderBy('ordem')
-                ->get()
-                ->map(fn(ProdutoInsumo $item): array => [
-                    'id' => $item->id,
-                    'insumo_id' => $item->insumo_id,
-                    'quantidade' => (float) $item->quantidade,
-                    'unidade_consumo' => $item->unidade_consumo,
-                    'ordem' => $item->ordem,
-                    'custo_unitario_snapshot' => (float) $item->custo_unitario_snapshot,
-                    'custo_total_snapshot' => (float) $item->custo_total_snapshot,
-                ])
-                ->all(),
-            'produtoComponentesCusto' => $record->produtoComponentesCusto()
-                ->orderBy('ordem')
-                ->get()
-                ->map(fn(ProdutoComponenteCusto $item): array => [
-                    'id' => $item->id,
-                    'nome' => $item->nome,
-                    'categoria' => $item->categoria,
-                    'tipo' => $item->tipo,
-                    'valor' => (float) $item->valor,
-                    'obrigatorio' => $item->obrigatorio,
-                    'ordem' => $item->ordem,
-                ])
-                ->all(),
-        ];
+        return app(ProdutoCostingService::class)->formData($record);
     }
 
     protected static function configureModalAction(CreateAction|EditAction $action, bool $withDelete = false): CreateAction|EditAction

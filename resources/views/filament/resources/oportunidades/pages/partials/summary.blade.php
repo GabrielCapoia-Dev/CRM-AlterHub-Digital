@@ -29,7 +29,7 @@
                         <input
                             type="text"
                             wire:model.live.debounce.350ms="opportunityForm.client_lookup"
-                            placeholder="Codigo ou CNPJ"
+                            placeholder="Codigo ou documento fiscal"
                             @disabled(! $canEditOpportunity)
                         >
                         @error('opportunityForm.client_lookup')
@@ -62,7 +62,7 @@
                             <p>
                                 {{ collect([
                                     $selectedClient->codigo_interno ? 'Codigo ' . $selectedClient->codigo_interno : null,
-                                    $selectedClient->cnpj ? 'CNPJ ' . $selectedClient->cnpj : null,
+                                    $selectedClient->cnpj ? 'Doc. fiscal ' . $selectedClient->cnpj : null,
                                     $selectedClient->nome_completo ?: null,
                                     $selectedClient->email ?: null,
                                 ])->filter()->implode(' | ') ?: 'Cadastro carregado para esta oportunidade.' }}
@@ -112,8 +112,8 @@
                 </label>
 
                 <label class="crm-field">
-                    <span>CNPJ</span>
-                    <input type="text" wire:model.defer="opportunityForm.client_cnpj" placeholder="00.000.000/0001-00" @disabled(! $canEditOpportunity)>
+                    <span>CNPJ / identificacao fiscal</span>
+                    <input type="text" wire:model.defer="opportunityForm.client_cnpj" placeholder="00.000.000/0001-00 ou VAT/Tax ID" @disabled(! $canEditOpportunity)>
                     @error('opportunityForm.client_cnpj')
                         <small class="crm-field-error">{{ $message }}</small>
                     @enderror

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Oportunidades;
 
+use App\Filament\Support\Fields\TaxIdentifierField;
 use App\Filament\Resources\Oportunidades\Pages\CreateOportunidade;
 use App\Filament\Resources\Oportunidades\Pages\EditOportunidade;
 use App\Filament\Resources\Oportunidades\Pages\KanbanOportunidades;
@@ -292,13 +293,13 @@ class OportunidadeResource extends Resource
                     ->default(''),
 
                 TextInput::make('client_lookup')
-                    ->label('Buscar cliente por codigo ou CNPJ')
-                    ->placeholder('Ex.: CLI-2026-014 ou 00.000.000/0001-00')
+                    ->label('Buscar cliente por codigo ou documento fiscal')
+                    ->placeholder('Ex.: CLI-2026-014 ou VAT/Tax ID')
                     ->columnSpanFull()
                     ->visible(fn (Get $get): bool => $get('client_mode') !== OportunidadeClienteService::MODE_NEW)
                     ->live(onBlur: true)
                     ->required(fn (Get $get): bool => $get('client_mode') !== OportunidadeClienteService::MODE_NEW)
-                    ->helperText('Informe o codigo interno ou o CNPJ para localizar um cliente existente.')
+                    ->helperText('Informe o codigo interno ou o documento fiscal para localizar um cliente existente.')
                     ->afterStateUpdated(function (?string $state, Get $get, Set $set): void {
                         if ($get('client_mode') === OportunidadeClienteService::MODE_NEW) {
                             return;
@@ -379,7 +380,7 @@ class OportunidadeResource extends Resource
                                 return collect([
                                     $cliente->razao_social,
                                     $cliente->codigo_interno ? "Codigo {$cliente->codigo_interno}" : null,
-                                    $cliente->cnpj ? "CNPJ {$cliente->cnpj}" : null,
+                                    $cliente->cnpj ? "Doc. fiscal {$cliente->cnpj}" : null,
                                     $cliente->categoriaSegmento?->nome ? "Segmento {$cliente->categoriaSegmento->nome}" : null,
                                     $cliente->statusCliente?->nome ? "Status {$cliente->statusCliente->nome}" : null,
                                 ])
@@ -402,54 +403,8 @@ class OportunidadeResource extends Resource
                     ->maxLength(255)
                     ->visible(fn (Get $get): bool => $get('client_mode') === OportunidadeClienteService::MODE_NEW),
 
-                TextInput::make('client_cnpj')
-                    ->label('CNPJ')
-                    ->mask('99.999.999/9999-99')
+                TaxIdentifierField::make('client_cnpj', 'CNPJ / identificacao fiscal')
                     ->required(fn (Get $get): bool => $get('client_mode') === OportunidadeClienteService::MODE_NEW)
-                    ->rule(function () {
-                        return function (string $attribute, $value, \Closure $fail): void {
-                            $cnpj = preg_replace('/\D/', '', (string) $value);
-
-                            if (strlen($cnpj) !== 14) {
-                                $fail('O CNPJ deve ter 14 digitos.');
-
-                                return;
-                            }
-
-                            if (preg_match('/^(\d)\1+$/', $cnpj)) {
-                                $fail('CNPJ invalido.');
-
-                                return;
-                            }
-
-                            $calcularDigito = function (string $numero, int $tamanho): int {
-                                $soma = 0;
-                                $posicao = $tamanho - 7;
-
-                                for ($indice = $tamanho; $indice >= 1; $indice--) {
-                                    $soma += (int) $numero[$tamanho - $indice] * $posicao--;
-
-                                    if ($posicao < 2) {
-                                        $posicao = 9;
-                                    }
-                                }
-
-                                $resultado = $soma % 11;
-
-                                return $resultado < 2 ? 0 : 11 - $resultado;
-                            };
-
-                            if ((int) $cnpj[12] !== $calcularDigito($cnpj, 12)) {
-                                $fail('CNPJ invalido.');
-
-                                return;
-                            }
-
-                            if ((int) $cnpj[13] !== $calcularDigito($cnpj, 13)) {
-                                $fail('CNPJ invalido.');
-                            }
-                        };
-                    })
                     ->visible(fn (Get $get): bool => $get('client_mode') === OportunidadeClienteService::MODE_NEW),
 
                 Select::make('client_segmento_id')

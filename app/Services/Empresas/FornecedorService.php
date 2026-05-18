@@ -3,6 +3,7 @@
 namespace App\Services\Empresas;
 
 use App\Models\Empresas\Fornecedor;
+use App\Support\Fiscal\TaxIdentifier;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -137,7 +138,7 @@ class FornecedorService
     private function aplicarBusca(Builder $query, string $termo): Builder
     {
         // Remove formatação do CNPJ caso o usuário tenha digitado com pontos/barras/hífen
-        $termoBruto = preg_replace('/\D/', '', $termo);
+        $termoBruto = TaxIdentifier::normalizeForLookup($termo) ?? '';
 
         return $query->where(function (Builder $q) use ($termo, $termoBruto) {
             $like = "%{$termo}%";
@@ -148,9 +149,9 @@ class FornecedorService
               ->orWhere('cnpj',           'like', $like);
 
             // Se o termo tem apenas dígitos, busca também no CNPJ sem formatação
-            if ($termoBruto && $termoBruto !== $termo) {
+            if ($termoBruto !== '') {
                 $q->orWhereRaw(
-                    "REGEXP_REPLACE(cnpj, '[^0-9]', '') LIKE ?",
+                    TaxIdentifier::comparableExpression('cnpj') . ' LIKE ?',
                     ["%{$termoBruto}%"]
                 );
             }

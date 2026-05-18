@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Oportunidades\Pages;
 
 use App\Filament\Resources\Oportunidades\OportunidadeResource;
+use App\Rules\FlexibleTaxIdentifierRule;
 use App\Models\Acesso\User;
 use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Clientes\Cliente;
@@ -437,7 +438,7 @@ class KanbanOportunidades extends Page
             'opportunityForm.client_lookup' => 'busca do cliente',
             'opportunityForm.client_razao_social' => 'razao social',
             'opportunityForm.client_nome_fantasia' => 'nome fantasia',
-            'opportunityForm.client_cnpj' => 'CNPJ',
+            'opportunityForm.client_cnpj' => 'documento fiscal',
             'opportunityForm.client_segmento_id' => 'segmento do cliente',
             'opportunityForm.client_status_id' => 'status do cliente',
             'opportunityForm.client_nome_completo' => 'contato principal',
@@ -877,7 +878,7 @@ class KanbanOportunidades extends Page
         if (($this->opportunityForm['client_mode'] ?? OportunidadeClienteService::MODE_EXISTING) === OportunidadeClienteService::MODE_NEW) {
             $rules['opportunityForm.client_razao_social'][] = 'required';
             $rules['opportunityForm.client_cnpj'][] = 'required';
-            $rules['opportunityForm.client_cnpj'][] = $this->validCnpjRule();
+            $rules['opportunityForm.client_cnpj'][] = new FlexibleTaxIdentifierRule();
             $rules['opportunityForm.client_segmento_id'][] = 'required';
             $rules['opportunityForm.client_status_id'][] = 'required';
             $rules['opportunityForm.client_nome_completo'][] = 'required';
@@ -958,52 +959,6 @@ class KanbanOportunidades extends Page
             ...$this->opportunityForm,
             ...$state,
         ];
-    }
-
-    protected function validCnpjRule(): \Closure
-    {
-        return function (string $attribute, $value, \Closure $fail): void {
-            $cnpj = preg_replace('/\D/', '', (string) $value);
-
-            if (strlen($cnpj) !== 14) {
-                $fail('O CNPJ deve ter 14 digitos.');
-
-                return;
-            }
-
-            if (preg_match('/^(\d)\1+$/', $cnpj)) {
-                $fail('CNPJ invalido.');
-
-                return;
-            }
-
-            $calcularDigito = function (string $numero, int $tamanho): int {
-                $soma = 0;
-                $posicao = $tamanho - 7;
-
-                for ($indice = $tamanho; $indice >= 1; $indice--) {
-                    $soma += (int) $numero[$tamanho - $indice] * $posicao--;
-
-                    if ($posicao < 2) {
-                        $posicao = 9;
-                    }
-                }
-
-                $resultado = $soma % 11;
-
-                return $resultado < 2 ? 0 : 11 - $resultado;
-            };
-
-            if ((int) $cnpj[12] !== $calcularDigito($cnpj, 12)) {
-                $fail('CNPJ invalido.');
-
-                return;
-            }
-
-            if ((int) $cnpj[13] !== $calcularDigito($cnpj, 13)) {
-                $fail('CNPJ invalido.');
-            }
-        };
     }
 
     protected function validPhoneRule(): \Closure

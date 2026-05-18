@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Insumos;
 
+use App\Filament\Resources\Insumos\Actions\ApplyBulkCostAction;
 use App\Filament\Resources\Insumos\Pages\ManageInsumos;
 use App\Models\Categorias\TipoArmazenamento;
 use App\Models\Categorias\TipoInsumo;
@@ -11,9 +12,11 @@ use App\Models\Produtos\Insumo;
 use App\Models\Produtos\InsumoFatorCusto;
 use App\Models\Status\StatusInsumo;
 use App\Services\Produtos\InsumoCostCalculator;
+use App\Services\Produtos\InsumoCostingService;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -80,6 +83,7 @@ class InsumoResource extends Resource
                 ->with(['fornecedor', 'tipoInsumo', 'statusInsumo', 'tipoUnidadeMedida', 'insumoFatoresCusto'])
                 ->withSum('insumoMovimentacoes as estoque_atual', 'impacto_estoque')
                 ->withCount('insumoMovimentacoes'))
+            ->checkIfRecordIsSelectableUsing(fn (Insumo $record): bool => auth()->user()?->can('update', $record) ?? false)
             ->columns([
                 TextColumn::make('codigo_interno')
                     ->label('Codigo')
@@ -200,6 +204,11 @@ class InsumoResource extends Resource
             ->recordActions([
                 static::configureEditAction(EditAction::make()->label('Editar')),
                 DeleteAction::make()->label('Excluir'),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    ApplyBulkCostAction::make(),
+                ]),
             ]);
     }
 
@@ -227,20 +236,7 @@ class InsumoResource extends Resource
 
     public static function getModalFormData(Insumo $record): array
     {
-        return [
-            ...$record->attributesToArray(),
-            'insumoFatoresCusto' => $record->insumoFatoresCusto()
-                ->orderBy('ordem')
-                ->get()
-                ->map(fn (InsumoFatorCusto $item): array => [
-                    'id' => $item->id,
-                    'nome' => $item->nome,
-                    'tipo' => $item->tipo,
-                    'valor' => (float) $item->valor,
-                    'ordem' => $item->ordem,
-                ])
-                ->all(),
-        ];
+        return app(InsumoCostingService::class)->formData($record);
     }
 
     protected static function configureModalAction(CreateAction|EditAction $action, bool $withDelete = false): CreateAction|EditAction
