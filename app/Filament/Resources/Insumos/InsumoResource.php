@@ -388,11 +388,23 @@ class InsumoResource extends Resource
                     ->columnSpan(6),
 
                 Select::make('tipo_unidade_medida_id')
-                    ->label('Unidade de compra')
+                    ->label('Unidade de Medida')
                     ->relationship('tipoUnidadeMedida', 'nome')
                     ->getOptionLabelFromRecordUsing(fn (TipoUnidadeMedida $record): string => static::formatUnidadeLabel($record))
                     ->searchable()
                     ->preload()
+                    ->createOptionForm([
+                        TextInput::make('nome')
+                            ->label('Nome')
+                            ->required()
+                            ->maxLength(100)
+                            ->placeholder('Ex.: Mililitro'),
+
+                        TextInput::make('sigla')
+                            ->label('Sigla')
+                            ->maxLength(20)
+                            ->placeholder('Ex.: mL'),
+                    ])
                     ->required()
                     ->columnSpan(6),
 
