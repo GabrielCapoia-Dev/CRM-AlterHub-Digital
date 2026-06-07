@@ -280,8 +280,34 @@ class ProdutoResource extends Resource
                                             ->reorderableWithButtons(),
                                     ]),
 
-                                Section::make('Encargos e despesas adicionais')
-                                    ->description('Informe primeiro chegada/importacao em R$, depois lucro e impostos de saida em %.')
+                                Section::make('Custos de entrada')
+                                    ->description('Tudo que acontece para o produto chegar: frete, importacao, taxas e impostos cobrados na entrada.')
+                                    ->icon(Heroicon::OutlinedClipboardDocumentList)
+                                    ->columnSpanFull()
+                                    ->schema([
+                                        static::makeComponentesRepeater(
+                                            'custosEntradaComponentes',
+                                            'Adicionar custo de entrada',
+                                            ['custo_entrada', 'imposto_entrada', 'chegada_importacao'],
+                                            'entrada',
+                                        ),
+                                    ]),
+
+                                Section::make('Custos de producao')
+                                    ->description('Para produtos com insumo, os insumos entram automaticamente; use este quadro para mao de obra, embalagem, perdas e impostos de producao.')
+                                    ->icon(Heroicon::OutlinedCog6Tooth)
+                                    ->columnSpanFull()
+                                    ->schema([
+                                        static::makeComponentesRepeater(
+                                            'custosProducaoComponentes',
+                                            'Adicionar custo de producao',
+                                            ['custo_producao', 'imposto_producao'],
+                                            'producao',
+                                        ),
+                                    ]),
+
+                                Section::make('Custos de saida')
+                                    ->description('Tudo que acontece para vender: lucro desejado, comissao, taxas comerciais e impostos cobrados na saida.')
                                     ->icon(Heroicon::OutlinedChartBar)
                                     ->columnSpanFull()
                                     ->schema([
@@ -296,50 +322,12 @@ class ProdutoResource extends Resource
                                             ->placeholder('0,00')
                                             ->live(),
 
-                                        Repeater::make('produtoComponentesCusto')
-                                            ->relationship()
-                                            ->orderColumn('ordem')
-                                            ->columnSpanFull()
-                                            ->addActionLabel('Adicionar componente')
-                                            ->table([
-                                                TableColumn::make('Nome')->markAsRequired(),
-                                                TableColumn::make('Categoria')->markAsRequired(),
-                                                TableColumn::make('Tipo')->markAsRequired(),
-                                                TableColumn::make('Valor')->markAsRequired(),
-                                                TableColumn::make('Obrig.'),
-                                            ])
-                                            ->live()
-                                            ->default(fn(): array => app(ProdutoPricingCalculator::class)->defaultComponentes())
-                                            ->schema([
-                                                TextInput::make('nome')
-                                                    ->hiddenLabel()
-                                                    ->required()
-                                                    ->maxLength(255),
-
-                                                Select::make('categoria')
-                                                    ->hiddenLabel()
-                                                    ->options(ProdutoComponenteCusto::categoriaOptions())
-                                                    ->required(),
-
-                                                Select::make('tipo')
-                                                    ->hiddenLabel()
-                                                    ->options(ProdutoComponenteCusto::tipoOptions())
-                                                    ->required(),
-
-                                                TextInput::make('valor')
-                                                    ->hiddenLabel()
-                                                    ->numeric()
-                                                    ->rule('decimal:0,2')
-                                                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                                                    ->minValue(0)
-                                                    ->placeholder('0,00')
-                                                    ->required(),
-
-                                                Toggle::make('obrigatorio')
-                                                    ->hiddenLabel(),
-                                            ])
-                                            ->reorderableWithDragAndDrop(false)
-                                            ->reorderableWithButtons(),
+                                        static::makeComponentesRepeater(
+                                            'custosSaidaComponentes',
+                                            'Adicionar custo de saida',
+                                            ['custo_saida', 'imposto_saida', 'impostos_saida', 'comerciais', 'custos_fixos', 'personalizado'],
+                                            'saida',
+                                        ),
                                     ]),
 
                                 Section::make('Resumo da formacao')
@@ -355,9 +343,15 @@ class ProdutoResource extends Resource
                                             )),
 
                                         Placeholder::make('resumo_custos_adicionais')
-                                            ->label('Chegada / importacao')
+                                            ->label('Custos de entrada')
                                             ->content(fn(Get $get): string => static::formatCurrency(
-                                                static::buildResumo($get)['custos_chegada_importacao']
+                                                static::buildResumo($get)['custos_entrada']
+                                            )),
+
+                                        Placeholder::make('resumo_custos_producao')
+                                            ->label('Custos de producao')
+                                            ->content(fn(Get $get): string => static::formatCurrency(
+                                                static::buildResumo($get)['custos_producao']
                                             )),
 
                                         Placeholder::make('resumo_percentual_lucro')
@@ -367,9 +361,15 @@ class ProdutoResource extends Resource
                                             )),
 
                                         Placeholder::make('resumo_percentual_impostos_saida')
-                                            ->label('Impostos de saida')
+                                            ->label('Impostos na saida')
                                             ->content(fn(Get $get): string => static::formatPercent(
                                                 static::buildResumo($get)['percentual_impostos_saida']
+                                            )),
+
+                                        Placeholder::make('resumo_percentual_saida')
+                                            ->label('Custos de saida')
+                                            ->content(fn(Get $get): string => static::formatPercent(
+                                                static::buildResumo($get)['percentual_saida']
                                             )),
 
                                         Placeholder::make('resumo_percentual_sobre_venda')
@@ -518,14 +518,20 @@ class ProdutoResource extends Resource
         return static::configureModalAction($action)
             ->label('Novo produto')
             ->createAnother(false)
-            ->mutateFormDataUsing(fn(array $data): array => static::prepareProductFormData($data));
+            ->mutateFormDataUsing(fn(array $data): array => static::prepareProductFormData($data))
+            ->after(function (Produto $record, array $data): void {
+                static::syncPreparedProductRelations($record, $data);
+            });
     }
 
     public static function configureEditAction(EditAction $action): EditAction
     {
         return static::configureModalAction($action, withDelete: true)
             ->fillForm(fn(Produto $record): array => static::getModalFormData($record))
-            ->mutateFormDataUsing(fn(array $data): array => static::prepareProductFormData($data));
+            ->mutateFormDataUsing(fn(array $data): array => static::prepareProductFormData($data))
+            ->after(function (Produto $record, array $data): void {
+                static::syncPreparedProductRelations($record, $data);
+            });
     }
 
     public static function getModalFormData(Produto $record): array
@@ -625,6 +631,77 @@ class ProdutoResource extends Resource
         $set('custo_total_snapshot', $line['custo_total_snapshot']);
     }
 
+    protected static function makeComponentesRepeater(
+        string $name,
+        string $addActionLabel,
+        array $categorias,
+        string $grupo,
+    ): Repeater {
+        return Repeater::make($name)
+            ->label('')
+            ->columnSpanFull()
+            ->addActionLabel($addActionLabel)
+            ->table([
+                TableColumn::make('Nome')->markAsRequired(),
+                TableColumn::make('Grupo')->markAsRequired(),
+                TableColumn::make('Tipo')->markAsRequired(),
+                TableColumn::make('Valor')->markAsRequired(),
+                TableColumn::make('Obrig.'),
+            ])
+            ->live()
+            ->default(fn (): array => static::defaultComponentesPorGrupo($grupo))
+            ->schema([
+                TextInput::make('nome')
+                    ->hiddenLabel()
+                    ->required()
+                    ->maxLength(255),
+
+                Select::make('categoria')
+                    ->hiddenLabel()
+                    ->options(fn (): array => static::categoriaOptionsFor($categorias))
+                    ->required(),
+
+                Select::make('tipo')
+                    ->hiddenLabel()
+                    ->options(ProdutoComponenteCusto::tipoOptions())
+                    ->required(),
+
+                TextInput::make('valor')
+                    ->hiddenLabel()
+                    ->numeric()
+                    ->rule('decimal:0,2')
+                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
+                    ->minValue(0)
+                    ->placeholder('0,00')
+                    ->required(),
+
+                Toggle::make('obrigatorio')
+                    ->hiddenLabel(),
+            ])
+            ->reorderableWithDragAndDrop(false)
+            ->reorderableWithButtons();
+    }
+
+    protected static function defaultComponentesPorGrupo(string $grupo): array
+    {
+        return collect(app(ProdutoPricingCalculator::class)->defaultComponentes())
+            ->filter(fn (array $item): bool => match ($grupo) {
+                'entrada' => in_array($item['categoria'] ?? null, ['custo_entrada', 'imposto_entrada', 'chegada_importacao'], true),
+                'producao' => in_array($item['categoria'] ?? null, ['custo_producao', 'imposto_producao'], true),
+                'saida' => in_array($item['categoria'] ?? null, ['custo_saida', 'imposto_saida', 'impostos_saida', 'comerciais', 'custos_fixos', 'personalizado'], true),
+                default => false,
+            })
+            ->values()
+            ->all();
+    }
+
+    protected static function categoriaOptionsFor(array $categorias): array
+    {
+        return collect(ProdutoComponenteCusto::categoriaOptions())
+            ->only($categorias)
+            ->all();
+    }
+
     protected static function buildResumo(Get $get): array
     {
         return app(ProdutoPricingCalculator::class)->summarizeState([
@@ -633,6 +710,9 @@ class ProdutoResource extends Resource
                 'produto_unico_sem_insumo' => $get('produto_unico_sem_insumo'),
                 'custo_produto_unico' => $get('custo_produto_unico'),
                 'lucro_percentual' => $get('lucro_percentual'),
+                'custosEntradaComponentes' => $get('custosEntradaComponentes') ?? [],
+                'custosProducaoComponentes' => $get('custosProducaoComponentes') ?? [],
+                'custosSaidaComponentes' => $get('custosSaidaComponentes') ?? [],
                 'produtoComponentesCusto' => $get('produtoComponentesCusto') ?? [],
             ]),
         ]);
@@ -652,6 +732,9 @@ class ProdutoResource extends Resource
             $prepared['produto_unico_sem_insumo'],
             $prepared['custo_produto_unico'],
             $prepared['lucro_percentual'],
+            $prepared['custosEntradaComponentes'],
+            $prepared['custosProducaoComponentes'],
+            $prepared['custosSaidaComponentes'],
         );
 
         return $prepared;
@@ -659,7 +742,12 @@ class ProdutoResource extends Resource
 
     protected static function componentesFromGuidedFields(array $data): array
     {
-        $componentes = collect($data['produtoComponentesCusto'] ?? [])
+        $componentes = collect([
+            ...($data['custosEntradaComponentes'] ?? []),
+            ...($data['custosProducaoComponentes'] ?? []),
+            ...($data['custosSaidaComponentes'] ?? []),
+            ...($data['produtoComponentesCusto'] ?? []),
+        ])
             ->filter(fn (mixed $item): bool => is_array($item))
             ->reject(fn (array $item): bool => static::isGuidedComponent($item))
             ->values();
@@ -694,6 +782,15 @@ class ProdutoResource extends Resource
                 return $item;
             })
             ->all();
+    }
+
+    protected static function syncPreparedProductRelations(Produto $record, array $data): void
+    {
+        $prepared = array_key_exists('produtoComponentesCusto', $data)
+            ? $data
+            : static::prepareProductFormData($data);
+
+        app(ProdutoCostingService::class)->syncPreparedRelations($record, $prepared, syncInsumos: false);
     }
 
     protected static function isGuidedComponent(array $item): bool

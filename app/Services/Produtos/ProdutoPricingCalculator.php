@@ -18,14 +18,16 @@ class ProdutoPricingCalculator
     public function defaultComponentes(): array
     {
         return [
-            $this->makeDefaultComponent('Custos de chegada', 'chegada_importacao', 'valor_fixo_brl', 0, false),
-            $this->makeDefaultComponent('Imposto de importacao', 'chegada_importacao', 'valor_fixo_brl', 0, false),
-            $this->makeDefaultComponent('Taxas de importacao', 'chegada_importacao', 'valor_fixo_brl', 0, false),
-            $this->makeDefaultComponent('COFINS saida', 'impostos_saida', 'percentual_sobre_venda', 0, true),
-            $this->makeDefaultComponent('PIS saida', 'impostos_saida', 'percentual_sobre_venda', 0, true),
-            $this->makeDefaultComponent('IPI saida', 'impostos_saida', 'percentual_sobre_venda', 0, false),
-            $this->makeDefaultComponent('ICMS saida', 'impostos_saida', 'percentual_sobre_venda', 0, true),
-            $this->makeDefaultComponent('Comissao', 'comerciais', 'percentual_sobre_venda', 0, false),
+            $this->makeDefaultComponent('Frete de entrada', 'custo_entrada', 'valor_fixo_brl', 0, false),
+            $this->makeDefaultComponent('Imposto de importacao', 'imposto_entrada', 'valor_fixo_brl', 0, false),
+            $this->makeDefaultComponent('Taxas de importacao', 'imposto_entrada', 'valor_fixo_brl', 0, false),
+            $this->makeDefaultComponent('Embalagem / producao', 'custo_producao', 'valor_fixo_brl', 0, false),
+            $this->makeDefaultComponent('Imposto na producao', 'imposto_producao', 'valor_fixo_brl', 0, false),
+            $this->makeDefaultComponent('COFINS saida', 'imposto_saida', 'percentual_sobre_venda', 0, true),
+            $this->makeDefaultComponent('PIS saida', 'imposto_saida', 'percentual_sobre_venda', 0, true),
+            $this->makeDefaultComponent('IPI saida', 'imposto_saida', 'percentual_sobre_venda', 0, false),
+            $this->makeDefaultComponent('ICMS saida', 'imposto_saida', 'percentual_sobre_venda', 0, true),
+            $this->makeDefaultComponent('Comissao', 'custo_saida', 'percentual_sobre_venda', 0, false),
         ];
     }
 
@@ -171,7 +173,35 @@ class ProdutoPricingCalculator
         $custosChegadaImportacao = round(
             $componentesCollection
                 ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'valor_fixo_brl')
-                ->filter(fn (array $item): bool => ($item['categoria'] ?? null) === 'chegada_importacao')
+                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), [
+                    'chegada_importacao',
+                    'custo_entrada',
+                    'imposto_entrada',
+                ], true))
+                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
+            4,
+        );
+        $custosProducao = round(
+            $componentesCollection
+                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'valor_fixo_brl')
+                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), [
+                    'custo_producao',
+                    'imposto_producao',
+                ], true))
+                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
+            4,
+        );
+        $custosSaidaFixos = round(
+            $componentesCollection
+                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'valor_fixo_brl')
+                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), [
+                    'custo_saida',
+                    'imposto_saida',
+                    'impostos_saida',
+                    'comerciais',
+                    'custos_fixos',
+                    'personalizado',
+                ], true))
                 ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
             4,
         );
@@ -193,7 +223,14 @@ class ProdutoPricingCalculator
         $percentualImpostosSaida = round(
             $componentesCollection
                 ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'percentual_sobre_venda')
-                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), ['impostos_saida', 'impostos'], true))
+                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), ['imposto_saida', 'impostos_saida', 'impostos'], true))
+                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
+            4,
+        );
+        $percentualCustosSaida = round(
+            $componentesCollection
+                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'percentual_sobre_venda')
+                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), ['custo_saida', 'comerciais', 'custos_fixos', 'personalizado'], true))
                 ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
             4,
         );
@@ -206,9 +243,14 @@ class ProdutoPricingCalculator
             'custo_insumos_ou_produto' => round($custoTotalInsumos + $custoProdutoUnico, 4),
             'custos_adicionais' => $custosAdicionais,
             'custos_chegada_importacao' => $custosChegadaImportacao,
+            'custos_entrada' => $custosChegadaImportacao,
+            'custos_producao' => $custosProducao,
+            'custos_saida_fixos' => $custosSaidaFixos,
             'percentual_sobre_venda' => $percentualSobreVenda,
             'percentual_lucro' => $percentualLucro,
             'percentual_impostos_saida' => $percentualImpostosSaida,
+            'percentual_custos_saida' => $percentualCustosSaida,
+            'percentual_saida' => round($percentualImpostosSaida + $percentualCustosSaida, 4),
             'percentual_total' => $percentualSobreVenda,
             'custo_base_formacao' => $custoBaseFormacao,
             'preco_sugerido' => $percentualSobreVenda >= 100

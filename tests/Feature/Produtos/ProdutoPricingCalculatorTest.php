@@ -118,21 +118,26 @@ class ProdutoPricingCalculatorTest extends TestCase
             'produtoInsumos' => [],
             'produtoComponentesCusto' => [
                 $this->makeComponent('Custo do produto', 'custo_produto', 'valor_fixo_brl', 120),
-                $this->makeComponent('Imposto de importacao', 'chegada_importacao', 'valor_fixo_brl', 30),
-                $this->makeComponent('Taxas de importacao', 'chegada_importacao', 'valor_fixo_brl', 10),
+                $this->makeComponent('Frete de entrada', 'custo_entrada', 'valor_fixo_brl', 10),
+                $this->makeComponent('Imposto de importacao', 'imposto_entrada', 'valor_fixo_brl', 30),
+                $this->makeComponent('Embalagem', 'custo_producao', 'valor_fixo_brl', 10),
                 $this->makeComponent('Lucro desejado', 'lucro', 'percentual_sobre_venda', 20),
-                $this->makeComponent('ICMS saida', 'impostos_saida', 'percentual_sobre_venda', 12),
+                $this->makeComponent('ICMS saida', 'imposto_saida', 'percentual_sobre_venda', 12),
+                $this->makeComponent('Comissao', 'custo_saida', 'percentual_sobre_venda', 3),
             ],
         ]);
 
         $summary = $service->summarizeState($prepared, refreshSnapshots: false);
 
-        $this->assertSame(160.0, $prepared['custo_base_formacao']);
-        $this->assertEqualsWithDelta(235.29, $prepared['preco_sugerido'], 0.01);
+        $this->assertSame(170.0, $prepared['custo_base_formacao']);
+        $this->assertEqualsWithDelta(261.54, $prepared['preco_sugerido'], 0.01);
         $this->assertSame(120.0, $summary['custo_produto_unico']);
         $this->assertSame(160.0, $summary['custo_insumos_ou_produto'] + $summary['custos_chegada_importacao']);
+        $this->assertSame(40.0, $summary['custos_entrada']);
+        $this->assertSame(10.0, $summary['custos_producao']);
         $this->assertSame(20.0, $summary['percentual_lucro']);
         $this->assertSame(12.0, $summary['percentual_impostos_saida']);
+        $this->assertSame(15.0, $summary['percentual_saida']);
     }
 
     private function makeComponent(

@@ -30,6 +30,12 @@ class ProdutoComponenteCusto extends Model
     {
         return [
             'custo_produto' => 'Custo do produto',
+            'custo_entrada' => 'Custo de entrada',
+            'imposto_entrada' => 'Imposto de entrada',
+            'custo_producao' => 'Custo de producao',
+            'imposto_producao' => 'Imposto de producao',
+            'custo_saida' => 'Custo de saida',
+            'imposto_saida' => 'Imposto de saida',
             'chegada_importacao' => 'Chegada / importacao',
             'lucro' => 'Lucro',
             'impostos_saida' => 'Impostos de saida',

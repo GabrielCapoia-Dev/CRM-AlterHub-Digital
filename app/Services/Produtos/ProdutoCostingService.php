@@ -56,6 +56,24 @@ class ProdutoCostingService
             'custo_produto_unico' => $this->componentValue($componentes, ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT),
             'lucro_percentual' => $this->componentValue($componentes, ProdutoPricingCalculator::PROFIT_COMPONENT),
             'produtoInsumos' => $insumos,
+            'custosEntradaComponentes' => $this->componentesPorCategorias($componentes, [
+                'custo_entrada',
+                'imposto_entrada',
+                'chegada_importacao',
+            ]),
+            'custosProducaoComponentes' => $this->componentesPorCategorias($componentes, [
+                'custo_producao',
+                'imposto_producao',
+            ]),
+            'custosSaidaComponentes' => $this->componentesPorCategorias($componentes, [
+                'custo_saida',
+                'imposto_saida',
+                'impostos_saida',
+                'comerciais',
+                'impostos',
+                'custos_fixos',
+                'personalizado',
+            ]),
             'produtoComponentesCusto' => $hideGuidedComponents ? $this->visibleComponentes($componentes) : $componentes,
         ];
     }
@@ -104,6 +122,9 @@ class ProdutoCostingService
                     'produto_unico_sem_insumo',
                     'custo_produto_unico',
                     'lucro_percentual',
+                    'custosEntradaComponentes',
+                    'custosProducaoComponentes',
+                    'custosSaidaComponentes',
                 ]));
                 $produto->save();
 
@@ -115,6 +136,17 @@ class ProdutoCostingService
         });
 
         return $updatedCount;
+    }
+
+    public function syncPreparedRelations(Produto $produto, array $prepared, bool $syncInsumos = true): void
+    {
+        if ($syncInsumos) {
+            $this->syncProdutoInsumos($produto, $prepared['produtoInsumos'] ?? []);
+        } elseif (($prepared['produtoInsumos'] ?? null) === []) {
+            $produto->produtoInsumos()->delete();
+        }
+
+        $this->syncProdutoComponentesCusto($produto, $prepared['produtoComponentesCusto'] ?? []);
     }
 
     protected function syncProdutoInsumos(Produto $produto, array $items): void
@@ -203,6 +235,32 @@ class ProdutoCostingService
                 ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT,
                 ProdutoPricingCalculator::PROFIT_COMPONENT,
             ], true))
+            ->reject(fn (array $item): bool => in_array($item['categoria'] ?? '', [
+                'custo_entrada',
+                'imposto_entrada',
+                'chegada_importacao',
+                'custo_producao',
+                'imposto_producao',
+                'custo_saida',
+                'imposto_saida',
+                'impostos_saida',
+                'comerciais',
+                'impostos',
+                'custos_fixos',
+                'personalizado',
+            ], true))
+            ->values()
+            ->all();
+    }
+
+    protected function componentesPorCategorias(array $componentes, array $categorias): array
+    {
+        return collect($componentes)
+            ->reject(fn (array $item): bool => in_array($item['nome'] ?? '', [
+                ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT,
+                ProdutoPricingCalculator::PROFIT_COMPONENT,
+            ], true))
+            ->filter(fn (array $item): bool => in_array($item['categoria'] ?? '', $categorias, true))
             ->values()
             ->all();
     }
