@@ -11,19 +11,21 @@ use Illuminate\Validation\ValidationException;
 
 class ProdutoPricingCalculator
 {
+    public const SINGLE_PRODUCT_COST_COMPONENT = 'Custo do produto';
+
+    public const PROFIT_COMPONENT = 'Lucro desejado';
+
     public function defaultComponentes(): array
     {
         return [
-            $this->makeDefaultComponent('COFINS', 'impostos', 'percentual_sobre_venda', 0, true),
-            $this->makeDefaultComponent('PIS', 'impostos', 'percentual_sobre_venda', 0, true),
-            $this->makeDefaultComponent('CSLL', 'impostos', 'percentual_sobre_venda', 0, false),
-            $this->makeDefaultComponent('IR', 'impostos', 'percentual_sobre_venda', 0, false),
-            $this->makeDefaultComponent('IPI', 'impostos', 'percentual_sobre_venda', 0, false),
-            $this->makeDefaultComponent('ICMS', 'impostos', 'percentual_sobre_venda', 0, true),
+            $this->makeDefaultComponent('Custos de chegada', 'chegada_importacao', 'valor_fixo_brl', 0, false),
+            $this->makeDefaultComponent('Imposto de importacao', 'chegada_importacao', 'valor_fixo_brl', 0, false),
+            $this->makeDefaultComponent('Taxas de importacao', 'chegada_importacao', 'valor_fixo_brl', 0, false),
+            $this->makeDefaultComponent('COFINS saida', 'impostos_saida', 'percentual_sobre_venda', 0, true),
+            $this->makeDefaultComponent('PIS saida', 'impostos_saida', 'percentual_sobre_venda', 0, true),
+            $this->makeDefaultComponent('IPI saida', 'impostos_saida', 'percentual_sobre_venda', 0, false),
+            $this->makeDefaultComponent('ICMS saida', 'impostos_saida', 'percentual_sobre_venda', 0, true),
             $this->makeDefaultComponent('Comissao', 'comerciais', 'percentual_sobre_venda', 0, false),
-            $this->makeDefaultComponent('Frete', 'custos_fixos', 'valor_fixo_brl', 0, false),
-            $this->makeDefaultComponent('Outras despesas', 'custos_fixos', 'valor_fixo_brl', 0, false),
-            $this->makeDefaultComponent('Despesas gerais', 'custos_fixos', 'valor_fixo_brl', 0, false),
         ];
     }
 
@@ -158,10 +160,40 @@ class ProdutoPricingCalculator
                 ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
             4,
         );
+        $custoProdutoUnico = round(
+            $componentesCollection
+                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'valor_fixo_brl')
+                ->filter(fn (array $item): bool => ($item['categoria'] ?? null) === 'custo_produto'
+                    || ($item['nome'] ?? null) === self::SINGLE_PRODUCT_COST_COMPONENT)
+                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
+            4,
+        );
+        $custosChegadaImportacao = round(
+            $componentesCollection
+                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'valor_fixo_brl')
+                ->filter(fn (array $item): bool => ($item['categoria'] ?? null) === 'chegada_importacao')
+                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
+            4,
+        );
 
         $percentualSobreVenda = round(
             $componentesCollection
                 ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'percentual_sobre_venda')
+                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
+            4,
+        );
+        $percentualLucro = round(
+            $componentesCollection
+                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'percentual_sobre_venda')
+                ->filter(fn (array $item): bool => ($item['categoria'] ?? null) === 'lucro'
+                    || ($item['nome'] ?? null) === self::PROFIT_COMPONENT)
+                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
+            4,
+        );
+        $percentualImpostosSaida = round(
+            $componentesCollection
+                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'percentual_sobre_venda')
+                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), ['impostos_saida', 'impostos'], true))
                 ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
             4,
         );
@@ -170,8 +202,13 @@ class ProdutoPricingCalculator
 
         return [
             'custo_total_insumos' => $custoTotalInsumos,
+            'custo_produto_unico' => $custoProdutoUnico,
+            'custo_insumos_ou_produto' => round($custoTotalInsumos + $custoProdutoUnico, 4),
             'custos_adicionais' => $custosAdicionais,
+            'custos_chegada_importacao' => $custosChegadaImportacao,
             'percentual_sobre_venda' => $percentualSobreVenda,
+            'percentual_lucro' => $percentualLucro,
+            'percentual_impostos_saida' => $percentualImpostosSaida,
             'percentual_total' => $percentualSobreVenda,
             'custo_base_formacao' => $custoBaseFormacao,
             'preco_sugerido' => $percentualSobreVenda >= 100
@@ -233,6 +270,10 @@ class ProdutoPricingCalculator
 
             if (($item['valor'] ?? 0) < 0) {
                 $messages["produtoComponentesCusto.$index.valor"] = 'O valor do componente nao pode ser negativo.';
+            }
+
+            if (($item['nome'] ?? '') === self::SINGLE_PRODUCT_COST_COMPONENT && ($item['valor'] ?? 0) <= 0) {
+                $messages["produtoComponentesCusto.$index.valor"] = 'Informe o custo do produto unico sem insumo.';
             }
         }
 

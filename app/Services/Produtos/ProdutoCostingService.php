@@ -18,39 +18,45 @@ class ProdutoCostingService
     ) {
     }
 
-    public function formData(Produto $produto): array
+    public function formData(Produto $produto, bool $hideGuidedComponents = true): array
     {
+        $componentes = $produto->produtoComponentesCusto()
+            ->orderBy('ordem')
+            ->get()
+            ->map(fn (ProdutoComponenteCusto $item): array => [
+                'id' => $item->id,
+                'nome' => $item->nome,
+                'categoria' => $item->categoria,
+                'tipo' => $item->tipo,
+                'valor' => (float) $item->valor,
+                'obrigatorio' => $item->obrigatorio,
+                'ordem' => $item->ordem,
+            ])
+            ->values()
+            ->all();
+        $insumos = $produto->produtoInsumos()
+            ->orderBy('ordem')
+            ->get()
+            ->map(fn (ProdutoInsumo $item): array => [
+                'id' => $item->id,
+                'insumo_id' => $item->insumo_id,
+                'quantidade' => (float) $item->quantidade,
+                'unidade_consumo' => $item->unidade_consumo,
+                'ordem' => $item->ordem,
+                'custo_unitario_snapshot' => (float) $item->custo_unitario_snapshot,
+                'custo_total_snapshot' => (float) $item->custo_total_snapshot,
+            ])
+            ->values()
+            ->all();
+
         return [
             ...$produto->attributesToArray(),
             'status' => $produto->status === 'em_registro' ? 'ativo' : $produto->status,
-            'produtoInsumos' => $produto->produtoInsumos()
-                ->orderBy('ordem')
-                ->get()
-                ->map(fn (ProdutoInsumo $item): array => [
-                    'id' => $item->id,
-                    'insumo_id' => $item->insumo_id,
-                    'quantidade' => (float) $item->quantidade,
-                    'unidade_consumo' => $item->unidade_consumo,
-                    'ordem' => $item->ordem,
-                    'custo_unitario_snapshot' => (float) $item->custo_unitario_snapshot,
-                    'custo_total_snapshot' => (float) $item->custo_total_snapshot,
-                ])
-                ->values()
-                ->all(),
-            'produtoComponentesCusto' => $produto->produtoComponentesCusto()
-                ->orderBy('ordem')
-                ->get()
-                ->map(fn (ProdutoComponenteCusto $item): array => [
-                    'id' => $item->id,
-                    'nome' => $item->nome,
-                    'categoria' => $item->categoria,
-                    'tipo' => $item->tipo,
-                    'valor' => (float) $item->valor,
-                    'obrigatorio' => $item->obrigatorio,
-                    'ordem' => $item->ordem,
-                ])
-                ->values()
-                ->all(),
+            'produto_unico_sem_insumo' => $insumos === [],
+            'custo_produto_unico' => $this->componentValue($componentes, ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT),
+            'lucro_percentual' => $this->componentValue($componentes, ProdutoPricingCalculator::PROFIT_COMPONENT),
+            'produtoInsumos' => $insumos,
+            'produtoComponentesCusto' => $hideGuidedComponents ? $this->visibleComponentes($componentes) : $componentes,
         ];
     }
 
@@ -76,7 +82,7 @@ class ProdutoCostingService
 
         DB::transaction(function () use ($produtos, $data, $applyPrecoTabela, $applyPrecoMinimo, $applyComponentes, &$updatedCount): void {
             foreach ($produtos as $produto) {
-                $payload = $this->formData($produto);
+                $payload = $this->formData($produto, hideGuidedComponents: false);
 
                 if ($applyPrecoTabela) {
                     $payload['preco_tabela'] = $data['preco_tabela'] ?? null;
@@ -92,7 +98,13 @@ class ProdutoCostingService
 
                 $prepared = $this->calculator->prepareForPersistence($payload);
 
-                $produto->fill(Arr::except($prepared, ['produtoInsumos', 'produtoComponentesCusto']));
+                $produto->fill(Arr::except($prepared, [
+                    'produtoInsumos',
+                    'produtoComponentesCusto',
+                    'produto_unico_sem_insumo',
+                    'custo_produto_unico',
+                    'lucro_percentual',
+                ]));
                 $produto->save();
 
                 $this->syncProdutoInsumos($produto, $prepared['produtoInsumos']);
@@ -173,5 +185,25 @@ class ProdutoCostingService
         if ($idsToDelete->isNotEmpty()) {
             $produto->produtoComponentesCusto()->whereKey($idsToDelete->all())->delete();
         }
+    }
+
+    protected function componentValue(array $componentes, string $nome): float
+    {
+        $component = collect($componentes)->first(
+            fn (array $item): bool => strcasecmp((string) ($item['nome'] ?? ''), $nome) === 0,
+        );
+
+        return $component ? (float) ($component['valor'] ?? 0) : 0.0;
+    }
+
+    protected function visibleComponentes(array $componentes): array
+    {
+        return collect($componentes)
+            ->reject(fn (array $item): bool => in_array($item['nome'] ?? '', [
+                ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT,
+                ProdutoPricingCalculator::PROFIT_COMPONENT,
+            ], true))
+            ->values()
+            ->all();
     }
 }

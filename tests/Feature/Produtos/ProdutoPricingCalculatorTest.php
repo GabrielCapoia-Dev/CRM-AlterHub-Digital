@@ -107,6 +107,34 @@ class ProdutoPricingCalculatorTest extends TestCase
         $this->assertFalse($componentes->contains('Margem'));
     }
 
+    public function test_it_calculates_single_product_cost_with_arrival_profit_and_output_taxes(): void
+    {
+        $service = app(ProdutoPricingCalculator::class);
+
+        $prepared = $service->prepareForPersistence([
+            'status' => 'ativo',
+            'preco_tabela' => 400.00,
+            'preco_minimo' => 350.00,
+            'produtoInsumos' => [],
+            'produtoComponentesCusto' => [
+                $this->makeComponent('Custo do produto', 'custo_produto', 'valor_fixo_brl', 120),
+                $this->makeComponent('Imposto de importacao', 'chegada_importacao', 'valor_fixo_brl', 30),
+                $this->makeComponent('Taxas de importacao', 'chegada_importacao', 'valor_fixo_brl', 10),
+                $this->makeComponent('Lucro desejado', 'lucro', 'percentual_sobre_venda', 20),
+                $this->makeComponent('ICMS saida', 'impostos_saida', 'percentual_sobre_venda', 12),
+            ],
+        ]);
+
+        $summary = $service->summarizeState($prepared, refreshSnapshots: false);
+
+        $this->assertSame(160.0, $prepared['custo_base_formacao']);
+        $this->assertEqualsWithDelta(235.29, $prepared['preco_sugerido'], 0.01);
+        $this->assertSame(120.0, $summary['custo_produto_unico']);
+        $this->assertSame(160.0, $summary['custo_insumos_ou_produto'] + $summary['custos_chegada_importacao']);
+        $this->assertSame(20.0, $summary['percentual_lucro']);
+        $this->assertSame(12.0, $summary['percentual_impostos_saida']);
+    }
+
     private function makeComponent(
         string $nome,
         string $categoria,

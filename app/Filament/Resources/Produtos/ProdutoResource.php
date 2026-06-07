@@ -179,10 +179,42 @@ class ProdutoResource extends Resource
 
                         Tab::make('Formacao de custos')
                             ->schema([
+                                Section::make('Como este produto sera formado?')
+                                    ->description('Escolha se o custo vem de uma composicao de insumos ou de um produto pronto comprado de um fornecedor.')
+                                    ->icon(Heroicon::OutlinedCog6Tooth)
+                                    ->columns(2)
+                                    ->columnSpanFull()
+                                    ->schema([
+                                        Toggle::make('produto_unico_sem_insumo')
+                                            ->label('Produto unico sem insumo')
+                                            ->helperText('Use esta opcao quando o produto ja chega pronto e nao precisa montar uma ficha tecnica de insumos.')
+                                            ->inline(false)
+                                            ->live()
+                                            ->afterStateUpdated(function (Set $set, bool $state): void {
+                                                if ($state) {
+                                                    $set('produtoInsumos', []);
+                                                }
+                                            }),
+
+                                        TextInput::make('custo_produto_unico')
+                                            ->label('Custo do produto')
+                                            ->helperText('Informe o valor pago pelo produto antes de chegada, importacao, lucro e impostos de saida.')
+                                            ->numeric()
+                                            ->rule('decimal:0,2')
+                                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
+                                            ->prefix('R$')
+                                            ->minValue(0.01)
+                                            ->placeholder('0,00')
+                                            ->required(fn (Get $get): bool => (bool) $get('produto_unico_sem_insumo'))
+                                            ->visible(fn (Get $get): bool => (bool) $get('produto_unico_sem_insumo'))
+                                            ->live(),
+                                    ]),
+
                                 Section::make('Composicao por insumos')
-                                    ->description('Ficha tecnica com snapshot automatico do custo de cada insumo.')
+                                    ->description('Use quando o produto e montado pela soma de um ou mais insumos.')
                                     ->icon(Heroicon::OutlinedClipboardDocumentList)
                                     ->columnSpanFull()
+                                    ->visible(fn (Get $get): bool => ! (bool) $get('produto_unico_sem_insumo'))
                                     ->schema([
                                         Repeater::make('produtoInsumos')
                                             ->relationship()
@@ -249,10 +281,21 @@ class ProdutoResource extends Resource
                                     ]),
 
                                 Section::make('Encargos e despesas adicionais')
-                                    ->description('Percentuais sobre a venda e custos fixos usados no preco sugerido.')
+                                    ->description('Informe primeiro chegada/importacao em R$, depois lucro e impostos de saida em %.')
                                     ->icon(Heroicon::OutlinedChartBar)
                                     ->columnSpanFull()
                                     ->schema([
+                                        TextInput::make('lucro_percentual')
+                                            ->label('Percentual de lucro')
+                                            ->helperText('Percentual desejado de lucro dentro do preco final sugerido.')
+                                            ->numeric()
+                                            ->rule('decimal:0,2')
+                                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
+                                            ->suffix('%')
+                                            ->minValue(0)
+                                            ->placeholder('0,00')
+                                            ->live(),
+
                                         Repeater::make('produtoComponentesCusto')
                                             ->relationship()
                                             ->orderColumn('ordem')
@@ -306,19 +349,31 @@ class ProdutoResource extends Resource
                                     ->columnSpanFull()
                                     ->schema([
                                         Placeholder::make('resumo_custo_total_insumos')
-                                            ->label('Custo total de insumos')
+                                            ->label('Insumos / produto')
                                             ->content(fn(Get $get): string => static::formatCurrency(
-                                                static::buildResumo($get)['custo_total_insumos']
+                                                static::buildResumo($get)['custo_insumos_ou_produto']
                                             )),
 
                                         Placeholder::make('resumo_custos_adicionais')
-                                            ->label('Custos adicionais')
+                                            ->label('Chegada / importacao')
                                             ->content(fn(Get $get): string => static::formatCurrency(
-                                                static::buildResumo($get)['custos_adicionais']
+                                                static::buildResumo($get)['custos_chegada_importacao']
+                                            )),
+
+                                        Placeholder::make('resumo_percentual_lucro')
+                                            ->label('Lucro')
+                                            ->content(fn(Get $get): string => static::formatPercent(
+                                                static::buildResumo($get)['percentual_lucro']
+                                            )),
+
+                                        Placeholder::make('resumo_percentual_impostos_saida')
+                                            ->label('Impostos de saida')
+                                            ->content(fn(Get $get): string => static::formatPercent(
+                                                static::buildResumo($get)['percentual_impostos_saida']
                                             )),
 
                                         Placeholder::make('resumo_percentual_sobre_venda')
-                                            ->label('Percentual sobre venda')
+                                            ->label('Percentual total')
                                             ->content(fn(Get $get): string => static::formatPercent(
                                                 static::buildResumo($get)['percentual_sobre_venda']
                                             )),
@@ -463,14 +518,14 @@ class ProdutoResource extends Resource
         return static::configureModalAction($action)
             ->label('Novo produto')
             ->createAnother(false)
-            ->mutateFormDataUsing(fn(array $data): array => app(ProdutoPricingCalculator::class)->prepareForPersistence($data));
+            ->mutateFormDataUsing(fn(array $data): array => static::prepareProductFormData($data));
     }
 
     public static function configureEditAction(EditAction $action): EditAction
     {
         return static::configureModalAction($action, withDelete: true)
             ->fillForm(fn(Produto $record): array => static::getModalFormData($record))
-            ->mutateFormDataUsing(fn(array $data): array => app(ProdutoPricingCalculator::class)->prepareForPersistence($data));
+            ->mutateFormDataUsing(fn(array $data): array => static::prepareProductFormData($data));
     }
 
     public static function getModalFormData(Produto $record): array
@@ -573,9 +628,101 @@ class ProdutoResource extends Resource
     protected static function buildResumo(Get $get): array
     {
         return app(ProdutoPricingCalculator::class)->summarizeState([
-            'produtoInsumos' => $get('produtoInsumos') ?? [],
-            'produtoComponentesCusto' => $get('produtoComponentesCusto') ?? [],
+            'produtoInsumos' => (bool) $get('produto_unico_sem_insumo') ? [] : ($get('produtoInsumos') ?? []),
+            'produtoComponentesCusto' => static::componentesFromGuidedFields([
+                'produto_unico_sem_insumo' => $get('produto_unico_sem_insumo'),
+                'custo_produto_unico' => $get('custo_produto_unico'),
+                'lucro_percentual' => $get('lucro_percentual'),
+                'produtoComponentesCusto' => $get('produtoComponentesCusto') ?? [],
+            ]),
         ]);
+    }
+
+    protected static function prepareProductFormData(array $data): array
+    {
+        if (filter_var($data['produto_unico_sem_insumo'] ?? false, FILTER_VALIDATE_BOOL)) {
+            $data['produtoInsumos'] = [];
+        }
+
+        $data['produtoComponentesCusto'] = static::componentesFromGuidedFields($data);
+
+        $prepared = app(ProdutoPricingCalculator::class)->prepareForPersistence($data);
+
+        unset(
+            $prepared['produto_unico_sem_insumo'],
+            $prepared['custo_produto_unico'],
+            $prepared['lucro_percentual'],
+        );
+
+        return $prepared;
+    }
+
+    protected static function componentesFromGuidedFields(array $data): array
+    {
+        $componentes = collect($data['produtoComponentesCusto'] ?? [])
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->reject(fn (array $item): bool => static::isGuidedComponent($item))
+            ->values();
+
+        if (filter_var($data['produto_unico_sem_insumo'] ?? false, FILTER_VALIDATE_BOOL)) {
+            $componentes->prepend(static::makeGuidedComponent(
+                ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT,
+                'custo_produto',
+                'valor_fixo_brl',
+                static::parseNumber($data['custo_produto_unico'] ?? 0),
+                true,
+            ));
+        }
+
+        $lucroPercentual = static::parseNumber($data['lucro_percentual'] ?? 0);
+
+        if ($lucroPercentual > 0) {
+            $componentes->push(static::makeGuidedComponent(
+                ProdutoPricingCalculator::PROFIT_COMPONENT,
+                'lucro',
+                'percentual_sobre_venda',
+                $lucroPercentual,
+                false,
+            ));
+        }
+
+        return $componentes
+            ->values()
+            ->map(function (array $item, int $index): array {
+                $item['ordem'] = $index;
+
+                return $item;
+            })
+            ->all();
+    }
+
+    protected static function isGuidedComponent(array $item): bool
+    {
+        return in_array($item['nome'] ?? '', [
+            ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT,
+            ProdutoPricingCalculator::PROFIT_COMPONENT,
+        ], true);
+    }
+
+    protected static function makeGuidedComponent(
+        string $nome,
+        string $categoria,
+        string $tipo,
+        float $valor,
+        bool $obrigatorio,
+    ): array {
+        return [
+            'nome' => $nome,
+            'categoria' => $categoria,
+            'tipo' => $tipo,
+            'valor' => $valor,
+            'obrigatorio' => $obrigatorio,
+        ];
+    }
+
+    protected static function parseNumber(mixed $value): float
+    {
+        return NumericFormat::parse($value, 4) ?? 0.0;
     }
 
     protected static function formatCurrency(float|int|null $value): string

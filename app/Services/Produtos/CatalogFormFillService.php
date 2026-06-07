@@ -160,16 +160,16 @@ class CatalogFormFillService
         return collect($this->produtoPricingCalculator->defaultComponentes())
             ->map(function (array $component): array {
                 $component['valor'] = match ($component['nome']) {
-                    'COFINS' => 7.6,
-                    'PIS' => 1.65,
+                    'Custos de chegada' => 18.0,
+                    'Imposto de importacao' => 14.5,
+                    'Taxas de importacao' => 9.5,
+                    'COFINS saida' => 7.6,
+                    'PIS saida' => 1.65,
                     'CSLL' => 1.2,
                     'IR' => 1.2,
-                    'IPI' => 3.5,
-                    'ICMS' => 12.0,
+                    'IPI saida' => 3.5,
+                    'ICMS saida' => 12.0,
                     'Comissao' => 4.0,
-                    'Frete' => 18.0,
-                    'Outras despesas' => 9.5,
-                    'Despesas gerais' => 11.0,
                     default => $component['valor'] ?? 0,
                 };
 

@@ -29,6 +29,10 @@ class ProdutoComponenteCusto extends Model
     public static function categoriaOptions(): array
     {
         return [
+            'custo_produto' => 'Custo do produto',
+            'chegada_importacao' => 'Chegada / importacao',
+            'lucro' => 'Lucro',
+            'impostos_saida' => 'Impostos de saida',
             'impostos' => 'Impostos',
             'comerciais' => 'Comerciais',
             'custos_fixos' => 'Custos fixos',
