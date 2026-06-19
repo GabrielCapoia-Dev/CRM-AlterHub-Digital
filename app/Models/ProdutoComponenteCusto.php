@@ -30,18 +30,8 @@ class ProdutoComponenteCusto extends Model
     {
         return [
             'custo_produto' => 'Custo do produto',
-            'custo_entrada' => 'Custo de entrada',
-            'imposto_entrada' => 'Imposto de entrada',
-            'custo_producao' => 'Custo de producao',
-            'imposto_producao' => 'Imposto de producao',
-            'custo_saida' => 'Custo de saida',
-            'imposto_saida' => 'Imposto de saida',
-            'chegada_importacao' => 'Chegada / importacao',
+            'fator' => 'Fator',
             'lucro' => 'Lucro',
-            'impostos_saida' => 'Impostos de saida',
-            'impostos' => 'Impostos',
-            'comerciais' => 'Comerciais',
-            'custos_fixos' => 'Custos fixos',
             'personalizado' => 'Personalizado',
         ];
     }
@@ -49,7 +39,7 @@ class ProdutoComponenteCusto extends Model
     public static function tipoOptions(): array
     {
         return [
-            'percentual_sobre_venda' => 'Percentual sobre a venda',
+            'percentual' => 'Percentual sobre a base',
             'valor_fixo_brl' => 'Valor fixo em BRL',
         ];
     }

@@ -17,18 +17,7 @@ class ProdutoPricingCalculator
 
     public function defaultComponentes(): array
     {
-        return [
-            $this->makeDefaultComponent('Frete de entrada', 'custo_entrada', 'valor_fixo_brl', 0, false),
-            $this->makeDefaultComponent('Imposto de importacao', 'imposto_entrada', 'valor_fixo_brl', 0, false),
-            $this->makeDefaultComponent('Taxas de importacao', 'imposto_entrada', 'valor_fixo_brl', 0, false),
-            $this->makeDefaultComponent('Embalagem / producao', 'custo_producao', 'valor_fixo_brl', 0, false),
-            $this->makeDefaultComponent('Imposto na producao', 'imposto_producao', 'valor_fixo_brl', 0, false),
-            $this->makeDefaultComponent('COFINS saida', 'imposto_saida', 'percentual_sobre_venda', 0, true),
-            $this->makeDefaultComponent('PIS saida', 'imposto_saida', 'percentual_sobre_venda', 0, true),
-            $this->makeDefaultComponent('IPI saida', 'imposto_saida', 'percentual_sobre_venda', 0, false),
-            $this->makeDefaultComponent('ICMS saida', 'imposto_saida', 'percentual_sobre_venda', 0, true),
-            $this->makeDefaultComponent('Comissao', 'custo_saida', 'percentual_sobre_venda', 0, false),
-        ];
+        return [];
     }
 
     public function prepareForPersistence(array $data, bool $refreshSnapshots = true): array
@@ -38,6 +27,8 @@ class ProdutoPricingCalculator
 
         $normalized['custo_base_formacao'] = $summary['custo_base_formacao'];
         $normalized['preco_sugerido'] = $summary['preco_sugerido'];
+        $normalized['preco_minimo'] = $summary['preco_minimo'];
+        $normalized['preco_tabela'] = $summary['preco_tabela'];
         $normalized['ativo'] = ! in_array($normalized['status'], ['inativo', 'descontinuado'], true);
 
         $this->validate($normalized, $summary);
@@ -105,17 +96,13 @@ class ProdutoPricingCalculator
                 return [
                     'id' => $item['id'] ?? null,
                     'nome' => trim((string) ($item['nome'] ?? '')),
-                    'categoria' => $item['categoria'] ?? 'personalizado',
-                    'tipo' => $item['tipo'] ?? 'percentual_sobre_venda',
+                    'categoria' => $item['categoria'] ?? 'fator',
+                    'tipo' => $this->normalizeFactorType($item['tipo'] ?? null),
                     'valor' => $this->toNullableFloat($item['valor']) ?? 0.0,
                     'obrigatorio' => filter_var($item['obrigatorio'] ?? false, FILTER_VALIDATE_BOOL),
                     'ordem' => $item['ordem'] ?? $index,
                 ];
             });
-
-        if ($componentes->isEmpty()) {
-            $componentes = collect($this->defaultComponentes());
-        }
 
         $insumos = collect(Arr::get($data, 'produtoInsumos', []))
             ->filter(fn (mixed $item): bool => is_array($item))
@@ -156,12 +143,6 @@ class ProdutoPricingCalculator
             4,
         );
 
-        $custosAdicionais = round(
-            $componentesCollection
-                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'valor_fixo_brl')
-                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
-            4,
-        );
         $custoProdutoUnico = round(
             $componentesCollection
                 ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'valor_fixo_brl')
@@ -170,92 +151,63 @@ class ProdutoPricingCalculator
                 ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
             4,
         );
-        $custosChegadaImportacao = round(
-            $componentesCollection
+
+        $fatores = $componentesCollection
+            ->reject(fn (array $item): bool => in_array(($item['nome'] ?? ''), [
+                self::SINGLE_PRODUCT_COST_COMPONENT,
+                self::PROFIT_COMPONENT,
+            ], true))
+            ->reject(fn (array $item): bool => in_array(($item['categoria'] ?? null), ['custo_produto', 'lucro'], true));
+
+        $fatorDivisor = $fatores
+            ->filter(fn (array $item): bool => $this->isDivisorPercentualFactor($item))
+            ->reduce(
+                fn (float $acumulado, array $item): float => $acumulado * (float) ($item['valor'] ?? 1),
+                1.0,
+            );
+
+        $somaFixosBrl = round(
+            $fatores
                 ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'valor_fixo_brl')
-                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), [
-                    'chegada_importacao',
-                    'custo_entrada',
-                    'imposto_entrada',
-                ], true))
-                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
-            4,
-        );
-        $custosProducao = round(
-            $componentesCollection
-                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'valor_fixo_brl')
-                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), [
-                    'custo_producao',
-                    'imposto_producao',
-                ], true))
-                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
-            4,
-        );
-        $custosSaidaFixos = round(
-            $componentesCollection
-                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'valor_fixo_brl')
-                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), [
-                    'custo_saida',
-                    'imposto_saida',
-                    'impostos_saida',
-                    'comerciais',
-                    'custos_fixos',
-                    'personalizado',
-                ], true))
                 ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
             4,
         );
 
-        $percentualSobreVenda = round(
-            $componentesCollection
-                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'percentual_sobre_venda')
+        $somaPercentuais = round(
+            $fatores
+                ->filter(fn (array $item): bool => $this->isAdditionalPercentualFactor($item))
                 ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
             4,
         );
+
         $percentualLucro = round(
             $componentesCollection
-                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'percentual_sobre_venda')
+                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'percentual')
                 ->filter(fn (array $item): bool => ($item['categoria'] ?? null) === 'lucro'
                     || ($item['nome'] ?? null) === self::PROFIT_COMPONENT)
                 ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
             4,
         );
-        $percentualImpostosSaida = round(
-            $componentesCollection
-                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'percentual_sobre_venda')
-                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), ['imposto_saida', 'impostos_saida', 'impostos'], true))
-                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
-            4,
-        );
-        $percentualCustosSaida = round(
-            $componentesCollection
-                ->filter(fn (array $item): bool => ($item['tipo'] ?? null) === 'percentual_sobre_venda')
-                ->filter(fn (array $item): bool => in_array(($item['categoria'] ?? null), ['custo_saida', 'comerciais', 'custos_fixos', 'personalizado'], true))
-                ->sum(fn (array $item): float => (float) ($item['valor'] ?? 0)),
-            4,
-        );
 
-        $custoBaseFormacao = round($custoTotalInsumos + $custosAdicionais, 4);
+        $precoProduto = round($custoTotalInsumos + $custoProdutoUnico, 4);
+        $valorFinalProduto = round((($precoProduto + $somaFixosBrl) / $fatorDivisor) * (1 + ($somaPercentuais / 100)), 4);
+        $precoVendaFinal = round($valorFinalProduto * (1 + ($percentualLucro / 100)), 2);
 
         return [
             'custo_total_insumos' => $custoTotalInsumos,
             'custo_produto_unico' => $custoProdutoUnico,
-            'custo_insumos_ou_produto' => round($custoTotalInsumos + $custoProdutoUnico, 4),
-            'custos_adicionais' => $custosAdicionais,
-            'custos_chegada_importacao' => $custosChegadaImportacao,
-            'custos_entrada' => $custosChegadaImportacao,
-            'custos_producao' => $custosProducao,
-            'custos_saida_fixos' => $custosSaidaFixos,
-            'percentual_sobre_venda' => $percentualSobreVenda,
+            'custo_insumos_ou_produto' => $precoProduto,
+            'preco_produto' => $precoProduto,
+            'soma_fixos_brl' => $somaFixosBrl,
+            'soma_percentuais' => $somaPercentuais,
+            'fator_divisor' => round($fatorDivisor, 6),
+            'valor_final_produto' => $valorFinalProduto,
+            'preco_minimo' => round($valorFinalProduto, 2),
             'percentual_lucro' => $percentualLucro,
-            'percentual_impostos_saida' => $percentualImpostosSaida,
-            'percentual_custos_saida' => $percentualCustosSaida,
-            'percentual_saida' => round($percentualImpostosSaida + $percentualCustosSaida, 4),
-            'percentual_total' => $percentualSobreVenda,
-            'custo_base_formacao' => $custoBaseFormacao,
-            'preco_sugerido' => $percentualSobreVenda >= 100
-                ? null
-                : round($custoBaseFormacao / (1 - ($percentualSobreVenda / 100)), 2),
+            'preco_venda_final' => $precoVendaFinal,
+            'preco_tabela' => $precoVendaFinal,
+            'preco_sugerido' => $precoVendaFinal,
+            'custo_base_formacao' => $precoProduto,
         ];
     }
 
@@ -267,24 +219,8 @@ class ProdutoPricingCalculator
             $messages['status'] = 'Selecione um status valido para o produto.';
         }
 
-        if (($data['preco_tabela'] ?? 0) <= 0) {
-            $messages['preco_tabela'] = 'Informe um preco base maior que zero.';
-        }
-
-        if (($data['preco_minimo'] ?? 0) <= 0) {
-            $messages['preco_minimo'] = 'Informe um preco minimo maior que zero.';
-        }
-
-        if (
-            ($data['preco_tabela'] ?? null) !== null
-            && ($data['preco_minimo'] ?? null) !== null
-            && $data['preco_minimo'] > $data['preco_tabela']
-        ) {
-            $messages['preco_minimo'] = 'O preco minimo nao pode ser maior que o preco base.';
-        }
-
-        if ($summary['percentual_total'] >= 100) {
-            $messages['produtoComponentesCusto'] = 'A soma dos percentuais sobre a venda deve ser menor que 100%.';
+        if (($summary['preco_produto'] ?? 0) <= 0) {
+            $messages['produtoInsumos'] = 'Informe insumos ou o preco do produto para formar o custo.';
         }
 
         foreach ($data['produtoInsumos'] as $index => $item) {
@@ -299,23 +235,19 @@ class ProdutoPricingCalculator
 
         foreach ($data['produtoComponentesCusto'] as $index => $item) {
             if (blank($item['nome'] ?? null)) {
-                $messages["produtoComponentesCusto.$index.nome"] = 'Nomeie cada componente de custo.';
-            }
-
-            if (! array_key_exists($item['categoria'] ?? '', ProdutoComponenteCusto::categoriaOptions())) {
-                $messages["produtoComponentesCusto.$index.categoria"] = 'Selecione uma categoria valida para o componente.';
+                $messages["produtoComponentesCusto.$index.nome"] = 'Nomeie cada fator de custo.';
             }
 
             if (! array_key_exists($item['tipo'] ?? '', ProdutoComponenteCusto::tipoOptions())) {
-                $messages["produtoComponentesCusto.$index.tipo"] = 'Selecione um tipo valido para o componente.';
+                $messages["produtoComponentesCusto.$index.tipo"] = 'Selecione um tipo valido para o fator.';
             }
 
             if (($item['valor'] ?? 0) < 0) {
-                $messages["produtoComponentesCusto.$index.valor"] = 'O valor do componente nao pode ser negativo.';
+                $messages["produtoComponentesCusto.$index.valor"] = 'O valor do fator nao pode ser negativo.';
             }
 
             if (($item['nome'] ?? '') === self::SINGLE_PRODUCT_COST_COMPONENT && ($item['valor'] ?? 0) <= 0) {
-                $messages["produtoComponentesCusto.$index.valor"] = 'Informe o custo do produto unico sem insumo.';
+                $messages["produtoComponentesCusto.$index.valor"] = 'Informe o preco do produto.';
             }
         }
 
@@ -324,20 +256,9 @@ class ProdutoPricingCalculator
         }
     }
 
-    protected function makeDefaultComponent(
-        string $nome,
-        string $categoria,
-        string $tipo,
-        float $valor,
-        bool $obrigatorio,
-    ): array {
-        return [
-            'nome' => $nome,
-            'categoria' => $categoria,
-            'tipo' => $tipo,
-            'valor' => $valor,
-            'obrigatorio' => $obrigatorio,
-        ];
+    protected function normalizeFactorType(?string $type): ?string
+    {
+        return $type === 'percentual_sobre_venda' ? 'percentual' : $type;
     }
 
     protected function toNullableFloat(mixed $value): ?float
@@ -360,5 +281,25 @@ class ProdutoPricingCalculator
         $trimmed = trim((string) $value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    protected function isDivisorPercentualFactor(array $fator): bool
+    {
+        if (($fator['tipo'] ?? null) !== 'percentual') {
+            return false;
+        }
+
+        $valor = (float) ($fator['valor'] ?? 0);
+
+        return $valor > 0 && $valor < 1;
+    }
+
+    protected function isAdditionalPercentualFactor(array $fator): bool
+    {
+        if (($fator['tipo'] ?? null) !== 'percentual') {
+            return false;
+        }
+
+        return (float) ($fator['valor'] ?? 0) >= 1;
     }
 }

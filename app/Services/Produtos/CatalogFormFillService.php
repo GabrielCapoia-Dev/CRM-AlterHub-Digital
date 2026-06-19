@@ -88,9 +88,8 @@ class CatalogFormFillService
             'produtoComponentesCusto' => $produtoComponentesCusto,
         ], refreshSnapshots: false);
 
-        $precoSugerido = $summary['preco_sugerido'] ?? 0.0;
-        $precoTabela = round(max($precoSugerido * 1.12, 120), 2);
-        $precoMinimo = round($precoTabela * 0.9, 2);
+        $precoTabela = $summary['preco_tabela'] ?? 0.0;
+        $precoMinimo = $summary['preco_minimo'] ?? 0.0;
         $unidadePadrao = TipoUnidadeMedida::query()->orderBy('nome')->first();
 
         return [
@@ -113,6 +112,7 @@ class CatalogFormFillService
             'observacao' => 'Fill aplicado automaticamente para validacao do fluxo de precificacao.',
             'produtoInsumos' => $produtoInsumos,
             'produtoComponentesCusto' => $produtoComponentesCusto,
+            'lucro_percentual' => 18,
         ];
     }
 
@@ -157,26 +157,32 @@ class CatalogFormFillService
      */
     protected function sampleProdutoComponentesCusto(): array
     {
-        return collect($this->produtoPricingCalculator->defaultComponentes())
-            ->map(function (array $component): array {
-                $component['valor'] = match ($component['nome']) {
-                    'Frete de entrada' => 18.0,
-                    'Imposto de importacao' => 14.5,
-                    'Taxas de importacao' => 9.5,
-                    'Embalagem / producao' => 11.0,
-                    'Imposto na producao' => 1.2,
-                    'COFINS saida' => 7.6,
-                    'PIS saida' => 1.65,
-                    'IPI saida' => 3.5,
-                    'ICMS saida' => 12.0,
-                    'Comissao' => 4.0,
-                    default => $component['valor'] ?? 0,
-                };
-
-                return $component;
-            })
-            ->values()
-            ->all();
+        return [
+            [
+                'nome' => 'Frete e embalagem',
+                'categoria' => 'fator',
+                'tipo' => 'valor_fixo_brl',
+                'valor' => 18.0,
+                'obrigatorio' => false,
+                'ordem' => 0,
+            ],
+            [
+                'nome' => 'Operacional',
+                'categoria' => 'fator',
+                'tipo' => 'percentual',
+                'valor' => 12.0,
+                'obrigatorio' => false,
+                'ordem' => 1,
+            ],
+            [
+                'nome' => ProdutoPricingCalculator::PROFIT_COMPONENT,
+                'categoria' => 'lucro',
+                'tipo' => 'percentual',
+                'valor' => 18.0,
+                'obrigatorio' => false,
+                'ordem' => 2,
+            ],
+        ];
     }
 
     protected function requiredValue(mixed $value, string $message): mixed

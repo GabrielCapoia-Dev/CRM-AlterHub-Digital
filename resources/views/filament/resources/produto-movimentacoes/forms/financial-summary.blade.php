@@ -41,19 +41,19 @@
             </article>
 
             <article class="insumo-mov-summary__stat">
-                <span class="insumo-mov-summary__stat-label">Preco sugerido</span>
+                <span class="insumo-mov-summary__stat-label">Venda final sugerida</span>
                 <div class="insumo-mov-summary__stat-value">{{ $summary['preco_sugerido'] }}</div>
             </article>
 
             <article class="insumo-mov-summary__stat">
-                <span class="insumo-mov-summary__stat-label">Preco base</span>
+                <span class="insumo-mov-summary__stat-label">Venda final</span>
                 <div class="insumo-mov-summary__stat-value">{{ $summary['preco_tabela'] }}</div>
             </article>
 
             <article class="insumo-mov-summary__stat insumo-mov-summary__stat--highlight">
-                <span class="insumo-mov-summary__stat-label">Preco minimo</span>
+                <span class="insumo-mov-summary__stat-label">Venda minima</span>
                 <div class="insumo-mov-summary__stat-value">{{ $summary['preco_minimo'] }}</div>
-                <p class="insumo-mov-summary__stat-hint">Referencia comercial cadastrada para o produto.</p>
+                <p class="insumo-mov-summary__stat-hint">Limite minimo para desconto ao cliente.</p>
             </article>
         </div>
 

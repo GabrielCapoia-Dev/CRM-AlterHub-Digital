@@ -5,6 +5,7 @@ namespace App\Services\Produtos;
 use App\Models\Produto;
 use App\Models\ProdutoComponenteCusto;
 use App\Models\ProdutoInsumo;
+use App\Support\Ui\NumericFormat;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -26,8 +27,8 @@ class ProdutoCostingService
             ->map(fn (ProdutoComponenteCusto $item): array => [
                 'id' => $item->id,
                 'nome' => $item->nome,
-                'categoria' => $item->categoria,
-                'tipo' => $item->tipo,
+                'categoria' => $this->normalizeComponentCategory($item->categoria),
+                'tipo' => $this->normalizeComponentType($item->tipo),
                 'valor' => (float) $item->valor,
                 'obrigatorio' => $item->obrigatorio,
                 'ordem' => $item->ordem,
@@ -56,37 +57,18 @@ class ProdutoCostingService
             'custo_produto_unico' => $this->componentValue($componentes, ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT),
             'lucro_percentual' => $this->componentValue($componentes, ProdutoPricingCalculator::PROFIT_COMPONENT),
             'produtoInsumos' => $insumos,
-            'custosEntradaComponentes' => $this->componentesPorCategorias($componentes, [
-                'custo_entrada',
-                'imposto_entrada',
-                'chegada_importacao',
-            ]),
-            'custosProducaoComponentes' => $this->componentesPorCategorias($componentes, [
-                'custo_producao',
-                'imposto_producao',
-            ]),
-            'custosSaidaComponentes' => $this->componentesPorCategorias($componentes, [
-                'custo_saida',
-                'imposto_saida',
-                'impostos_saida',
-                'comerciais',
-                'impostos',
-                'custos_fixos',
-                'personalizado',
-            ]),
             'produtoComponentesCusto' => $hideGuidedComponents ? $this->visibleComponentes($componentes) : $componentes,
         ];
     }
 
     public function applyBulkCostConfiguration(EloquentCollection|Collection $produtos, array $data): int
     {
-        $applyPrecoTabela = filter_var($data['apply_preco_tabela'] ?? false, FILTER_VALIDATE_BOOL);
-        $applyPrecoMinimo = filter_var($data['apply_preco_minimo'] ?? false, FILTER_VALIDATE_BOOL);
+        $applyLucro = filter_var($data['apply_lucro_percentual'] ?? false, FILTER_VALIDATE_BOOL);
         $applyComponentes = filter_var($data['apply_componentes_custo'] ?? false, FILTER_VALIDATE_BOOL);
 
-        if (! $applyPrecoTabela && ! $applyPrecoMinimo && ! $applyComponentes) {
+        if (! $applyLucro && ! $applyComponentes) {
             throw ValidationException::withMessages([
-                'apply_preco_tabela' => 'Selecione pelo menos um bloco de custo para aplicar em lote.',
+                'apply_lucro_percentual' => 'Selecione pelo menos um bloco de custo para aplicar em lote.',
             ]);
         }
 
@@ -98,20 +80,23 @@ class ProdutoCostingService
 
         $updatedCount = 0;
 
-        DB::transaction(function () use ($produtos, $data, $applyPrecoTabela, $applyPrecoMinimo, $applyComponentes, &$updatedCount): void {
+        DB::transaction(function () use ($produtos, $data, $applyLucro, $applyComponentes, &$updatedCount): void {
             foreach ($produtos as $produto) {
                 $payload = $this->formData($produto, hideGuidedComponents: false);
 
-                if ($applyPrecoTabela) {
-                    $payload['preco_tabela'] = $data['preco_tabela'] ?? null;
-                }
-
-                if ($applyPrecoMinimo) {
-                    $payload['preco_minimo'] = $data['preco_minimo'] ?? null;
+                if ($applyLucro) {
+                    $payload['lucro_percentual'] = $data['lucro_percentual'] ?? 0;
+                    $payload['produtoComponentesCusto'] = $this->replaceProfitComponent(
+                        $payload['produtoComponentesCusto'] ?? [],
+                        NumericFormat::parse($data['lucro_percentual'] ?? 0, 4) ?? 0.0,
+                    );
                 }
 
                 if ($applyComponentes) {
-                    $payload['produtoComponentesCusto'] = $data['produtoComponentesCusto'] ?? [];
+                    $payload['produtoComponentesCusto'] = $this->mergeGuidedComponents(
+                        $payload['produtoComponentesCusto'] ?? [],
+                        $data['produtoComponentesCusto'] ?? [],
+                    );
                 }
 
                 $prepared = $this->calculator->prepareForPersistence($payload);
@@ -122,9 +107,6 @@ class ProdutoCostingService
                     'produto_unico_sem_insumo',
                     'custo_produto_unico',
                     'lucro_percentual',
-                    'custosEntradaComponentes',
-                    'custosProducaoComponentes',
-                    'custosSaidaComponentes',
                 ]));
                 $produto->save();
 
@@ -192,8 +174,8 @@ class ProdutoCostingService
         foreach (collect($items)->filter(fn (mixed $item): bool => is_array($item))->values() as $index => $item) {
             $payload = [
                 'nome' => $item['nome'] ?? null,
-                'categoria' => $item['categoria'] ?? 'personalizado',
-                'tipo' => $item['tipo'] ?? 'percentual_sobre_venda',
+                'categoria' => $item['categoria'] ?? 'fator',
+                'tipo' => $item['tipo'] ?? 'percentual',
                 'valor' => $item['valor'] ?? 0,
                 'obrigatorio' => filter_var($item['obrigatorio'] ?? false, FILTER_VALIDATE_BOOL),
                 'ordem' => $item['ordem'] ?? $index,
@@ -235,33 +217,53 @@ class ProdutoCostingService
                 ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT,
                 ProdutoPricingCalculator::PROFIT_COMPONENT,
             ], true))
-            ->reject(fn (array $item): bool => in_array($item['categoria'] ?? '', [
-                'custo_entrada',
-                'imposto_entrada',
-                'chegada_importacao',
-                'custo_producao',
-                'imposto_producao',
-                'custo_saida',
-                'imposto_saida',
-                'impostos_saida',
-                'comerciais',
-                'impostos',
-                'custos_fixos',
-                'personalizado',
-            ], true))
             ->values()
             ->all();
     }
 
-    protected function componentesPorCategorias(array $componentes, array $categorias): array
+    protected function mergeGuidedComponents(array $currentComponentes, array $newFactors): array
     {
-        return collect($componentes)
-            ->reject(fn (array $item): bool => in_array($item['nome'] ?? '', [
+        $guided = collect($currentComponentes)
+            ->filter(fn (array $item): bool => in_array($item['nome'] ?? '', [
                 ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT,
                 ProdutoPricingCalculator::PROFIT_COMPONENT,
             ], true))
-            ->filter(fn (array $item): bool => in_array($item['categoria'] ?? '', $categorias, true))
+            ->values();
+
+        return collect($newFactors)
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->values()
+            ->merge($guided)
             ->values()
             ->all();
+    }
+
+    protected function replaceProfitComponent(array $componentes, float $lucroPercentual): array
+    {
+        $items = collect($componentes)
+            ->reject(fn (array $item): bool => ($item['nome'] ?? '') === ProdutoPricingCalculator::PROFIT_COMPONENT)
+            ->values();
+
+        if ($lucroPercentual > 0) {
+            $items->push([
+                'nome' => ProdutoPricingCalculator::PROFIT_COMPONENT,
+                'categoria' => 'lucro',
+                'tipo' => 'percentual',
+                'valor' => $lucroPercentual,
+                'obrigatorio' => false,
+            ]);
+        }
+
+        return $items->values()->all();
+    }
+
+    protected function normalizeComponentCategory(?string $category): string
+    {
+        return in_array($category, ['custo_produto', 'lucro'], true) ? $category : 'fator';
+    }
+
+    protected function normalizeComponentType(?string $type): string
+    {
+        return $type === 'valor_fixo_brl' ? 'valor_fixo_brl' : 'percentual';
     }
 }

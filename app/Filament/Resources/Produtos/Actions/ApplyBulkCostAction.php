@@ -35,49 +35,33 @@ class ApplyBulkCostAction
             ->modalDescription('Selecione quais campos devem sobrescrever os produtos selecionados.')
             ->modalSubmitActionLabel('Aplicar configuracao')
             ->schema([
-                Section::make('Precos de referencia')
-                    ->description('Atualize o preco base e o preco minimo apenas quando fizer sentido para todos os itens selecionados.')
+                Section::make('Lucro')
+                    ->description('Atualize o percentual usado para formar o preco de venda final.')
                     ->icon(Heroicon::OutlinedReceiptPercent)
-                    ->columns(2)
                     ->schema([
-                        Toggle::make('apply_preco_tabela')
-                            ->label('Atualizar preco base')
+                        Toggle::make('apply_lucro_percentual')
+                            ->label('Atualizar percentual de lucro')
                             ->inline(false)
                             ->live(),
 
-                        Toggle::make('apply_preco_minimo')
-                            ->label('Atualizar preco minimo')
-                            ->inline(false)
-                            ->live(),
-
-                        TextInput::make('preco_tabela')
-                            ->label('Preco base')
+                        TextInput::make('lucro_percentual')
+                            ->label('Percentual de lucro')
                             ->numeric()
                             ->rule('decimal:0,2')
                             ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                            ->prefix('R$')
+                            ->suffix('%')
                             ->placeholder('0,00')
-                            ->visible(fn (Get $get): bool => (bool) $get('apply_preco_tabela'))
-                            ->required(fn (Get $get): bool => (bool) $get('apply_preco_tabela')),
-
-                        TextInput::make('preco_minimo')
-                            ->label('Preco minimo')
-                            ->numeric()
-                            ->rule('decimal:0,2')
-                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                            ->prefix('R$')
-                            ->placeholder('0,00')
-                            ->visible(fn (Get $get): bool => (bool) $get('apply_preco_minimo'))
-                            ->required(fn (Get $get): bool => (bool) $get('apply_preco_minimo')),
+                            ->visible(fn (Get $get): bool => (bool) $get('apply_lucro_percentual'))
+                            ->required(fn (Get $get): bool => (bool) $get('apply_lucro_percentual')),
                     ]),
 
-                Section::make('Componentes de custo')
-                    ->description('Substitua a composicao de impostos, encargos e custos fixos por uma configuracao padrao.')
+                Section::make('Fatores')
+                    ->description('Substitua os fatores dos produtos selecionados por uma configuracao padrao.')
                     ->icon(Heroicon::OutlinedClipboardDocumentList)
                     ->schema([
                         Toggle::make('apply_componentes_custo')
-                            ->label('Substituir componentes de custo')
-                            ->helperText('Os componentes abaixo serao aplicados para todos os produtos selecionados.')
+                            ->label('Substituir fatores')
+                            ->helperText('Os fatores abaixo serao aplicados para todos os produtos selecionados.')
                             ->inline(false)
                             ->live(),
 
@@ -85,24 +69,16 @@ class ApplyBulkCostAction
                             ->label('')
                             ->default(fn (): array => app(ProdutoPricingCalculator::class)->defaultComponentes())
                             ->visible(fn (Get $get): bool => (bool) $get('apply_componentes_custo'))
-                            ->columns(5)
                             ->table([
-                                TableColumn::make('Nome')->markAsRequired(),
-                                TableColumn::make('Categoria')->markAsRequired(),
+                                TableColumn::make('Nome do fator')->markAsRequired(),
                                 TableColumn::make('Tipo')->markAsRequired(),
                                 TableColumn::make('Valor')->markAsRequired(),
-                                TableColumn::make('Obrig.'),
                             ])
                             ->schema([
                                 TextInput::make('nome')
                                     ->hiddenLabel()
                                     ->required()
                                     ->maxLength(255),
-
-                                Select::make('categoria')
-                                    ->hiddenLabel()
-                                    ->options(ProdutoComponenteCusto::categoriaOptions())
-                                    ->required(),
 
                                 Select::make('tipo')
                                     ->hiddenLabel()
@@ -118,9 +94,10 @@ class ApplyBulkCostAction
                                     ->required(),
 
                                 Toggle::make('obrigatorio')
-                                    ->hiddenLabel(),
+                                    ->hidden()
+                                    ->default(false),
                             ])
-                            ->addActionLabel('Adicionar componente')
+                            ->addActionLabel('Adicionar fator')
                             ->reorderableWithDragAndDrop(false)
                             ->reorderableWithButtons(),
                     ]),

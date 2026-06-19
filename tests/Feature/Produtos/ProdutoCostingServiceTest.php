@@ -13,7 +13,7 @@ class ProdutoCostingServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_applies_bulk_cost_configuration_and_persists_localized_minimum_price(): void
+    public function test_it_applies_bulk_factor_configuration_and_recalculates_sale_prices(): void
     {
         $unidade = TipoUnidadeMedida::query()->create([
             'nome' => 'Unidade',
@@ -34,22 +34,20 @@ class ProdutoCostingServiceTest extends TestCase
         $updatedCount = app(ProdutoCostingService::class)->applyBulkCostConfiguration(
             Produto::query()->whereKey([$produtoA->id, $produtoB->id])->get(),
             [
-                'apply_preco_tabela' => true,
-                'preco_tabela' => '1.250,90',
-                'apply_preco_minimo' => true,
-                'preco_minimo' => '1.100,45',
+                'apply_lucro_percentual' => true,
+                'lucro_percentual' => '20,00',
                 'apply_componentes_custo' => true,
                 'produtoComponentesCusto' => [
                     [
-                        'nome' => 'ICMS',
-                        'categoria' => 'impostos',
-                        'tipo' => 'percentual_sobre_venda',
-                        'valor' => '12,50',
-                        'obrigatorio' => true,
+                        'nome' => 'Operacional',
+                        'categoria' => 'fator',
+                        'tipo' => 'percentual',
+                        'valor' => '10,00',
+                        'obrigatorio' => false,
                     ],
                     [
                         'nome' => 'Frete',
-                        'categoria' => 'custos_fixos',
+                        'categoria' => 'fator',
                         'tipo' => 'valor_fixo_brl',
                         'valor' => '30,00',
                         'obrigatorio' => false,
@@ -63,12 +61,12 @@ class ProdutoCostingServiceTest extends TestCase
         foreach ([$produtoA, $produtoB] as $produto) {
             $produto->refresh();
 
-            $this->assertSame('1250.90', $produto->preco_tabela);
-            $this->assertSame('1100.45', $produto->preco_minimo);
+            $this->assertSame('72.60', $produto->preco_tabela);
+            $this->assertSame('60.50', $produto->preco_minimo);
             $this->assertCount(1, $produto->produtoInsumos);
-            $this->assertCount(2, $produto->produtoComponentesCusto);
-            $this->assertSame(['ICMS', 'Frete'], $produto->produtoComponentesCusto()->orderBy('ordem')->pluck('nome')->all());
-            $this->assertSame('12.5000', $produto->produtoComponentesCusto()->orderBy('ordem')->first()->valor);
+            $this->assertCount(3, $produto->produtoComponentesCusto);
+            $this->assertSame(['Operacional', 'Frete', 'Lucro desejado'], $produto->produtoComponentesCusto()->orderBy('ordem')->pluck('nome')->all());
+            $this->assertSame('10.0000', $produto->produtoComponentesCusto()->orderBy('ordem')->first()->valor);
             $this->assertSame('30.0000', $produto->produtoComponentesCusto()->orderBy('ordem')->skip(1)->first()->valor);
         }
     }
@@ -94,8 +92,8 @@ class ProdutoCostingServiceTest extends TestCase
 
         $produto->produtoComponentesCusto()->create([
             'nome' => 'Comissao',
-            'categoria' => 'comerciais',
-            'tipo' => 'percentual_sobre_venda',
+            'categoria' => 'fator',
+            'tipo' => 'percentual',
             'valor' => 5.0000,
             'obrigatorio' => false,
             'ordem' => 0,
