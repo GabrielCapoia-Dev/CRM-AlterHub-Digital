@@ -175,19 +175,6 @@ class ProdutoResource extends Resource
                                                     $set('produtoInsumos', []);
                                                 }
                                             }),
-
-                                        TextInput::make('custo_produto_unico')
-                                            ->label('Preco do produto')
-                                            ->hintIcon(Heroicon::OutlinedQuestionMarkCircle, tooltip: 'Valor pago ou custo base do produto antes dos fatores e do lucro.')
-                                            ->numeric()
-                                            ->rule('decimal:0,2')
-                                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                                            ->prefix('R$')
-                                            ->minValue(0.01)
-                                            ->placeholder('0,00')
-                                            ->required(fn (Get $get): bool => (bool) $get('produto_unico_sem_insumo'))
-                                            ->visible(fn (Get $get): bool => (bool) $get('produto_unico_sem_insumo'))
-                                            ->live(),
                                     ]),
 
                                 Section::make('Composicao por insumos')
@@ -260,6 +247,34 @@ class ProdutoResource extends Resource
                                             ->reorderableWithButtons(),
                                     ]),
 
+                                Section::make('Preco base do produto')
+                                    ->description('Valor inicial usado para aplicar os fatores e formar o preco de venda minimo.')
+                                    ->icon(Heroicon::OutlinedCurrencyDollar)
+                                    ->columns(2)
+                                    ->columnSpanFull()
+                                    ->schema([
+                                        TextInput::make('custo_produto_unico')
+                                            ->label('Preco base do produto')
+                                            ->hintIcon(Heroicon::OutlinedQuestionMarkCircle, tooltip: 'Valor pago ou custo base do produto antes dos fatores e do lucro.')
+                                            ->numeric()
+                                            ->rule('decimal:0,2')
+                                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
+                                            ->prefix('R$')
+                                            ->minValue(0.01)
+                                            ->placeholder('0,00')
+                                            ->required(fn (Get $get): bool => (bool) $get('produto_unico_sem_insumo'))
+                                            ->visible(fn (Get $get): bool => (bool) $get('produto_unico_sem_insumo'))
+                                            ->live(),
+
+                                        Placeholder::make('preco_base_produto_calculado')
+                                            ->label('Preco base do produto')
+                                            ->hintIcon(Heroicon::OutlinedQuestionMarkCircle, tooltip: 'Soma dos custos totais dos insumos informados na composicao.')
+                                            ->content(fn (Get $get): string => static::formatCurrency(
+                                                static::buildResumo($get)['preco_produto']
+                                            ))
+                                            ->visible(fn (Get $get): bool => ! (bool) $get('produto_unico_sem_insumo')),
+                                    ]),
+
                                 Section::make('Fatores do produto')
                                     ->description('Mesma logica dos fatores dos insumos: valores fixos e percentuais aplicados sobre o preco do produto.')
                                     ->icon(Heroicon::OutlinedChartBar)
@@ -286,7 +301,7 @@ class ProdutoResource extends Resource
                                     ->columnSpanFull()
                                     ->schema([
                                         Placeholder::make('resumo_preco_produto')
-                                            ->label('Preco do produto')
+                                            ->label('Preco base do produto')
                                             ->content(fn(Get $get): string => static::formatCurrency(
                                                 static::buildResumo($get)['preco_produto']
                                             )),
