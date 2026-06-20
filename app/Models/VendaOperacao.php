@@ -13,6 +13,7 @@ class VendaOperacao extends Model
 
     protected $fillable = [
         'user_id',
+        'venda_operacao_pedido_id',
         'produto_id',
         'produto_movimentacao_id',
         'produto_codigo_snapshot',
@@ -41,6 +42,7 @@ class VendaOperacao extends Model
 
     protected $casts = [
         'produto_id' => 'integer',
+        'venda_operacao_pedido_id' => 'integer',
         'produto_movimentacao_id' => 'integer',
         'data_venda' => 'date',
         'ano_referencia' => 'integer',
@@ -78,6 +80,11 @@ class VendaOperacao extends Model
     public function produto(): BelongsTo
     {
         return $this->belongsTo(Produto::class, 'produto_id');
+    }
+
+    public function vendaOperacaoPedido(): BelongsTo
+    {
+        return $this->belongsTo(VendaOperacaoPedido::class, 'venda_operacao_pedido_id');
     }
 
     public function produtoMovimentacao(): BelongsTo

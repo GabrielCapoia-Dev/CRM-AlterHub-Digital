@@ -81,4 +81,41 @@ class VendaOperacaoServiceTest extends TestCase
             'preco_unitario' => 15,
         ]);
     }
+
+    public function test_it_creates_a_grouped_sale_header_for_manual_sale(): void
+    {
+        $produto = Produto::query()->create([
+            'codigo_interno' => 'PROD-VEN-03',
+            'nome' => 'Produto manual agrupado',
+            'status' => 'ativo',
+            'unidade_medida' => 'un',
+            'custo_base_formacao' => 4.0000,
+            'preco_tabela' => 18.00,
+        ]);
+
+        app(MovimentacaoEstoqueService::class)->createForProduto([
+            'produto_id' => $produto->id,
+            'tipo' => 'entrada',
+            'quantidade' => 5,
+            'valor_unitario' => 4,
+            'realizado_em' => now(),
+        ]);
+
+        $pedido = app(VendaOperacaoService::class)->createPedido([
+            'produto_id' => $produto->id,
+            'data_venda' => now()->toDateString(),
+            'quantidade' => 2,
+            'preco_unitario' => 10,
+            'cliente_nome' => 'Cliente Manual',
+        ]);
+
+        $this->assertSame('ativa', $pedido->status);
+        $this->assertSame(1, $pedido->itens_count);
+        $this->assertSame(20.0, (float) $pedido->receita_bruta_total);
+        $this->assertSame(3.0, (float) $produto->fresh()->estoqueAtual());
+        $this->assertDatabaseHas('vendas_operacao', [
+            'venda_operacao_pedido_id' => $pedido->id,
+            'produto_id' => $produto->id,
+        ]);
+    }
 }

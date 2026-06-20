@@ -17,7 +17,7 @@ class ListOportunidades extends ListRecords
     {
         return [
             Action::make('kanban')
-                ->label('CRM - Kanban')
+                ->label('CRM principal')
                 ->icon('heroicon-o-view-columns')
                 ->url(static::getResource()::getUrl()),
             OportunidadeResource::configureCreateAction(CreateAction::make()),

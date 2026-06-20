@@ -6,6 +6,7 @@ use App\Models\Clientes\Cliente;
 use App\Models\Produto;
 use App\Models\DespesaOperacional;
 use App\Models\VendaOperacao;
+use App\Models\VendaOperacaoPedido;
 use App\Models\Empresas\Fornecedor;
 use App\Models\Produtos\Insumo;
 use App\Policies\ClientePolicy;
@@ -14,6 +15,7 @@ use App\Policies\FornecedorPolicy;
 use App\Policies\InsumoPolicy;
 use App\Policies\ProdutoPolicy;
 use App\Policies\VendaOperacaoPolicy;
+use App\Policies\VendaOperacaoPedidoPolicy;
 use Illuminate\Support\ServiceProvider;
 use Filament\Support\Facades\FilamentAsset;
 use Filament\Support\Assets\Css;
@@ -35,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Insumo::class, InsumoPolicy::class);
         Gate::policy(DespesaOperacional::class, DespesaOperacionalPolicy::class);
         Gate::policy(VendaOperacao::class, VendaOperacaoPolicy::class);
+        Gate::policy(VendaOperacaoPedido::class, VendaOperacaoPedidoPolicy::class);
         Gate::policy(Cliente::class, ClientePolicy::class);
         Gate::policy(Fornecedor::class, FornecedorPolicy::class);
 

@@ -12,6 +12,7 @@ class OportunidadeProduto extends Model
     protected $fillable = [
         'oportunidade_id',
         'produto_id',
+        'quantidade',
         'preco_negociado',
         'observacao',
     ];
@@ -19,6 +20,7 @@ class OportunidadeProduto extends Model
     protected $casts = [
         'oportunidade_id' => 'integer',
         'produto_id' => 'integer',
+        'quantidade' => 'decimal:4',
         'preco_negociado' => 'decimal:2',
     ];
 

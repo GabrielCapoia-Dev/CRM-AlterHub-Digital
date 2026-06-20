@@ -32,7 +32,7 @@ class EtapaResource extends Resource
 
     protected static ?string $navigationLabel = 'Etapas';
 
-    protected static ?string $navigationParentItem = 'CRM Kanban';
+    protected static ?string $navigationParentItem = 'CRM';
 
     protected static ?string $modelLabel = 'Etapa';
 

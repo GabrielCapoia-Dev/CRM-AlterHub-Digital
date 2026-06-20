@@ -25,6 +25,8 @@ class Oportunidade extends Model
         'cliente_id',
         'etapa_id',
         'user_id',
+        'venda_operacao_pedido_id',
+        'convertida_em',
         'temperatura',
         'valor_estimado',
         'motivo_fechamento',
@@ -35,6 +37,8 @@ class Oportunidade extends Model
         'cliente_id' => 'integer',
         'etapa_id' => 'integer',
         'user_id' => 'integer',
+        'venda_operacao_pedido_id' => 'integer',
+        'convertida_em' => 'datetime',
         'valor_estimado' => 'decimal:2',
     ];
 
@@ -112,6 +116,14 @@ class Oportunidade extends Model
         return $this->belongsTo(
             User::class,
             'user_id',
+        );
+    }
+
+    public function vendaOperacaoPedido(): BelongsTo
+    {
+        return $this->belongsTo(
+            VendaOperacaoPedido::class,
+            'venda_operacao_pedido_id',
         );
     }
 

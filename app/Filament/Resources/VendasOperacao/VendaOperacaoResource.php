@@ -4,13 +4,13 @@ namespace App\Filament\Resources\VendasOperacao;
 
 use App\Filament\Resources\VendasOperacao\Pages\ManageVendasOperacao;
 use App\Models\Produto;
-use App\Models\VendaOperacao;
+use App\Models\VendaOperacaoPedido;
 use App\Services\Operacao\OperacaoAnalyticsService;
 use App\Services\Operacao\VendaOperacaoService;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
-use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -28,19 +28,21 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class VendaOperacaoResource extends Resource
 {
-    protected static ?string $model = VendaOperacao::class;
+    protected static ?string $model = VendaOperacaoPedido::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShoppingCart;
 
-    protected static ?string $navigationLabel = 'Vendas (estoque)';
+    protected static ?string $navigationLabel = 'Vendas';
 
-    protected static ?string $modelLabel = 'Venda operacional';
+    protected static ?string $modelLabel = 'Venda';
 
-    protected static ?string $pluralModelLabel = 'Vendas operacionais';
+    protected static ?string $pluralModelLabel = 'Vendas';
 
     public static ?string $slug = 'operacao/vendas';
 
@@ -60,10 +62,15 @@ class VendaOperacaoResource extends Resource
                     ->schema([
                         Select::make('produto_id')
                             ->label('Produto')
-                            ->relationship('produto', 'nome')
-                            ->getOptionLabelFromRecordUsing(fn (Produto $record): string => $record->codigo_interno
-                                ? "{$record->codigo_interno} - {$record->nome}"
-                                : $record->nome)
+                            ->options(fn (): array => Produto::query()
+                                ->orderBy('nome')
+                                ->get()
+                                ->mapWithKeys(fn (Produto $produto): array => [
+                                    $produto->id => $produto->codigo_interno
+                                        ? "{$produto->codigo_interno} - {$produto->nome}"
+                                        : $produto->nome,
+                                ])
+                                ->all())
                             ->searchable()
                             ->preload()
                             ->required()
@@ -117,7 +124,7 @@ class VendaOperacaoResource extends Resource
                         TextInput::make('quantidade')
                             ->label('Quantidade')
                             ->numeric()
-                            ->rule('decimal:0,2')
+                            ->rule('decimal:0,4')
                             ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->minValue(0.0001)
                             ->placeholder('0,00')
@@ -175,6 +182,7 @@ class VendaOperacaoResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['oportunidade', 'vendasOperacao.produto', 'vendasOperacao.produtoMovimentacao']))
             ->columns([
                 Split::make([
                     TextColumn::make('data_venda')
@@ -186,15 +194,15 @@ class VendaOperacaoResource extends Resource
                         ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
                     Stack::make([
-                        TextColumn::make('produto_nome_snapshot')
-                            ->label('Produto')
-                            ->searchable(['produto_nome_snapshot', 'produto_codigo_snapshot'])
+                        TextColumn::make('codigo')
+                            ->label('Venda')
+                            ->searchable()
                             ->weight('semibold')
-                            ->description(fn (VendaOperacao $record): ?string => $record->produto_codigo_snapshot)
+                            ->description(fn (VendaOperacaoPedido $record): ?string => $record->oportunidade?->titulo)
                             ->wrap()
                             ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
-                        TextColumn::make('cliente_nome')
+                        TextColumn::make('cliente_nome_snapshot')
                             ->label('Cliente')
                             ->searchable()
                             ->placeholder('-')
@@ -202,7 +210,7 @@ class VendaOperacaoResource extends Resource
                             ->extraAttributes(['class' => 'crm-list-field'], merge: true),
                     ]),
 
-                    TextColumn::make('lucro_apos_impostos')
+                    TextColumn::make('lucro_apos_impostos_total')
                         ->label('Lucro')
                         ->description('Lucro', position: 'above')
                         ->money('BRL')
@@ -220,21 +228,28 @@ class VendaOperacaoResource extends Resource
                     'xl' => 4,
                 ])
                     ->schema([
-                        TextColumn::make('quantidade')
-                            ->label('Qtd.')
-                            ->description('Quantidade', position: 'above')
+                        TextColumn::make('status')
+                            ->label('Status')
+                            ->description('Status', position: 'above')
+                            ->badge()
+                            ->formatStateUsing(fn (?string $state): string => VendaOperacaoPedido::statusOptions()[$state] ?? 'Ativa')
+                            ->color(fn (?string $state): string => $state === VendaOperacaoPedido::STATUS_CANCELADA ? 'danger' : 'success')
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+
+                        TextColumn::make('itens_count')
+                            ->label('Itens')
+                            ->description('Itens', position: 'above')
+                            ->alignEnd()
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
+
+                        TextColumn::make('quantidade_total')
+                            ->label('Qtd. total')
+                            ->description('Qtd. total', position: 'above')
                             ->alignEnd()
                             ->formatStateUsing(fn ($state): string => NumericFormat::decimal($state))
                             ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
 
-                        TextColumn::make('preco_unitario')
-                            ->label('Preco un.')
-                            ->description('Preco un.', position: 'above')
-                            ->money('BRL')
-                            ->alignEnd()
-                            ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
-
-                        TextColumn::make('receita_bruta')
+                        TextColumn::make('receita_bruta_total')
                             ->label('Receita')
                             ->description('Receita', position: 'above')
                             ->money('BRL')
@@ -251,7 +266,7 @@ class VendaOperacaoResource extends Resource
                     ])
                     ->extraAttributes(['class' => 'crm-list-finance']),
 
-                TextColumn::make('vendedor_nome')
+                TextColumn::make('vendedor_nome_snapshot')
                     ->label('Vendedor')
                     ->description('Vendedor', position: 'above')
                     ->searchable()
@@ -259,8 +274,12 @@ class VendaOperacaoResource extends Resource
                     ->extraAttributes(['class' => 'crm-list-field crm-list-footer'], merge: true),
             ])
             ->defaultSort('data_venda', 'desc')
-            ->searchPlaceholder('Buscar por cliente, vendedor ou SKU...')
+            ->searchPlaceholder('Buscar por venda, cliente, vendedor ou oportunidade...')
             ->filters([
+                SelectFilter::make('status')
+                    ->label('Status')
+                    ->options(VendaOperacaoPedido::statusOptions()),
+
                 SelectFilter::make('ano_referencia')
                     ->label('Ano')
                     ->options(collect(range(now()->year, now()->year - 5))->mapWithKeys(fn (int $year): array => [(string) $year => (string) $year])->all()),
@@ -284,16 +303,34 @@ class VendaOperacaoResource extends Resource
 
                 SelectFilter::make('produto_id')
                     ->label('Produto')
-                    ->relationship('produto', 'nome')
+                    ->options(fn (): array => Produto::query()
+                        ->orderBy('nome')
+                        ->pluck('nome', 'id')
+                        ->all())
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    ->query(function (Builder $query, array $data): Builder {
+                        $produtoId = $data['value'] ?? null;
+
+                        if (! $produtoId) {
+                            return $query;
+                        }
+
+                        return $query->whereHas('vendasOperacao', fn (Builder $builder) => $builder->where('produto_id', $produtoId));
+                    }),
             ])
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--operation')
             ->recordActions([
-                ViewAction::make()
-                    ->label('Visualizar')
-                    ->slideOver()
-                    ->modalWidth('4xl'),
+                Action::make('products')
+                    ->label('Visualizar produtos')
+                    ->icon('heroicon-o-list-bullet')
+                    ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Produtos da venda '.$record->codigo)
+                    ->modalWidth('5xl')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fechar')
+                    ->modalContent(fn (VendaOperacaoPedido $record): View => view('filament.resources.vendas-operacao.modals.products', [
+                        'pedido' => $record->load(['vendasOperacao.produto', 'vendasOperacao.produtoMovimentacao']),
+                    ])),
             ], position: RecordActionsPosition::AfterContent);
     }
 
@@ -317,6 +354,6 @@ class VendaOperacaoResource extends Resource
             ->extraModalWindowAttributes([
                 'class' => 'oa-record-modal oa-sales-modal',
             ])
-            ->using(fn (array $data): VendaOperacao => app(VendaOperacaoService::class)->create($data, auth()->user()));
+            ->using(fn (array $data): VendaOperacaoPedido => app(VendaOperacaoService::class)->createPedido($data, auth()->user()));
     }
 }

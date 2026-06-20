@@ -5,6 +5,7 @@ namespace App\Services\Operacao;
 use App\Models\Acesso\User;
 use App\Models\Produto;
 use App\Models\VendaOperacao;
+use App\Models\VendaOperacaoPedido;
 use App\Services\Produtos\MovimentacaoEstoqueService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -16,37 +17,27 @@ class VendaOperacaoService
         protected MovimentacaoEstoqueService $movimentacaoEstoqueService,
     ) {}
 
-    public function create(array $data, ?User $user = null): VendaOperacao
+    public function create(array $data, ?User $user = null, ?VendaOperacaoPedido $pedido = null): VendaOperacao
     {
-        $produto = Produto::query()
-            ->with(['categoriaProduto', 'produtoMovimentacoes'])
-            ->findOrFail($data['produto_id']);
+        return DB::transaction(function () use ($data, $user, $pedido): VendaOperacao {
+            $produto = Produto::query()
+                ->with(['categoriaProduto', 'produtoMovimentacoes'])
+                ->lockForUpdate()
+                ->findOrFail($data['produto_id']);
 
-        $payload = $this->normalizePayload($data);
-        $snapshot = $this->analyticsService->productStockSnapshot($produto);
+            $payload = $this->normalizePayload($data);
+            $snapshot = $this->analyticsService->productStockSnapshot($produto);
 
-        $this->validate($produto, $payload, $snapshot['estoque_atual']);
+            $this->validate($produto, $payload, $snapshot['estoque_atual']);
 
-        $custoUnitario = $snapshot['custo_medio'];
-        $receitaBruta = round($payload['quantidade'] * $payload['preco_unitario'], 2);
-        $icmsValor = round($receitaBruta * ($payload['icms_aliquota'] / 100), 2);
-        $outrosImpostosValor = round($receitaBruta * ($payload['outros_impostos_aliquota'] / 100), 2);
-        $receitaLiquida = round($receitaBruta - $icmsValor - $outrosImpostosValor, 2);
-        $custoTotal = round($custoUnitario * $payload['quantidade'], 2);
-        $lucroBruto = round($receitaLiquida - $custoTotal, 2);
+            $custoUnitario = $snapshot['custo_medio'];
+            $receitaBruta = round($payload['quantidade'] * $payload['preco_unitario'], 2);
+            $icmsValor = round($receitaBruta * ($payload['icms_aliquota'] / 100), 2);
+            $outrosImpostosValor = round($receitaBruta * ($payload['outros_impostos_aliquota'] / 100), 2);
+            $receitaLiquida = round($receitaBruta - $icmsValor - $outrosImpostosValor, 2);
+            $custoTotal = round($custoUnitario * $payload['quantidade'], 2);
+            $lucroBruto = round($receitaLiquida - $custoTotal, 2);
 
-        return DB::transaction(function () use (
-            $produto,
-            $payload,
-            $user,
-            $custoUnitario,
-            $receitaBruta,
-            $icmsValor,
-            $outrosImpostosValor,
-            $receitaLiquida,
-            $custoTotal,
-            $lucroBruto
-        ): VendaOperacao {
             $movimentacao = $this->movimentacaoEstoqueService->createForProduto([
                 'produto_id' => $produto->id,
                 'tipo' => 'saida',
@@ -60,6 +51,7 @@ class VendaOperacaoService
 
             $venda = VendaOperacao::query()->create([
                 'user_id' => $user?->id,
+                'venda_operacao_pedido_id' => $pedido?->id,
                 'produto_id' => $produto->id,
                 'produto_movimentacao_id' => $movimentacao->id,
                 'produto_codigo_snapshot' => $produto->codigo_interno,
@@ -85,11 +77,54 @@ class VendaOperacaoService
             ]);
 
             $movimentacao->update([
-                'documento_referencia' => sprintf('VEN-%05d', $venda->id),
+                'documento_referencia' => $pedido?->codigo ?: sprintf('VEN-%05d', $venda->id),
             ]);
+
+            if ($pedido) {
+                $this->refreshPedidoTotals($pedido);
+            }
 
             return $venda->fresh(['produto', 'user', 'produtoMovimentacao']);
         });
+    }
+
+    public function createPedido(array $data, ?User $user = null): VendaOperacaoPedido
+    {
+        return DB::transaction(function () use ($data, $user): VendaOperacaoPedido {
+            $payload = $this->normalizePayload($data);
+
+            $pedido = VendaOperacaoPedido::query()->create([
+                'user_id' => $user?->id,
+                'status' => VendaOperacaoPedido::STATUS_ATIVA,
+                'data_venda' => $payload['data_venda'],
+                'cliente_nome_snapshot' => $payload['cliente_nome'],
+                'vendedor_nome_snapshot' => $payload['vendedor_nome'],
+                'observacao' => $payload['observacao'],
+            ]);
+            $pedido->assignCodigo();
+
+            $this->create($data, $user, $pedido);
+
+            return $this->refreshPedidoTotals($pedido)
+                ->fresh(['vendasOperacao.produto', 'vendasOperacao.produtoMovimentacao']);
+        });
+    }
+
+    public function refreshPedidoTotals(VendaOperacaoPedido $pedido): VendaOperacaoPedido
+    {
+        $linhas = $pedido->vendasOperacao()->get();
+
+        $pedido->forceFill([
+            'itens_count' => $linhas->count(),
+            'quantidade_total' => round((float) $linhas->sum('quantidade'), 4),
+            'receita_bruta_total' => round((float) $linhas->sum('receita_bruta'), 2),
+            'receita_liquida_total' => round((float) $linhas->sum('receita_liquida'), 2),
+            'custo_total_snapshot' => round((float) $linhas->sum('custo_total_snapshot'), 2),
+            'lucro_bruto_total' => round((float) $linhas->sum('lucro_bruto'), 2),
+            'lucro_apos_impostos_total' => round((float) $linhas->sum('lucro_apos_impostos'), 2),
+        ])->save();
+
+        return $pedido;
     }
 
     protected function validate(Produto $produto, array $payload, float $estoqueAtual): void
@@ -104,7 +139,7 @@ class VendaOperacaoService
             $messages['preco_unitario'] = 'Informe um preco unitario maior que zero.';
         }
 
-        if ($produto->status !== 'ativo') {
+        if ($produto->status !== 'ativo' || ! $produto->ativo) {
             $messages['produto_id'] = 'O produto precisa estar disponivel para registrar vendas.';
         }
 

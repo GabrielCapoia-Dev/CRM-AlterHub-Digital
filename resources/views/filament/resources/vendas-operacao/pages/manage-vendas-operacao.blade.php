@@ -8,12 +8,12 @@
                     </p>
 
                     <h2 class="text-lg font-semibold text-gray-950 dark:text-white">
-                        Vendas (estoque)
+                        Vendas ativas
                     </h2>
                 </div>
 
                 <div class="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:bg-white/5 dark:text-gray-300">
-                    Baixa de estoque com custo medio automatico, receita e impostos registrados no mesmo fluxo.
+                    Vendas agrupadas por cliente e oportunidade, com produtos e baixas de estoque vinculadas.
                 </div>
             </div>
         </section>

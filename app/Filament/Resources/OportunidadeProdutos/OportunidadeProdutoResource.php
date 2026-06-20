@@ -67,6 +67,16 @@ class OportunidadeProdutoResource extends Resource
             ->minValue(0)
             ->placeholder('0,00');
 
+        $components[] = TextInput::make('quantidade')
+            ->label('Quantidade')
+            ->numeric()
+            ->rule('decimal:0,4')
+            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
+            ->default(1)
+            ->minValue(0.0001)
+            ->placeholder('1,0000')
+            ->required();
+
         $components[] = Textarea::make('observacao')
             ->label('Observação')
             ->rows(4)
@@ -114,6 +124,12 @@ class OportunidadeProdutoResource extends Resource
             ])
                 ->from('md')
                 ->extraAttributes(['class' => 'crm-list-top']),
+
+            TextColumn::make('quantidade')
+                ->label('Quantidade')
+                ->description('Quantidade', position: 'above')
+                ->formatStateUsing(fn ($state): string => NumericFormat::decimal($state))
+                ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
 
             TextColumn::make('updated_at')
                 ->label('Atualizado em')

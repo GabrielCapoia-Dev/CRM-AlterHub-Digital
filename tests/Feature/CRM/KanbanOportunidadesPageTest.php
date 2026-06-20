@@ -21,11 +21,11 @@ class KanbanOportunidadesPageTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_renders_the_kanban_index_and_keeps_the_support_list_route_available(): void
+    public function test_it_renders_the_list_as_the_main_view_and_keeps_kanban_available(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        [$user, $cliente, $lead, $negociacao] = $this->criarBaseDeKanban();
+        [$user, $cliente, $lead] = $this->criarBaseDeKanban();
 
         Oportunidade::create([
             'titulo' => 'Pipeline reagentes',
@@ -46,11 +46,50 @@ class KanbanOportunidadesPageTest extends TestCase
 
         $this->get($kanbanUrl)
             ->assertOk()
-            ->assertSeeText('CRM - Kanban')
-            ->assertSeeText('Nova oportunidade');
+            ->assertSeeText('Lista')
+            ->assertSeeText('Kanban')
+            ->assertSeeText('Pipeline reagentes')
+            ->assertSeeText('Nova oportunidade')
+            ->assertSee('crm-opportunity-list', false);
 
         $this->get($listUrl)
             ->assertOk();
+    }
+
+    public function test_it_serializes_the_main_list_with_board_actions_context(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        [$user, $cliente, $lead, $negociacao] = $this->criarBaseDeKanban();
+
+        $oportunidade = Oportunidade::create([
+            'titulo' => 'Lista com etapa editavel',
+            'cliente_id' => $cliente->id,
+            'etapa_id' => $lead->id,
+            'user_id' => $user->id,
+            'temperatura' => 'warm',
+            'valor_estimado' => 2750,
+        ]);
+
+        $this->actingAs($user);
+
+        $component = app(KanbanOportunidades::class);
+        $component->mount();
+
+        $rows = collect($component->getListRows());
+        $row = $rows->firstWhere('id', $oportunidade->id);
+
+        $this->assertSame('list', $component->viewMode);
+        $this->assertSame($lead->id, $row['stage_id']);
+        $this->assertSame('Lead', $row['stage_name']);
+        $this->assertTrue($row['can_update']);
+
+        $component->moveOpportunity($oportunidade->id, $negociacao->id);
+
+        $this->assertDatabaseHas('oportunidades', [
+            'id' => $oportunidade->id,
+            'etapa_id' => $negociacao->id,
+        ]);
     }
 
     public function test_it_creates_a_new_opportunity_from_the_drawer(): void

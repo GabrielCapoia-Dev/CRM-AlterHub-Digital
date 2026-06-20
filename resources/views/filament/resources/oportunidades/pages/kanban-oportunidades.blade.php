@@ -1,6 +1,11 @@
 <x-filament-panels::page>
     @php
-        $columns = $this->getBoardColumns();
+        $activeView = $viewMode === 'kanban' ? 'kanban' : 'list';
+        $columns = $activeView === 'kanban' ? $this->getBoardColumns() : [];
+        $listRows = $activeView === 'list' ? collect($this->getListRows()) : collect();
+        $visibleRows = $activeView === 'kanban'
+            ? collect($columns)->flatMap(fn (array $column) => $column['cards'])
+            : $listRows;
         $owners = $this->getOwnerOptions();
         $segments = $this->getSegmentOptions();
         $stages = $this->getStageOptions();
@@ -15,6 +20,9 @@
             || filled($lastInteractionDays)
             || filled($ownerFilter)
             || filled($segmentFilter);
+        $visibleCount = $visibleRows->count();
+        $visibleTotal = (float) $visibleRows->sum(fn (array $card) => (float) ($card['value'] ?? 0));
+        $visibleTotalFormatted = 'R$ ' . number_format($visibleTotal, 2, ',', '.');
     @endphp
 
     <div
@@ -42,12 +50,28 @@
         </div>
 
         <section class="crm-kanban-shell">
-            <header class="crm-kanban-hero crm-kanban-hero-compact">
-                <div class="crm-kanban-hero-actions">
-                    <a href="{{ $this->getListUrl() }}" class="crm-btn crm-btn-secondary">
-                        Lista de apoio
-                    </a>
+            <header class="crm-kanban-hero crm-kanban-hero-compact crm-kanban-toolbar">
+                <div class="crm-view-switcher" role="group" aria-label="Visualizacao das oportunidades">
+                    <button
+                        type="button"
+                        class="{{ $activeView === 'list' ? 'is-active' : '' }}"
+                        aria-pressed="{{ $activeView === 'list' ? 'true' : 'false' }}"
+                        wire:click="setViewMode('list')"
+                    >
+                        Lista
+                    </button>
 
+                    <button
+                        type="button"
+                        class="{{ $activeView === 'kanban' ? 'is-active' : '' }}"
+                        aria-pressed="{{ $activeView === 'kanban' ? 'true' : 'false' }}"
+                        wire:click="setViewMode('kanban')"
+                    >
+                        Kanban
+                    </button>
+                </div>
+
+                <div class="crm-kanban-hero-actions">
                     @can('create', \App\Models\Oportunidade::class)
                         <button type="button" class="crm-btn crm-btn-primary" wire:click="openCreateDrawer">
                             Nova oportunidade
@@ -120,7 +144,7 @@
                     </div>
 
                     <div class="crm-kanban-filter-meta">
-                        <span>Clique no card para abrir o detalhe e arraste de qualquer ponto para mudar a etapa.</span>
+                        <span>{{ $visibleCount }} oportunidade(s) filtrada(s) - {{ $visibleTotalFormatted }}</span>
 
                         @if ($hasFilters)
                             <button type="button" class="crm-filter-clear" wire:click="resetFilters">
@@ -131,7 +155,113 @@
                 </div>
             </section>
 
-            @if (count($columns))
+            @if ($activeView === 'list')
+                <section class="crm-opportunity-list" aria-label="Lista de oportunidades">
+                    @forelse ($listRows as $card)
+                        <article
+                            class="crm-opportunity-row"
+                            style="--crm-stage-color: {{ $card['stage_color'] }}"
+                            wire:key="list-card-{{ $card['id'] }}"
+                        >
+                            <div
+                                class="crm-opportunity-row-main"
+                                tabindex="0"
+                                role="button"
+                                aria-label="Abrir oportunidade {{ $card['title'] }}"
+                                @click="openCard($event, {{ $card['id'] }}, $wire)"
+                                @keydown.enter.prevent="openCard($event, {{ $card['id'] }}, $wire)"
+                                @keydown.space.prevent="openCard($event, {{ $card['id'] }}, $wire)"
+                            >
+                                <div class="crm-opportunity-title-line">
+                                    <span class="crm-kanban-stage-dot"></span>
+
+                                    <div>
+                                        <h3>{{ $card['title'] }}</h3>
+                                        <p>{{ $card['company'] ?: 'Cliente nao informado' }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="crm-opportunity-row-meta">
+                                    <span>{{ $card['contact'] ?: 'Sem contato' }}</span>
+                                    <span>{{ $card['email'] ?: 'Sem e-mail' }}</span>
+                                    <span>{{ $card['segment'] ?: 'Sem segmento' }}</span>
+                                </div>
+
+                                @if (count($card['products']))
+                                    <div class="crm-kanban-chip-row">
+                                        @foreach ($card['products'] as $product)
+                                            <span class="crm-kanban-chip">{{ $product }}</span>
+                                        @endforeach
+
+                                        @if ($card['extra_products_count'] > 0)
+                                            <span class="crm-kanban-chip">+{{ $card['extra_products_count'] }}</span>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+
+                            <div class="crm-opportunity-row-metrics">
+                                <div>
+                                    <span class="crm-kanban-card-label">Valor estimado</span>
+                                    <strong>{{ $card['value_formatted'] ?? 'Sem valor' }}</strong>
+                                </div>
+
+                                <div>
+                                    <span class="crm-kanban-card-label">Ultima interacao</span>
+                                    <strong>{{ $card['last_interaction_label'] }}</strong>
+                                </div>
+                            </div>
+
+                            <div class="crm-opportunity-row-stage">
+                                <span class="crm-kanban-card-label">Etapa</span>
+
+                                <div class="crm-opportunity-stage-stack">
+                                    <span class="crm-kanban-status-badge crm-kanban-status-{{ \Illuminate\Support\Str::slug($card['stage_slug'] ?: $card['stage_name']) }}">
+                                        {{ $card['stage_name'] }}
+                                    </span>
+
+                                    <select
+                                        class="crm-list-stage-select"
+                                        aria-label="Mover oportunidade {{ $card['title'] }}"
+                                        @click.stop
+                                        @keydown.stop
+                                        @change.stop="$wire.moveOpportunity({{ $card['id'] }}, Number($event.target.value))"
+                                        @disabled(! $card['can_update'])
+                                    >
+                                        @foreach ($stages as $stage)
+                                            <option value="{{ $stage['id'] }}" @selected((int) $card['stage_id'] === $stage['id'])>
+                                                {{ $stage['nome'] }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
+                            <footer class="crm-opportunity-row-footer">
+                                <div class="crm-kanban-owner">
+                                    <span>{{ $card['owner_initials'] }}</span>
+
+                                    <div>
+                                        <strong>{{ $card['owner'] ?: 'Sem responsavel' }}</strong>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="crm-btn crm-btn-secondary crm-list-open-btn"
+                                    @click.stop="openCard($event, {{ $card['id'] }}, $wire)"
+                                >
+                                    Abrir
+                                </button>
+                            </footer>
+                        </article>
+                    @empty
+                        <div class="crm-opportunity-empty">
+                            Nenhuma oportunidade encontrada com os filtros atuais.
+                        </div>
+                    @endforelse
+                </section>
+            @elseif (count($columns))
                 <section class="crm-kanban-board" aria-label="Quadro Kanban de oportunidades">
                     @foreach ($columns as $column)
                         <article
@@ -245,7 +375,7 @@
                 </section>
             @else
                 <section class="crm-kanban-zero">
-                    <p class="crm-kanban-eyebrow">CRM - Kanban</p>
+                    <p class="crm-kanban-eyebrow">Visualizacao Kanban</p>
                     <h3>Nenhuma etapa configurada</h3>
                     <p>Crie as etapas do funil para comecar a trabalhar o quadro Kanban.</p>
 
@@ -292,6 +422,113 @@
             </div>
         @endif
 
+        @if ($saleConfirmationModalOpen)
+            <div class="crm-modal-root" role="dialog" aria-modal="true" aria-labelledby="crm-sale-modal-title">
+                <div class="crm-modal-backdrop" wire:click="closeSaleConfirmation"></div>
+
+                <div class="crm-modal-panel crm-sale-modal-panel">
+                    <div class="crm-modal-copy">
+                        <p class="crm-kanban-eyebrow">Confirmacao de venda</p>
+                        <h3 id="crm-sale-modal-title">Transformar oportunidade em venda</h3>
+                        <p>
+                            Confirme os dados abaixo. A venda so sera registrada se todos os produtos tiverem estoque suficiente.
+                        </p>
+                    </div>
+
+                    <section class="crm-sale-summary">
+                        <div>
+                            <span>Oportunidade</span>
+                            <strong>{{ data_get($salePreview, 'opportunity.titulo', '-') }}</strong>
+                        </div>
+
+                        <div>
+                            <span>Cliente</span>
+                            <strong>{{ data_get($salePreview, 'opportunity.cliente', '-') }}</strong>
+                        </div>
+
+                        <div>
+                            <span>Responsavel</span>
+                            <strong>{{ data_get($salePreview, 'opportunity.responsavel', '-') }}</strong>
+                        </div>
+                    </section>
+
+                    @if (! empty($salePreview['errors'] ?? []))
+                        <div class="crm-sale-alert">
+                            @foreach ($salePreview['errors'] as $error)
+                                <p>{{ $error }}</p>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    <div class="crm-sale-items">
+                        @forelse (($salePreview['items'] ?? []) as $item)
+                            <article class="crm-sale-item {{ $item['ok'] ? '' : 'has-error' }}">
+                                <div>
+                                    <h4>{{ $item['produto_nome'] }}</h4>
+                                    <p>{{ $item['produto_codigo'] ?: 'Sem codigo' }}</p>
+                                </div>
+
+                                <div>
+                                    <span>Qtd.</span>
+                                    <strong>{{ number_format((float) $item['quantidade'], 4, ',', '.') }} {{ $item['unidade'] }}</strong>
+                                </div>
+
+                                <div>
+                                    <span>Estoque</span>
+                                    <strong>{{ number_format((float) $item['estoque_atual'], 4, ',', '.') }} {{ $item['unidade'] }}</strong>
+                                </div>
+
+                                <div>
+                                    <span>Preco</span>
+                                    <strong>R$ {{ number_format((float) $item['preco_unitario'], 2, ',', '.') }}</strong>
+                                    <small>{{ $item['preco_origem'] === 'negociado' ? 'Negociado' : 'Tabela' }}</small>
+                                </div>
+
+                                <div>
+                                    <span>Total</span>
+                                    <strong>R$ {{ number_format((float) $item['subtotal'], 2, ',', '.') }}</strong>
+                                </div>
+                            </article>
+                        @empty
+                            <div class="crm-drawer-empty">Nenhum produto disponivel para confirmar.</div>
+                        @endforelse
+                    </div>
+
+                    <section class="crm-sale-totals">
+                        <div>
+                            <span>Itens</span>
+                            <strong>{{ data_get($salePreview, 'totals.itens_count', 0) }}</strong>
+                        </div>
+
+                        <div>
+                            <span>Quantidade total</span>
+                            <strong>{{ number_format((float) data_get($salePreview, 'totals.quantidade_total', 0), 4, ',', '.') }}</strong>
+                        </div>
+
+                        <div>
+                            <span>Receita bruta</span>
+                            <strong>R$ {{ number_format((float) data_get($salePreview, 'totals.receita_bruta', 0), 2, ',', '.') }}</strong>
+                        </div>
+                    </section>
+
+                    <div class="crm-modal-actions">
+                        <button type="button" class="crm-btn crm-btn-secondary" wire:click="closeSaleConfirmation">
+                            Cancelar
+                        </button>
+
+                        <button
+                            type="button"
+                            class="crm-btn crm-btn-primary"
+                            wire:click="confirmOpportunitySale"
+                            @disabled(! data_get($salePreview, 'can_convert', false))
+                        >
+                            Confirmar venda
+                        </button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         @if ($drawerOpen)
             <div class="crm-drawer-root">
                 <button type="button" class="crm-drawer-backdrop" wire:click="closeDrawer" aria-label="Fechar painel lateral"></button>
@@ -308,6 +545,16 @@
 
                         <div class="crm-drawer-actions">
                             @if ($selectedOpportunity)
+                                @if ($selectedOpportunity->vendaOperacaoPedido)
+                                    <a href="{{ \App\Filament\Resources\VendasOperacao\VendaOperacaoResource::getUrl() }}" class="crm-btn crm-btn-secondary">
+                                        Venda {{ $selectedOpportunity->vendaOperacaoPedido->codigo }}
+                                    </a>
+                                @elseif (auth()->user()?->can('update', $selectedOpportunity) && auth()->user()?->can('create', \App\Models\VendaOperacao::class))
+                                    <button type="button" class="crm-btn crm-btn-primary" wire:click="openSaleConfirmation">
+                                        Transformar em venda
+                                    </button>
+                                @endif
+
                                 <a href="{{ \App\Filament\Resources\Oportunidades\OportunidadeResource::getUrl('view', ['record' => $selectedOpportunity]) }}" class="crm-btn crm-btn-secondary">
                                     Visualizar
                                 </a>

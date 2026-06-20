@@ -19,6 +19,9 @@
                             @endif
 
                             <p>
+                                Quantidade: {{ number_format((float) $linkedProduct->quantidade, 4, ',', '.') }}
+                                {{ $linkedProduct->produto?->unidade_medida ? ' ' . $linkedProduct->produto->unidade_medida : '' }}
+                                |
                                 {{ $linkedProduct->preco_negociado ? 'Preco negociado: R$ ' . number_format((float) $linkedProduct->preco_negociado, 2, ',', '.') : 'Sem preco negociado' }}
                             </p>
 
@@ -72,6 +75,14 @@
                         <span>Preco negociado</span>
                         <input type="number" step="0.01" min="0" wire:model.defer="productForm.preco_negociado">
                         @error('productForm.preco_negociado')
+                            <small class="crm-field-error">{{ $message }}</small>
+                        @enderror
+                    </label>
+
+                    <label class="crm-field">
+                        <span>Quantidade</span>
+                        <input type="number" step="0.0001" min="0.0001" wire:model.defer="productForm.quantidade">
+                        @error('productForm.quantidade')
                             <small class="crm-field-error">{{ $message }}</small>
                         @enderror
                     </label>

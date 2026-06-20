@@ -76,7 +76,9 @@ class MovimentacaoEstoqueService
     public function createForProduto(array $data, ?User $user = null): ProdutoMovimentacao
     {
         return DB::transaction(function () use ($data, $user): ProdutoMovimentacao {
-            $produto = Produto::query()->findOrFail($data['produto_id']);
+            $produto = Produto::query()
+                ->lockForUpdate()
+                ->findOrFail($data['produto_id']);
 
             $custoBase = $this->resolveProdutoCustoBase($produto);
 

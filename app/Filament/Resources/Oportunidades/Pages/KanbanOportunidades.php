@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Oportunidades\Pages;
 
 use App\Filament\Resources\Oportunidades\OportunidadeResource;
+use App\Filament\Resources\VendasOperacao\VendaOperacaoResource;
 use App\Rules\FlexibleTaxIdentifierRule;
 use App\Models\Acesso\User;
 use App\Models\Categorias\CategoriaSegmento;
@@ -14,7 +15,9 @@ use App\Models\OportunidadeProduto;
 use App\Models\OportunidadeTarefa;
 use App\Models\Produto;
 use App\Models\Status\StatusCliente;
+use App\Models\VendaOperacao;
 use App\Services\CRM\OportunidadeClienteService;
+use App\Services\CRM\OportunidadeVendaService;
 use Carbon\CarbonInterface;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
@@ -30,7 +33,7 @@ class KanbanOportunidades extends Page
 {
     protected static string $resource = OportunidadeResource::class;
 
-    protected static ?string $title = 'CRM - Kanban';
+    protected static ?string $title = 'CRM - Oportunidades';
 
     protected string $view = 'filament.resources.oportunidades.pages.kanban-oportunidades';
 
@@ -45,6 +48,8 @@ class KanbanOportunidades extends Page
     public ?int $ownerFilter = null;
 
     public ?int $segmentFilter = null;
+
+    public string $viewMode = 'list';
 
     public bool $drawerOpen = false;
 
@@ -61,6 +66,13 @@ class KanbanOportunidades extends Page
     public ?int $pendingMoveStageId = null;
 
     public string $pendingMoveReason = '';
+
+    public bool $saleConfirmationModalOpen = false;
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $salePreview = [];
 
     /**
      * @var array<string, mixed>
@@ -88,6 +100,7 @@ class KanbanOportunidades extends Page
         $this->resetProductForm();
         $this->resetInteractionForm();
         $this->resetTaskForm();
+        $this->closeSaleConfirmation();
     }
 
     public function updated(string $name, mixed $value): void
@@ -111,11 +124,20 @@ class KanbanOportunidades extends Page
         if ($name === 'ownerFilter') {
             $this->ownerFilter = blank($value) ? null : (int) $value;
         }
+
+        if ($name === 'viewMode') {
+            $this->setViewMode((string) $value);
+        }
     }
 
     public function getListUrl(): string
     {
         return static::getResource()::getUrl('list');
+    }
+
+    public function setViewMode(string $mode): void
+    {
+        $this->viewMode = $mode === 'kanban' ? 'kanban' : 'list';
     }
 
     public function getSelectedOpportunity(): ?Oportunidade
@@ -142,6 +164,7 @@ class KanbanOportunidades extends Page
                 'oportunidadeMovimentacoes' => fn ($query) => $query
                     ->with(['user', 'etapaOrigem', 'etapaDestino'])
                     ->latest('movido_em'),
+                'vendaOperacaoPedido.vendasOperacao.produto',
             ])
             ->find($this->selectedOpportunityId);
     }
@@ -151,10 +174,7 @@ class KanbanOportunidades extends Page
      */
     public function getBoardColumns(): array
     {
-        $etapas = Etapa::query()
-            ->orderBy('ordem')
-            ->orderBy('id')
-            ->get();
+        $etapas = collect($this->getStageMetasById())->values();
 
         /** @var EloquentCollection<int, Oportunidade> $oportunidades */
         $oportunidades = $this->getBoardQuery()->get();
@@ -162,25 +182,43 @@ class KanbanOportunidades extends Page
 
         return $etapas
             ->values()
-            ->map(function (Etapa $etapa, int $index) use ($oportunidadesPorEtapa): array {
+            ->map(function (array $etapa) use ($oportunidadesPorEtapa): array {
                 /** @var EloquentCollection<int, Oportunidade> $cards */
-                $cards = $oportunidadesPorEtapa->get($etapa->id, new EloquentCollection);
+                $cards = $oportunidadesPorEtapa->get($etapa['id'], new EloquentCollection);
                 $soma = (float) $cards->sum(fn (Oportunidade $oportunidade): float => (float) ($oportunidade->valor_estimado ?? 0));
 
                 return [
-                    'id' => $etapa->id,
-                    'nome' => $etapa->nome,
-                    'slug' => $etapa->slug,
-                    'cor' => $etapa->cor ?: $this->resolveStageColor($index),
-                    'fechamento' => $etapa->fechamento,
+                    'id' => $etapa['id'],
+                    'nome' => $etapa['nome'],
+                    'slug' => $etapa['slug'],
+                    'cor' => $etapa['cor'],
+                    'fechamento' => $etapa['fechamento'],
                     'count' => $cards->count(),
                     'sum' => $soma,
                     'sum_formatted' => $this->formatMoney($soma),
                     'cards' => $cards
-                        ->map(fn (Oportunidade $oportunidade): array => $this->serializeOpportunityCard($oportunidade))
+                        ->map(fn (Oportunidade $oportunidade): array => $this->serializeOpportunityCard($oportunidade, $etapa))
                         ->all(),
                 ];
             })
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function getListRows(): array
+    {
+        $stages = $this->getStageMetasById();
+
+        /** @var EloquentCollection<int, Oportunidade> $oportunidades */
+        $oportunidades = $this->getBoardQuery()->get();
+
+        return $oportunidades
+            ->map(fn (Oportunidade $oportunidade): array => $this->serializeOpportunityCard(
+                $oportunidade,
+                $stages[$oportunidade->etapa_id] ?? null,
+            ))
             ->all();
     }
 
@@ -550,6 +588,59 @@ class KanbanOportunidades extends Page
         $this->pendingMoveReason = '';
     }
 
+    public function openSaleConfirmation(): void
+    {
+        $oportunidade = $this->getSelectedOpportunity();
+
+        abort_unless($oportunidade, 404);
+
+        Gate::authorize('update', $oportunidade);
+        Gate::authorize('create', VendaOperacao::class);
+
+        $this->salePreview = app(OportunidadeVendaService::class)->preview($oportunidade);
+        $this->saleConfirmationModalOpen = true;
+    }
+
+    public function closeSaleConfirmation(): void
+    {
+        $this->saleConfirmationModalOpen = false;
+        $this->salePreview = [];
+    }
+
+    public function confirmOpportunitySale(): void
+    {
+        $oportunidade = $this->getSelectedOpportunity();
+
+        abort_unless($oportunidade, 404);
+
+        Gate::authorize('update', $oportunidade);
+        Gate::authorize('create', VendaOperacao::class);
+
+        try {
+            $pedido = app(OportunidadeVendaService::class)->convert($oportunidade, Auth::user());
+        } catch (ValidationException $exception) {
+            $this->salePreview = app(OportunidadeVendaService::class)->preview($oportunidade);
+
+            Notification::make()
+                ->title('Venda nao confirmada')
+                ->body(collect($exception->errors())->flatten()->take(4)->implode(' '))
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $this->closeSaleConfirmation();
+
+        Notification::make()
+            ->title('Venda confirmada')
+            ->body("A venda {$pedido->codigo} foi registrada e o estoque foi baixado.")
+            ->success()
+            ->send();
+
+        $this->redirect(VendaOperacaoResource::getUrl(), navigate: true);
+    }
+
     public function saveProductLink(): void
     {
         $oportunidade = $this->getSelectedOpportunityForEditing();
@@ -567,6 +658,7 @@ class KanbanOportunidades extends Page
         $payload = [
             'oportunidade_id' => $oportunidade->id,
             'produto_id' => (int) $validated['productForm']['produto_id'],
+            'quantidade' => (float) $validated['productForm']['quantidade'],
             'preco_negociado' => blank($validated['productForm']['preco_negociado']) ? null : (float) $validated['productForm']['preco_negociado'],
             'observacao' => blank($validated['productForm']['observacao']) ? null : trim((string) $validated['productForm']['observacao']),
         ];
@@ -595,6 +687,7 @@ class KanbanOportunidades extends Page
         $this->productForm = [
             'id' => $registro->id,
             'produto_id' => $registro->produto_id,
+            'quantidade' => $registro->quantidade,
             'preco_negociado' => $registro->preco_negociado,
             'observacao' => $registro->observacao ?? '',
         ];
@@ -624,6 +717,7 @@ class KanbanOportunidades extends Page
         $this->productForm = [
             'id' => null,
             'produto_id' => '',
+            'quantidade' => 1,
             'preco_negociado' => '',
             'observacao' => '',
         ];
@@ -901,6 +995,7 @@ class KanbanOportunidades extends Page
     {
         return [
             'productForm.produto_id' => ['required', 'integer', 'exists:produtos,id'],
+            'productForm.quantidade' => ['required', 'numeric', 'decimal:0,4', 'min:0.0001'],
             'productForm.preco_negociado' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
             'productForm.observacao' => ['nullable', 'string', 'max:2000'],
         ];
@@ -1012,9 +1107,10 @@ class KanbanOportunidades extends Page
     }
 
     /**
+     * @param  array<string, mixed>|null  $stage
      * @return array<string, mixed>
      */
-    protected function serializeOpportunityCard(Oportunidade $opportunity): array
+    protected function serializeOpportunityCard(Oportunidade $opportunity, ?array $stage = null): array
     {
         $produtos = $opportunity->oportunidadeProdutos
             ->pluck('produto.nome')
@@ -1026,6 +1122,7 @@ class KanbanOportunidades extends Page
         $cliente = $opportunity->cliente;
         $responsavel = $opportunity->user;
         $ultimaInteracao = $opportunity->last_interaction_at ? now()->parse($opportunity->last_interaction_at) : null;
+        $etapa = $opportunity->etapa;
 
         return [
             'id' => $opportunity->id,
@@ -1044,7 +1141,36 @@ class KanbanOportunidades extends Page
             'extra_products_count' => max($opportunity->oportunidadeProdutos->count() - count($produtos), 0),
             'last_interaction_label' => $ultimaInteracao ? $this->formatRelativeDate($ultimaInteracao) : 'Sem interacao',
             'last_interaction_at' => $ultimaInteracao?->format('d/m/Y H:i'),
+            'stage_id' => $stage['id'] ?? $opportunity->etapa_id,
+            'stage_name' => $stage['nome'] ?? $etapa?->nome ?? 'Sem etapa',
+            'stage_slug' => $stage['slug'] ?? $etapa?->slug ?? '',
+            'stage_color' => $stage['cor'] ?? $etapa?->cor ?? $this->resolveStageColor(0),
+            'stage_is_closing' => (bool) ($stage['fechamento'] ?? $etapa?->fechamento ?? false),
+            'can_update' => Gate::allows('update', $opportunity),
+            'can_view' => Gate::allows('view', $opportunity),
         ];
+    }
+
+    /**
+     * @return array<int, array{id:int,nome:string,slug:string|null,cor:string,fechamento:bool}>
+     */
+    protected function getStageMetasById(): array
+    {
+        return Etapa::query()
+            ->orderBy('ordem')
+            ->orderBy('id')
+            ->get()
+            ->values()
+            ->mapWithKeys(fn (Etapa $etapa, int $index): array => [
+                $etapa->id => [
+                    'id' => $etapa->id,
+                    'nome' => $etapa->nome,
+                    'slug' => $etapa->slug,
+                    'cor' => $etapa->cor ?: $this->resolveStageColor($index),
+                    'fechamento' => (bool) $etapa->fechamento,
+                ],
+            ])
+            ->all();
     }
 
     protected function resolveDefaultStageId(): ?int
