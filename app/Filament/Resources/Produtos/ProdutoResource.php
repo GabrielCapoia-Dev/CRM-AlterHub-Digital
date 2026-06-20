@@ -261,16 +261,17 @@ class ProdutoResource extends Resource
                                             ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                                             ->prefix('R$')
                                             ->minValue(0.01)
-                                            ->placeholder('0,00')
+                                            ->placeholder(fn (Get $get): string => NumericFormat::input(
+                                                static::buildResumo($get)['custo_total_insumos'] ?? 0
+                                            ) ?? '0,00')
                                             ->required(fn (Get $get): bool => (bool) $get('produto_unico_sem_insumo'))
-                                            ->visible(fn (Get $get): bool => (bool) $get('produto_unico_sem_insumo'))
                                             ->live(),
 
-                                        Placeholder::make('preco_base_produto_calculado')
-                                            ->label('Preco base do produto')
-                                            ->hintIcon(Heroicon::OutlinedQuestionMarkCircle, tooltip: 'Soma dos custos totais dos insumos informados na composicao.')
+                                        Placeholder::make('sugestao_preco_base_insumos')
+                                            ->label('Sugestao pelos insumos')
+                                            ->hintIcon(Heroicon::OutlinedQuestionMarkCircle, tooltip: 'Soma dos custos totais dos insumos. Se o preco base ficar vazio, esta sugestao sera usada no calculo.')
                                             ->content(fn (Get $get): string => static::formatCurrency(
-                                                static::buildResumo($get)['preco_produto']
+                                                static::buildResumo($get)['custo_total_insumos']
                                             ))
                                             ->visible(fn (Get $get): bool => ! (bool) $get('produto_unico_sem_insumo')),
                                     ]),
@@ -670,12 +671,14 @@ class ProdutoResource extends Resource
             })
             ->values();
 
-        if (filter_var($data['produto_unico_sem_insumo'] ?? false, FILTER_VALIDATE_BOOL)) {
+        $precoBaseProduto = static::parseNumber($data['custo_produto_unico'] ?? null);
+
+        if (filter_var($data['produto_unico_sem_insumo'] ?? false, FILTER_VALIDATE_BOOL) || $precoBaseProduto > 0) {
             $componentes->prepend(static::makeGuidedComponent(
                 ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT,
                 'custo_produto',
                 'valor_fixo_brl',
-                static::parseNumber($data['custo_produto_unico'] ?? 0),
+                $precoBaseProduto,
                 true,
             ));
         }

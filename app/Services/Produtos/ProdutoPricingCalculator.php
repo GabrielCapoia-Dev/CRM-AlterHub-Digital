@@ -189,7 +189,10 @@ class ProdutoPricingCalculator
             4,
         );
 
-        $precoProduto = round($custoTotalInsumos + $custoProdutoUnico, 4);
+        $precoProduto = $custoProdutoUnico > 0
+            ? $custoProdutoUnico
+            : $custoTotalInsumos;
+        $precoProduto = round($precoProduto, 4);
         $valorFinalProduto = round((($precoProduto + $somaFixosBrl) / $fatorDivisor) * (1 + ($somaPercentuais / 100)), 4);
         $precoVendaFinal = round($valorFinalProduto * (1 + ($percentualLucro / 100)), 2);
 

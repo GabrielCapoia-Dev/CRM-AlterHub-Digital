@@ -79,6 +79,38 @@ class ProdutoPricingCalculatorTest extends TestCase
         ]);
     }
 
+    public function test_manual_product_base_price_overrides_insumo_suggestion(): void
+    {
+        $unidade = TipoUnidadeMedida::query()->create([
+            'nome' => 'Unidade',
+            'sigla' => 'un',
+        ]);
+
+        $insumo = Insumo::query()->create([
+            'codigo_interno' => 'INS-OVERRIDE',
+            'nome' => 'Insumo override',
+            'origem' => 'nacional',
+            'tipo_unidade_medida_id' => $unidade->id,
+            'custo_referencia' => 50.0000,
+        ]);
+
+        $prepared = app(ProdutoPricingCalculator::class)->prepareForPersistence([
+            'status' => 'ativo',
+            'produtoInsumos' => [
+                ['insumo_id' => $insumo->id, 'quantidade' => 2],
+            ],
+            'produtoComponentesCusto' => [
+                $this->makeComponent('Custo do produto', 'custo_produto', 'valor_fixo_brl', 150),
+                $this->makeComponent('Lucro desejado', 'lucro', 'percentual', 10),
+            ],
+        ]);
+
+        $this->assertSame(100.0, $prepared['produtoInsumos'][0]['custo_total_snapshot']);
+        $this->assertSame(150.0, $prepared['custo_base_formacao']);
+        $this->assertSame(150.0, $prepared['preco_minimo']);
+        $this->assertSame(165.0, $prepared['preco_tabela']);
+    }
+
     public function test_default_components_are_empty_after_factor_simplification(): void
     {
         $componentes = collect(app(ProdutoPricingCalculator::class)->defaultComponentes())
