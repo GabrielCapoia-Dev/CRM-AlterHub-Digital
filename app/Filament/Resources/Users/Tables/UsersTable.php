@@ -15,6 +15,10 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 
@@ -30,71 +34,103 @@ class UsersTable
         return $table
             ->paginated([5, 10, 25, 50, 100])
             ->checkIfRecordIsSelectableUsing(fn(User $record) => $userService->podeSelecionarRegistro($user, $record))
-            ->columns(self::columns($userService, $user))
-            ->recordActions(self::recordActions($userService, $roleService, $user))
+            ->columns(self::columns($userService))
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--access')
+            ->recordActions(self::recordActions($userService, $roleService, $user), position: RecordActionsPosition::AfterContent)
             ->toolbarActions(self::bulkActions($userService, $roleService, $user))
             ->defaultSort('updated_at', 'desc')
             ->striped();
     }
 
-    private static function columns(UserService $userService, User $user): array
+    private static function columns(UserService $userService): array
+    {
+        return self::responsiveColumns($userService);
+    }
+
+    private static function responsiveColumns(UserService $userService): array
     {
         return [
-            \Filament\Tables\Columns\TextColumn::make('name')
-                ->label('Nome de usuário')
-                ->wrap()
-                ->sortable()
-                ->grow(false)
-                ->searchable(),
+            Split::make([
+                Stack::make([
+                    \Filament\Tables\Columns\TextColumn::make('name')
+                        ->label('Nome de usuário')
+                        ->wrap()
+                        ->sortable()
+                        ->searchable()
+                        ->weight('semibold')
+                        ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
-            \Filament\Tables\Columns\TextColumn::make('email')
-                ->label('E-mail')
-                ->wrap()
-                ->copyable()
-                ->alignCenter()
-                ->grow(false)
-                ->searchable(),
+                    \Filament\Tables\Columns\TextColumn::make('email')
+                        ->label('E-mail')
+                        ->wrap()
+                        ->copyable()
+                        ->searchable()
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                ]),
 
-            \Filament\Tables\Columns\ToggleColumn::make('email_approved')
-                ->label('Verificação')
-                ->sortable()
-                ->alignCenter()
-                ->grow(false)
-                ->disabled(fn(User $record) => $userService->desabilitarToggleAprovacaoEmail(Auth::user(), $record))
-                ->visible(fn() => $userService->podeVerToggleAprovacaoEmail(Auth::user(), null, 'table'))
-                ->inline(false)
-                ->onColor('success')
-                ->offColor('danger')
-                ->onIcon('heroicon-s-check')
-                ->offIcon('heroicon-s-x-mark')
-                ->columnSpan(1),
+                \Filament\Tables\Columns\TextColumn::make('role')
+                    ->label('Nível de acesso')
+                    ->description('Nível de acesso', position: 'above')
+                    ->alignCenter()
+                    ->grow(false)
+                    ->getStateUsing(fn(User $record) => $record->roles->first()?->name ?? '-')
+                    ->toggleable(isToggledHiddenByDefault: false)
+                    ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
+            ])
+                ->from('md')
+                ->extraAttributes(['class' => 'crm-list-top']),
 
-            \Filament\Tables\Columns\TextColumn::make('email_verified_at')
-                ->label('Verificado em')
-                ->grow(false)
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true)
-                ->formatStateUsing(function ($state, User $record) {
-                    if (! $record->email_approved) return '--/--/-- --:--:--';
-                    return $state ? $state->format('d/m/Y H:i:s') : '-';
-                }),
+            Grid::make([
+                'default' => 1,
+                'sm' => 2,
+                'xl' => 4,
+            ])
+                ->schema([
+                    \Filament\Tables\Columns\ToggleColumn::make('email_approved')
+                        ->label('Verificação')
+                        ->sortable()
+                        ->alignCenter()
+                        ->grow(false)
+                        ->disabled(fn(User $record) => $userService->desabilitarToggleAprovacaoEmail(Auth::user(), $record))
+                        ->visible(fn() => $userService->podeVerToggleAprovacaoEmail(Auth::user(), null, 'table'))
+                        ->inline(false)
+                        ->onColor('success')
+                        ->offColor('danger')
+                        ->onIcon('heroicon-s-check')
+                        ->offIcon('heroicon-s-x-mark')
+                        ->columnSpan(1)
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-            \Filament\Tables\Columns\TextColumn::make('role')
-                ->label('Nivel de acesso')
-                ->alignCenter()
-                ->grow(false)
-                ->getStateUsing(fn(User $record) => $record->roles->first()?->name ?? '-')
-                ->toggleable(isToggledHiddenByDefault: false),
+                    \Filament\Tables\Columns\TextColumn::make('email_verified_at')
+                        ->label('Verificado em')
+                        ->description('Verificado em', position: 'above')
+                        ->grow(false)
+                        ->sortable()
+                        ->toggleable(isToggledHiddenByDefault: true)
+                        ->formatStateUsing(function ($state, User $record) {
+                            if (! $record->email_approved) {
+                                return '--/--/-- --:--:--';
+                            }
 
-            \Filament\Tables\Columns\TextColumn::make('created_at')
-                ->label('Criado em')
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
+                            return $state ? $state->format('d/m/Y H:i:s') : '-';
+                        })
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-            \Filament\Tables\Columns\TextColumn::make('updated_at')
-                ->label('Atualizado em')
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
+                    \Filament\Tables\Columns\TextColumn::make('created_at')
+                        ->label('Criado em')
+                        ->description('Criado em', position: 'above')
+                        ->sortable()
+                        ->toggleable(isToggledHiddenByDefault: true)
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+
+                    \Filament\Tables\Columns\TextColumn::make('updated_at')
+                        ->label('Atualizado em')
+                        ->description('Atualizado em', position: 'above')
+                        ->sortable()
+                        ->toggleable(isToggledHiddenByDefault: true)
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                ])
+                ->extraAttributes(['class' => 'crm-list-meta']),
         ];
     }
 

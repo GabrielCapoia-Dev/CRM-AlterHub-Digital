@@ -19,7 +19,11 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -260,66 +264,95 @@ class ClienteResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('codigo_interno')
-                    ->label('Codigo')
-                    ->searchable()
-                    ->sortable()
-                    ->fontFamily('mono')
-                    ->color('gray'),
+                Split::make([
+                    TextColumn::make('codigo_interno')
+                        ->label('Codigo')
+                        ->description('Codigo', position: 'above')
+                        ->searchable()
+                        ->sortable()
+                        ->fontFamily('mono')
+                        ->badge()
+                        ->color('gray')
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field crm-list-code'], merge: true),
 
-                TextColumn::make('razao_social')
-                    ->label('Razao social')
-                    ->searchable()
-                    ->sortable()
-                    ->weight('semibold')
-                    ->description(fn (Cliente $record) => $record->nome_fantasia),
+                    Stack::make([
+                        TextColumn::make('razao_social')
+                            ->label('Razao social')
+                            ->searchable()
+                            ->sortable()
+                            ->weight('semibold')
+                            ->description(fn (Cliente $record) => $record->nome_fantasia)
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
-                TextColumn::make('cnpj')
-                    ->label('Documento fiscal')
-                    ->searchable(query: function (Builder $query, string $search): Builder {
-                        $normalized = TaxIdentifier::normalizeForLookup($search) ?? '';
+                        TextColumn::make('cnpj')
+                            ->label('Documento fiscal')
+                            ->searchable(query: function (Builder $query, string $search): Builder {
+                                $normalized = TaxIdentifier::normalizeForLookup($search) ?? '';
 
-                        return $query->where(function (Builder $builder) use ($search, $normalized): void {
-                            $builder->where('cnpj', 'like', "%{$search}%");
+                                return $query->where(function (Builder $builder) use ($search, $normalized): void {
+                                    $builder->where('cnpj', 'like', "%{$search}%");
 
-                            if ($normalized !== '') {
-                                $builder->orWhereRaw(
-                                    TaxIdentifier::comparableExpression('cnpj') . ' LIKE ?',
-                                    ["%{$normalized}%"],
-                                );
-                            }
-                        });
-                    })
-                    ->fontFamily('mono'),
+                                    if ($normalized !== '') {
+                                        $builder->orWhereRaw(
+                                            TaxIdentifier::comparableExpression('cnpj') . ' LIKE ?',
+                                            ["%{$normalized}%"],
+                                        );
+                                    }
+                                });
+                            })
+                            ->fontFamily('mono')
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-code'], merge: true),
+                    ]),
 
-                TextColumn::make('categoriaSegmento.nome')
-                    ->label('Segmento')
-                    ->sortable()
-                    ->badge()
-                    ->color('info'),
+                    TextColumn::make('statusCliente.nome')
+                        ->label('Status')
+                        ->badge()
+                        ->color(fn (string $state): string => match (true) {
+                            str_contains(strtolower($state), 'ativo') => 'success',
+                            str_contains(strtolower($state), 'prospect') => 'info',
+                            str_contains(strtolower($state), 'inativo') => 'danger',
+                            str_contains(strtolower($state), 'suspenso') => 'warning',
+                            str_contains(strtolower($state), 'negociacao') => 'warning',
+                            default => 'gray',
+                        })
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
+                ])
+                    ->from('md')
+                    ->extraAttributes(['class' => 'crm-list-top']),
 
-                TextColumn::make('statusCliente.nome')
-                    ->label('Status')
-                    ->badge()
-                    ->color(fn (string $state): string => match (true) {
-                        str_contains(strtolower($state), 'ativo') => 'success',
-                        str_contains(strtolower($state), 'prospect') => 'info',
-                        str_contains(strtolower($state), 'inativo') => 'danger',
-                        str_contains(strtolower($state), 'suspenso') => 'warning',
-                        str_contains(strtolower($state), 'negociacao') => 'warning',
-                        default => 'gray',
-                    }),
+                Grid::make([
+                    'default' => 1,
+                    'sm' => 2,
+                    'xl' => 3,
+                ])
+                    ->schema([
+                        TextColumn::make('categoriaSegmento.nome')
+                            ->label('Segmento')
+                            ->description('Segmento', position: 'above')
+                            ->sortable()
+                            ->badge()
+                            ->color('info')
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                TextColumn::make('cidade')
-                    ->label('Cidade / UF')
-                    ->formatStateUsing(fn (Cliente $record) => implode(' / ', array_filter([$record->cidade, $record->uf])))
-                    ->color('gray'),
+                        TextColumn::make('cidade')
+                            ->label('Cidade / UF')
+                            ->description('Cidade / UF', position: 'above')
+                            ->formatStateUsing(fn (Cliente $record) => implode(' / ', array_filter([$record->cidade, $record->uf])))
+                            ->color('gray')
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                TextColumn::make('telefone')
-                    ->label('Telefone')
-                    ->searchable()
-                    ->icon(Heroicon::OutlinedPhone)
-                    ->color('gray'),
+                        TextColumn::make('telefone')
+                            ->label('Telefone')
+                            ->description('Telefone', position: 'above')
+                            ->searchable()
+                            ->icon(Heroicon::OutlinedPhone)
+                            ->color('gray')
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                    ])
+                    ->extraAttributes(['class' => 'crm-list-meta']),
             ])
             ->defaultSort('razao_social')
             ->searchPlaceholder('Buscar por razao social, documento fiscal ou codigo...')
@@ -348,10 +381,11 @@ class ClienteResource extends Resource
                             ->toArray()
                     ),
             ], layout: FiltersLayout::AboveContent)
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--registry')
             ->recordActions([
                 EditAction::make()->label('Editar'),
                 DeleteAction::make()->label('Excluir'),
-            ])
+            ], position: RecordActionsPosition::AfterContent)
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make()->label('Excluir selecionados'),

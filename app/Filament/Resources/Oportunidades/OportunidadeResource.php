@@ -38,7 +38,11 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -138,50 +142,82 @@ class OportunidadeResource extends Resource
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['cliente.categoriaSegmento', 'etapa', 'user']))
             ->columns([
-                TextColumn::make('titulo')
-                    ->label('Oportunidade')
-                    ->searchable()
-                    ->sortable()
-                    ->weight('semibold'),
+                Split::make([
+                    Stack::make([
+                        TextColumn::make('titulo')
+                            ->label('Oportunidade')
+                            ->searchable()
+                            ->sortable()
+                            ->weight('semibold')
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
-                TextColumn::make('cliente.razao_social')
-                    ->label('Cliente')
-                    ->searchable()
-                    ->sortable(),
+                        TextColumn::make('cliente.razao_social')
+                            ->label('Cliente')
+                            ->searchable()
+                            ->sortable()
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                    ]),
 
-                TextColumn::make('cliente.categoriaSegmento.nome')
-                    ->label('Segmento')
-                    ->badge()
-                    ->placeholder('Sem segmento'),
+                    TextColumn::make('valor_estimado')
+                        ->label('Valor estimado')
+                        ->description('Valor estimado', position: 'above')
+                        ->money('BRL')
+                        ->sortable()
+                        ->placeholder('Sem valor')
+                        ->alignEnd()
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
+                ])
+                    ->from('md')
+                    ->extraAttributes(['class' => 'crm-list-top']),
 
-                TextColumn::make('etapa.nome')
-                    ->label('Etapa')
-                    ->badge()
-                    ->sortable(),
+                Grid::make([
+                    'default' => 1,
+                    'sm' => 2,
+                    'xl' => 4,
+                ])
+                    ->schema([
+                        TextColumn::make('etapa.nome')
+                            ->label('Etapa')
+                            ->description('Etapa', position: 'above')
+                            ->badge()
+                            ->sortable()
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
 
-                TextColumn::make('user.name')
-                    ->label('Responsavel')
-                    ->searchable(),
+                        TextColumn::make('temperatura')
+                            ->label('Temperatura')
+                            ->description('Temperatura', position: 'above')
+                            ->badge()
+                            ->formatStateUsing(fn (string $state): string => Oportunidade::temperaturaOptions()[$state] ?? $state)
+                            ->color(fn (string $state): string => match ($state) {
+                                'hot' => 'danger',
+                                'warm' => 'warning',
+                                default => 'info',
+                            })
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
 
-                TextColumn::make('temperatura')
-                    ->label('Temperatura')
-                    ->badge()
-                    ->formatStateUsing(fn (string $state): string => Oportunidade::temperaturaOptions()[$state] ?? $state)
-                    ->color(fn (string $state): string => match ($state) {
-                        'hot' => 'danger',
-                        'warm' => 'warning',
-                        default => 'info',
-                    }),
+                        TextColumn::make('cliente.categoriaSegmento.nome')
+                            ->label('Segmento')
+                            ->description('Segmento', position: 'above')
+                            ->badge()
+                            ->placeholder('Sem segmento')
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                TextColumn::make('valor_estimado')
-                    ->label('Valor estimado')
-                    ->money('BRL')
-                    ->sortable()
-                    ->placeholder('Sem valor'),
+                        TextColumn::make('user.name')
+                            ->label('Responsavel')
+                            ->description('Responsavel', position: 'above')
+                            ->searchable()
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                    ])
+                    ->extraAttributes(['class' => 'crm-list-meta']),
 
                 TextColumn::make('updated_at')
                     ->label('Atualizado em')
-                    ->dateTime('d/m/Y H:i'),
+                    ->description('Atualizado em', position: 'above')
+                    ->dateTime('d/m/Y H:i')
+                    ->extraAttributes(['class' => 'crm-list-field crm-list-footer'], merge: true),
             ])
             ->defaultSort('updated_at', 'desc')
             ->searchPlaceholder('Buscar por oportunidade, cliente ou responsavel...')
@@ -202,11 +238,12 @@ class OportunidadeResource extends Resource
                     ->label('Temperatura')
                     ->options(Oportunidade::temperaturaOptions()),
             ])
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm')
             ->recordActions([
                 ViewAction::make()->label('Visualizar'),
                 static::configureEditAction(EditAction::make()->label('Editar')),
                 DeleteAction::make()->label('Excluir'),
-            ]);
+            ], position: RecordActionsPosition::AfterContent);
     }
 
     public static function getRelations(): array

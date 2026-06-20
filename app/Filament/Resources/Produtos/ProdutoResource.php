@@ -39,7 +39,11 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -351,78 +355,112 @@ class ProdutoResource extends Resource
                 ->withCount('produtoMovimentacoes'))
             ->checkIfRecordIsSelectableUsing(fn (Produto $record): bool => auth()->user()?->can('update', $record) ?? false)
             ->columns([
-                TextColumn::make('codigo_interno')
-                    ->label('Codigo')
-                    ->searchable()
-                    ->sortable()
-                    ->fontFamily('mono'),
+                Split::make([
+                    TextColumn::make('codigo_interno')
+                        ->label('Codigo')
+                        ->description('Codigo', position: 'above')
+                        ->searchable()
+                        ->sortable()
+                        ->fontFamily('mono')
+                        ->badge()
+                        ->color('gray')
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field crm-list-code'], merge: true),
 
-                TextColumn::make('nome')
-                    ->label('Nome')
-                    ->searchable()
-                    ->sortable()
-                    ->weight('semibold')
-                    ->description(fn(Produto $record): ?string => $record->marca),
+                    Stack::make([
+                        TextColumn::make('nome')
+                            ->label('Nome')
+                            ->searchable()
+                            ->sortable()
+                            ->weight('semibold')
+                            ->description(fn(Produto $record): ?string => $record->marca)
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
-                TextColumn::make('categoriaProduto.nome')
-                    ->label('Categoria')
-                    ->badge()
-                    ->placeholder('Sem categoria'),
+                        TextColumn::make('categoriaProduto.nome')
+                            ->label('Categoria')
+                            ->badge()
+                            ->placeholder('Sem categoria')
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                    ]),
 
-                TextColumn::make('unidade_medida')
-                    ->label('Unidade')
-                    ->sortable(),
+                    TextColumn::make('status')
+                        ->label('Status')
+                        ->badge()
+                        ->formatStateUsing(function (?string $state): string {
+                            if ($state === 'em_registro') {
+                                $state = 'ativo';
+                            }
 
-                TextColumn::make('estoque_atual')
-                    ->label('Estoque atual')
-                    ->badge()
-                    ->sortable()
-                    ->description(fn(Produto $record): string => 'Minimo: ' . ($record->estoque_minimo === null ? '-' : static::formatQuantity($record->estoque_minimo)))
-                    ->color(function (Produto $record): string {
-                        if (! $record->possuiHistoricoEstoque()) {
-                            return 'gray';
-                        }
+                            if (! $state) {
+                                return 'Nao definido';
+                            }
 
-                        return $record->estoqueEstaBaixo() ? 'danger' : 'success';
-                    })
-                    ->formatStateUsing(function ($state, Produto $record): string {
-                        if (! $record->possuiHistoricoEstoque()) {
-                            return 'Sem historico';
-                        }
+                            return Produto::statusOptions()[$state] ?? $state;
+                        })
+                        ->description(fn (Produto $record): ?string => $record->estoqueEstaBaixo() ? 'Abaixo do minimo' : null)
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
+                ])
+                    ->from('md')
+                    ->extraAttributes(['class' => 'crm-list-top']),
 
-                        return static::formatQuantity((float) $state);
-                    }),
+                Grid::make([
+                    'default' => 1,
+                    'sm' => 2,
+                    'xl' => 4,
+                ])
+                    ->schema([
+                        TextColumn::make('estoque_atual')
+                            ->label('Estoque atual')
+                            ->badge()
+                            ->sortable()
+                            ->description(fn(Produto $record): string => 'Minimo: ' . ($record->estoque_minimo === null ? '-' : static::formatQuantity($record->estoque_minimo)))
+                            ->color(function (Produto $record): string {
+                                if (! $record->possuiHistoricoEstoque()) {
+                                    return 'gray';
+                                }
 
-                TextColumn::make('preco_tabela')
-                    ->label('Venda final')
-                    ->money('BRL')
-                    ->sortable(),
+                                return $record->estoqueEstaBaixo() ? 'danger' : 'success';
+                            })
+                            ->formatStateUsing(function ($state, Produto $record): string {
+                                if (! $record->possuiHistoricoEstoque()) {
+                                    return 'Sem historico';
+                                }
 
-                TextColumn::make('preco_minimo')
-                    ->label('Venda minima')
-                    ->money('BRL')
-                    ->sortable()
-                    ->placeholder('Nao informado'),
+                                return static::formatQuantity((float) $state);
+                            })
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-stock'], merge: true),
 
-                TextColumn::make('status')
-                    ->label('Status')
-                    ->badge()
-                    ->formatStateUsing(function (?string $state): string {
-                        if ($state === 'em_registro') {
-                            $state = 'ativo';
-                        }
+                        TextColumn::make('unidade_medida')
+                            ->label('Unidade')
+                            ->description('Unidade', position: 'above')
+                            ->sortable()
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                        if (! $state) {
-                            return 'Nao definido';
-                        }
+                        TextColumn::make('preco_tabela')
+                            ->label('Venda final')
+                            ->description('Venda final', position: 'above')
+                            ->money('BRL')
+                            ->sortable()
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
 
-                        return Produto::statusOptions()[$state] ?? $state;
-                    })
-                    ->description(fn (Produto $record): ?string => $record->estoqueEstaBaixo() ? 'Abaixo do minimo' : null),
+                        TextColumn::make('preco_minimo')
+                            ->label('Venda minima')
+                            ->description('Venda minima', position: 'above')
+                            ->money('BRL')
+                            ->sortable()
+                            ->placeholder('Nao informado')
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
+                    ])
+                    ->extraAttributes(['class' => 'crm-list-meta']),
 
                 TextColumn::make('updated_at')
                     ->label('Atualizado em')
-                    ->dateTime('d/m/Y H:i'),
+                    ->description('Atualizado em', position: 'above')
+                    ->dateTime('d/m/Y H:i')
+                    ->toggleable()
+                    ->extraAttributes(['class' => 'crm-list-field crm-list-footer'], merge: true),
             ])
             ->defaultSort('nome')
             ->searchPlaceholder('Buscar por nome ou codigo...')
@@ -437,10 +475,11 @@ class ProdutoResource extends Resource
                     ->label('Status')
                     ->options(Produto::statusOptions()),
             ])
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--catalog')
             ->recordActions([
                 static::configureEditAction(EditAction::make()->label('Editar')),
                 DeleteAction::make()->label('Excluir'),
-            ])
+            ], position: RecordActionsPosition::AfterContent)
             ->toolbarActions([
                 BulkActionGroup::make([
                     ApplyBulkCostAction::make(),

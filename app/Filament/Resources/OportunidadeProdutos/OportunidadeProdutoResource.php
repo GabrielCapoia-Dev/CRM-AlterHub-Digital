@@ -15,7 +15,10 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 
 class OportunidadeProdutoResource extends Resource
@@ -75,33 +78,49 @@ class OportunidadeProdutoResource extends Resource
 
     public static function tableColumns(bool $withOportunidade = true): array
     {
-        $columns = [];
+        $identity = [
+            TextColumn::make('produto.nome')
+                ->label('Produto')
+                ->searchable()
+                ->sortable()
+                ->weight('semibold')
+                ->wrap()
+                ->extraAttributes(['class' => 'crm-list-title'], merge: true),
+        ];
 
         if ($withOportunidade) {
-            $columns[] = TextColumn::make('oportunidade.titulo')
+            array_unshift($identity, TextColumn::make('oportunidade.titulo')
                 ->label('Oportunidade')
                 ->searchable()
                 ->sortable()
-                ->toggleable();
+                ->toggleable()
+                ->wrap()
+                ->extraAttributes(['class' => 'crm-list-field'], merge: true));
         }
 
-        $columns[] = TextColumn::make('produto.nome')
-            ->label('Produto')
-            ->searchable()
-            ->sortable()
-            ->weight('semibold');
+        return [
+            Split::make([
+                Stack::make($identity),
 
-        $columns[] = TextColumn::make('preco_negociado')
-            ->label('Preço negociado')
-            ->money('BRL')
-            ->sortable()
-            ->placeholder('Sem valor');
+                TextColumn::make('preco_negociado')
+                    ->label('Preço negociado')
+                    ->description('Preço negociado', position: 'above')
+                    ->money('BRL')
+                    ->sortable()
+                    ->placeholder('Sem valor')
+                    ->alignEnd()
+                    ->grow(false)
+                    ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
+            ])
+                ->from('md')
+                ->extraAttributes(['class' => 'crm-list-top']),
 
-        $columns[] = TextColumn::make('updated_at')
-            ->label('Atualizado em')
-            ->dateTime('d/m/Y H:i');
-
-        return $columns;
+            TextColumn::make('updated_at')
+                ->label('Atualizado em')
+                ->description('Atualizado em', position: 'above')
+                ->dateTime('d/m/Y H:i')
+                ->extraAttributes(['class' => 'crm-list-field crm-list-footer'], merge: true),
+        ];
     }
 
     public static function form(Schema $schema): Schema
@@ -122,10 +141,11 @@ class OportunidadeProdutoResource extends Resource
         return $table
             ->columns(static::tableColumns())
             ->defaultSort('updated_at', 'desc')
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm')
             ->recordActions([
                 EditAction::make()->label('Editar'),
                 DeleteAction::make()->label('Excluir'),
-            ]);
+            ], position: RecordActionsPosition::AfterContent);
     }
 
     public static function getPages(): array

@@ -14,7 +14,11 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 
 class OportunidadeMovimentacaoResource extends Resource
@@ -78,39 +82,64 @@ class OportunidadeMovimentacaoResource extends Resource
 
     public static function tableColumns(bool $withOportunidade = true): array
     {
-        $columns = [];
+        $identity = [
+            TextColumn::make('etapaOrigem.nome')
+                ->label('Origem')
+                ->badge()
+                ->placeholder('Sem origem')
+                ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
+
+            TextColumn::make('etapaDestino.nome')
+                ->label('Destino')
+                ->badge()
+                ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
+        ];
 
         if ($withOportunidade) {
-            $columns[] = TextColumn::make('oportunidade.titulo')
+            array_unshift($identity, TextColumn::make('oportunidade.titulo')
                 ->label('Oportunidade')
                 ->searchable()
-                ->toggleable();
+                ->toggleable()
+                ->wrap()
+                ->extraAttributes(['class' => 'crm-list-title'], merge: true));
         }
 
-        $columns[] = TextColumn::make('etapaOrigem.nome')
-            ->label('Origem')
-            ->badge()
-            ->placeholder('Sem origem');
+        return [
+            Split::make([
+                Stack::make($identity),
 
-        $columns[] = TextColumn::make('etapaDestino.nome')
-            ->label('Destino')
-            ->badge();
+                TextColumn::make('movido_em')
+                    ->label('Movido em')
+                    ->description('Movido em', position: 'above')
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable()
+                    ->grow(false)
+                    ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+            ])
+                ->from('md')
+                ->extraAttributes(['class' => 'crm-list-top']),
 
-        $columns[] = TextColumn::make('user.name')
-            ->label('Usuário')
-            ->searchable();
+            Grid::make([
+                'default' => 1,
+                'md' => 2,
+            ])
+                ->schema([
+                    TextColumn::make('user.name')
+                        ->label('Usuário')
+                        ->description('Usuário', position: 'above')
+                        ->searchable()
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-        $columns[] = TextColumn::make('movido_em')
-            ->label('Movido em')
-            ->dateTime('d/m/Y H:i')
-            ->sortable();
-
-        $columns[] = TextColumn::make('motivo')
-            ->label('Motivo')
-            ->limit(80)
-            ->placeholder('Sem motivo');
-
-        return $columns;
+                    TextColumn::make('motivo')
+                        ->label('Motivo')
+                        ->description('Motivo', position: 'above')
+                        ->limit(80)
+                        ->placeholder('Sem motivo')
+                        ->wrap()
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                ])
+                ->extraAttributes(['class' => 'crm-list-meta']),
+        ];
     }
 
     public static function form(Schema $schema): Schema
@@ -131,12 +160,13 @@ class OportunidadeMovimentacaoResource extends Resource
         return $table
             ->columns(static::tableColumns())
             ->defaultSort('movido_em', 'desc')
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm')
             ->recordActions([
                 ViewAction::make()
                     ->label('Visualizar')
                     ->slideOver(),
                 DeleteAction::make()->label('Excluir'),
-            ]);
+            ], position: RecordActionsPosition::AfterContent);
     }
 
     public static function getPages(): array

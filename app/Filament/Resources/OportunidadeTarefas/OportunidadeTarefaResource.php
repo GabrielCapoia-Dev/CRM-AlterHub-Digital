@@ -14,7 +14,11 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 
@@ -76,37 +80,61 @@ class OportunidadeTarefaResource extends Resource
 
     public static function tableColumns(bool $withOportunidade = true): array
     {
-        $columns = [];
+        $identity = [
+            TextColumn::make('titulo')
+                ->label('Título')
+                ->searchable()
+                ->sortable()
+                ->weight('semibold')
+                ->wrap()
+                ->extraAttributes(['class' => 'crm-list-title'], merge: true),
+        ];
 
         if ($withOportunidade) {
-            $columns[] = TextColumn::make('oportunidade.titulo')
+            array_unshift($identity, TextColumn::make('oportunidade.titulo')
                 ->label('Oportunidade')
                 ->searchable()
-                ->toggleable();
+                ->toggleable()
+                ->wrap()
+                ->extraAttributes(['class' => 'crm-list-field'], merge: true));
         }
 
-        $columns[] = TextColumn::make('titulo')
-            ->label('Título')
-            ->searchable()
-            ->sortable()
-            ->weight('semibold');
+        return [
+            Split::make([
+                Stack::make($identity),
 
-        $columns[] = TextColumn::make('status')
-            ->label('Status')
-            ->badge()
-            ->formatStateUsing(fn (string $state): string => OportunidadeTarefa::statusOptions()[$state] ?? $state);
+                TextColumn::make('status')
+                    ->label('Status')
+                    ->description('Status', position: 'above')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => OportunidadeTarefa::statusOptions()[$state] ?? $state)
+                    ->grow(false)
+                    ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
+            ])
+                ->from('md')
+                ->extraAttributes(['class' => 'crm-list-top']),
 
-        $columns[] = TextColumn::make('user.name')
-            ->label('Responsável')
-            ->searchable();
+            Grid::make([
+                'default' => 1,
+                'md' => 2,
+            ])
+                ->schema([
+                    TextColumn::make('user.name')
+                        ->label('Responsável')
+                        ->description('Responsável', position: 'above')
+                        ->searchable()
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-        $columns[] = TextColumn::make('data_prevista')
-            ->label('Data prevista')
-            ->date('d/m/Y')
-            ->placeholder('Sem data')
-            ->sortable();
-
-        return $columns;
+                    TextColumn::make('data_prevista')
+                        ->label('Data prevista')
+                        ->description('Data prevista', position: 'above')
+                        ->date('d/m/Y')
+                        ->placeholder('Sem data')
+                        ->sortable()
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                ])
+                ->extraAttributes(['class' => 'crm-list-meta']),
+        ];
     }
 
     public static function form(Schema $schema): Schema
@@ -127,10 +155,11 @@ class OportunidadeTarefaResource extends Resource
         return $table
             ->columns(static::tableColumns())
             ->defaultSort('data_prevista')
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm')
             ->recordActions([
                 EditAction::make()->label('Editar'),
                 DeleteAction::make()->label('Excluir'),
-            ]);
+            ], position: RecordActionsPosition::AfterContent);
     }
 
     public static function getPages(): array

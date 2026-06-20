@@ -16,7 +16,11 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 use UnitEnum;
 
@@ -88,35 +92,60 @@ class EtapaResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('ordem')
-                    ->label('Ordem')
-                    ->sortable(),
+                Split::make([
+                    TextColumn::make('ordem')
+                        ->label('Ordem')
+                        ->description('Ordem', position: 'above')
+                        ->sortable()
+                        ->badge()
+                        ->color('gray')
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
 
-                TextColumn::make('nome')
-                    ->label('Nome')
-                    ->searchable()
-                    ->sortable()
-                    ->weight('semibold'),
+                    Stack::make([
+                        TextColumn::make('nome')
+                            ->label('Nome')
+                            ->searchable()
+                            ->sortable()
+                            ->weight('semibold')
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
-                TextColumn::make('slug')
-                    ->label('Slug')
-                    ->searchable()
-                    ->fontFamily('mono')
-                    ->color('gray'),
+                        TextColumn::make('slug')
+                            ->label('Slug')
+                            ->searchable()
+                            ->fontFamily('mono')
+                            ->color('gray')
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-code'], merge: true),
+                    ]),
+                ])
+                    ->from('md')
+                    ->extraAttributes(['class' => 'crm-list-top']),
 
-                TextColumn::make('cor')
-                    ->label('Cor')
-                    ->placeholder('Sem cor'),
+                Grid::make([
+                    'default' => 1,
+                    'sm' => 2,
+                ])
+                    ->schema([
+                        TextColumn::make('cor')
+                            ->label('Cor')
+                            ->description('Cor', position: 'above')
+                            ->placeholder('Sem cor')
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                IconColumn::make('fechamento')
-                    ->label('Fechamento')
-                    ->boolean(),
+                        IconColumn::make('fechamento')
+                            ->label('Fechamento')
+                            ->boolean()
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                    ])
+                    ->extraAttributes(['class' => 'crm-list-meta']),
             ])
             ->defaultSort('ordem')
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--registry')
             ->recordActions([
                 EditAction::make()->label('Editar'),
                 DeleteAction::make()->label('Excluir'),
-            ])
+            ], position: RecordActionsPosition::AfterContent)
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make()->label('Excluir selecionados'),

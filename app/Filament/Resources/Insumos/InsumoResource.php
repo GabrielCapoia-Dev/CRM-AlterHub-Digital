@@ -40,7 +40,11 @@ use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -95,102 +99,149 @@ class InsumoResource extends Resource
                 ->withCount('insumoMovimentacoes'))
             ->checkIfRecordIsSelectableUsing(fn (Insumo $record): bool => auth()->user()?->can('update', $record) ?? false)
             ->columns([
-                TextColumn::make('codigo_interno')
-                    ->label('Codigo')
-                    ->searchable()
-                    ->sortable()
-                    ->fontFamily('mono'),
+                Split::make([
+                    TextColumn::make('codigo_interno')
+                        ->label('Codigo')
+                        ->description('Codigo', position: 'above')
+                        ->searchable()
+                        ->sortable()
+                        ->fontFamily('mono')
+                        ->badge()
+                        ->color('gray')
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field crm-list-code'], merge: true),
 
-                TextColumn::make('nome')
-                    ->label('Nome')
-                    ->searchable()
-                    ->sortable()
-                    ->weight('semibold')
-                    ->description(fn (Insumo $record): ?string => $record->tipoInsumo?->nome),
+                    Stack::make([
+                        TextColumn::make('nome')
+                            ->label('Nome')
+                            ->searchable()
+                            ->sortable()
+                            ->weight('semibold')
+                            ->description(fn (Insumo $record): ?string => $record->tipoInsumo?->nome)
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
-                TextColumn::make('fornecedor.razao_social')
-                    ->label('Fornecedor')
-                    ->searchable()
-                    ->placeholder('Nao informado'),
+                        TextColumn::make('fornecedor.razao_social')
+                            ->label('Fornecedor')
+                            ->searchable()
+                            ->placeholder('Nao informado')
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                    ]),
 
-                TextColumn::make('origem')
-                    ->label('Origem')
-                    ->badge()
-                    ->formatStateUsing(function (?string $state): string {
-                        if (! $state) {
-                            return 'Nao definida';
-                        }
+                    TextColumn::make('statusInsumo.nome')
+                        ->label('Status')
+                        ->badge()
+                        ->description(fn (Insumo $record): ?string => $record->estoqueEstaBaixo() ? 'Abaixo do minimo' : null)
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
+                ])
+                    ->from('md')
+                    ->extraAttributes(['class' => 'crm-list-top']),
 
-                        return Insumo::origemOptions()[$state] ?? $state;
-                    }),
+                Grid::make([
+                    'default' => 1,
+                    'sm' => 2,
+                    'xl' => 4,
+                ])
+                    ->schema([
+                        TextColumn::make('estoque_atual')
+                            ->label('Estoque atual')
+                            ->badge()
+                            ->sortable()
+                            ->description(fn (Insumo $record): ?string => $record->tipoUnidadeMedida?->sigla ?: $record->tipoUnidadeMedida?->nome)
+                            ->color(function (Insumo $record): string {
+                                if (! $record->possuiHistoricoEstoque()) {
+                                    return 'gray';
+                                }
 
-                TextColumn::make('custo_moeda_origem')
-                    ->label('Valor moeda origem')
-                    ->alignEnd()
-                    ->sortable()
-                    ->placeholder('-')
-                    ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatDecimal((float) $state)),
+                                return $record->estoqueEstaBaixo() ? 'danger' : 'success';
+                            })
+                            ->formatStateUsing(function ($state, Insumo $record): string {
+                                if (! $record->possuiHistoricoEstoque()) {
+                                    return 'Sem historico';
+                                }
 
-                TextColumn::make('moeda_origem')
-                    ->label('Moeda')
-                    ->badge()
-                    ->sortable()
-                    ->formatStateUsing(fn (?string $state, Insumo $record): string => $record->origem === 'nacional' ? 'BRL' : ($state ?: '-')),
+                                return static::formatQuantity((float) $state);
+                            })
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-stock'], merge: true),
 
-                TextColumn::make('taxa_cambio')
-                    ->label('Taxa de cambio')
-                    ->alignEnd()
-                    ->sortable()
-                    ->placeholder('-')
-                    ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatDecimal((float) $state)),
+                        TextColumn::make('estoque_minimo')
+                            ->label('Minimo')
+                            ->description('Minimo', position: 'above')
+                            ->alignEnd()
+                            ->formatStateUsing(function ($state, Insumo $record): string {
+                                if ($state === null) {
+                                    return '-';
+                                }
 
-                TextColumn::make('estoque_atual')
-                    ->label('Estoque atual')
-                    ->badge()
-                    ->sortable()
-                    ->description(fn (Insumo $record): ?string => $record->tipoUnidadeMedida?->sigla ?: $record->tipoUnidadeMedida?->nome)
-                    ->color(function (Insumo $record): string {
-                        if (! $record->possuiHistoricoEstoque()) {
-                            return 'gray';
-                        }
+                                $unit = $record->tipoUnidadeMedida?->sigla ?: $record->tipoUnidadeMedida?->nome;
 
-                        return $record->estoqueEstaBaixo() ? 'danger' : 'success';
-                    })
-                    ->formatStateUsing(function ($state, Insumo $record): string {
-                        if (! $record->possuiHistoricoEstoque()) {
-                            return 'Sem historico';
-                        }
+                                return trim(static::formatDecimal((float) $state, 0) . ' ' . $unit);
+                            })
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
 
-                        return static::formatQuantity((float) $state);
-                    }),
+                        TextColumn::make('origem')
+                            ->label('Origem')
+                            ->description('Origem', position: 'above')
+                            ->badge()
+                            ->formatStateUsing(function (?string $state): string {
+                                if (! $state) {
+                                    return 'Nao definida';
+                                }
 
-                TextColumn::make('estoque_minimo')
-                    ->label('Minimo')
-                    ->alignEnd()
-                    ->formatStateUsing(function ($state, Insumo $record): string {
-                        if ($state === null) {
-                            return '-';
-                        }
+                                return Insumo::origemOptions()[$state] ?? $state;
+                            })
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                        $unit = $record->tipoUnidadeMedida?->sigla ?: $record->tipoUnidadeMedida?->nome;
+                        TextColumn::make('moeda_origem')
+                            ->label('Moeda')
+                            ->description('Moeda', position: 'above')
+                            ->badge()
+                            ->sortable()
+                            ->formatStateUsing(fn (?string $state, Insumo $record): string => $record->origem === 'nacional' ? 'BRL' : ($state ?: '-'))
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                    ])
+                    ->extraAttributes(['class' => 'crm-list-meta']),
 
-                        return trim(static::formatDecimal((float) $state, 0) . ' ' . $unit);
-                    }),
+                Grid::make([
+                    'default' => 1,
+                    'md' => 3,
+                ])
+                    ->schema([
+                        TextColumn::make('custo_moeda_origem')
+                            ->label('Valor moeda origem')
+                            ->description('Valor moeda origem', position: 'above')
+                            ->alignEnd()
+                            ->sortable()
+                            ->placeholder('-')
+                            ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatDecimal((float) $state))
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
 
-                TextColumn::make('valor_convertido_brl')
-                    ->label('Custo efetivo')
-                    ->formatStateUsing(fn ($state, Insumo $record): string => static::formatCurrency($record->effectiveCostAmount()))
-                    ->sortable(),
+                        TextColumn::make('taxa_cambio')
+                            ->label('Taxa de cambio')
+                            ->description('Taxa de cambio', position: 'above')
+                            ->alignEnd()
+                            ->sortable()
+                            ->placeholder('-')
+                            ->formatStateUsing(fn ($state): string => $state === null ? '-' : static::formatDecimal((float) $state))
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
 
-                TextColumn::make('custo_nacionalizado')
-                    ->label('Custo final')
-                    ->formatStateUsing(fn ($state, Insumo $record): string => static::formatCurrency($record->finalCostAmount()))
-                    ->sortable(),
+                        TextColumn::make('valor_convertido_brl')
+                            ->label('Custo efetivo')
+                            ->description('Custo efetivo', position: 'above')
+                            ->formatStateUsing(fn ($state, Insumo $record): string => static::formatCurrency($record->effectiveCostAmount()))
+                            ->sortable()
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
 
-                TextColumn::make('statusInsumo.nome')
-                    ->label('Status')
-                    ->badge()
-                    ->description(fn (Insumo $record): ?string => $record->estoqueEstaBaixo() ? 'Abaixo do minimo' : null),
+                        TextColumn::make('custo_nacionalizado')
+                            ->label('Custo final')
+                            ->description('Custo final', position: 'above')
+                            ->formatStateUsing(fn ($state, Insumo $record): string => static::formatCurrency($record->finalCostAmount()))
+                            ->sortable()
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
+                    ])
+                    ->extraAttributes(['class' => 'crm-list-finance']),
             ])
             ->defaultSort('nome')
             ->searchPlaceholder('Buscar por nome, codigo, fornecedor ou NCM...')
@@ -211,10 +262,11 @@ class InsumoResource extends Resource
                     ->searchable()
                     ->preload(),
             ])
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--catalog')
             ->recordActions([
                 static::configureEditAction(EditAction::make()->label('Editar')),
                 DeleteAction::make()->label('Excluir'),
-            ])
+            ], position: RecordActionsPosition::AfterContent)
             ->toolbarActions([
                 BulkActionGroup::make([
                     ApplyBulkCostAction::make(),

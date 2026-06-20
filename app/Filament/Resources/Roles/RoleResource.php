@@ -14,6 +14,9 @@ use Filament\Forms;
 use Filament\Resources\Resource;
 use App\Services\Acesso\RoleService;
 use Filament\Tables;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\Models\Permission;
@@ -107,14 +110,29 @@ class RoleResource extends Resource
         return $table
             ->paginated([5, 10, 25, 50, 100])
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->label('Nivel de acesso')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime('d/m/Y H:i:s')
-                    ->sortable(),
+                Split::make([
+                    Stack::make([
+                        Tables\Columns\TextColumn::make('name')
+                            ->label('Nivel de acesso')
+                            ->searchable()
+                            ->weight('semibold')
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-title'], merge: true),
+                    ]),
+
+                    Tables\Columns\TextColumn::make('created_at')
+                        ->label('Criado em')
+                        ->description('Criado em', position: 'above')
+                        ->dateTime('d/m/Y H:i:s')
+                        ->sortable()
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                ])
+                    ->from('md')
+                    ->extraAttributes(['class' => 'crm-list-top']),
             ])
             ->filters([])
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--access')
             ->recordActions([
                 Actions\Action::make('editar')
                     ->label('Editar')
@@ -223,7 +241,7 @@ class RoleResource extends Resource
 
                 Actions\DeleteAction::make()
                     ->disabled(fn($record) => app(RoleService::class)->roleEhBloqueadaParaExclusao($record)),
-            ])
+            ], position: RecordActionsPosition::AfterContent)
             ->groupedBulkActions([
                 Actions\DeleteBulkAction::make()
                     ->visible(function () {

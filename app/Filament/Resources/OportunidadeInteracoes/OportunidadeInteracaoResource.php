@@ -14,7 +14,11 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 
@@ -78,34 +82,58 @@ class OportunidadeInteracaoResource extends Resource
 
     public static function tableColumns(bool $withOportunidade = true): array
     {
-        $columns = [];
+        $identity = [
+            TextColumn::make('tipo')
+                ->label('Tipo')
+                ->badge()
+                ->formatStateUsing(fn (string $state): string => OportunidadeInteracao::tipoOptions()[$state] ?? $state)
+                ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
+        ];
 
         if ($withOportunidade) {
-            $columns[] = TextColumn::make('oportunidade.titulo')
+            array_unshift($identity, TextColumn::make('oportunidade.titulo')
                 ->label('Oportunidade')
                 ->searchable()
-                ->toggleable();
+                ->toggleable()
+                ->wrap()
+                ->extraAttributes(['class' => 'crm-list-title'], merge: true));
         }
 
-        $columns[] = TextColumn::make('tipo')
-            ->label('Tipo')
-            ->badge()
-            ->formatStateUsing(fn (string $state): string => OportunidadeInteracao::tipoOptions()[$state] ?? $state);
+        return [
+            Split::make([
+                Stack::make($identity),
 
-        $columns[] = TextColumn::make('user.name')
-            ->label('Usuário')
-            ->searchable();
+                TextColumn::make('ocorreu_em')
+                    ->label('Ocorreu em')
+                    ->description('Ocorreu em', position: 'above')
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable()
+                    ->grow(false)
+                    ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+            ])
+                ->from('md')
+                ->extraAttributes(['class' => 'crm-list-top']),
 
-        $columns[] = TextColumn::make('ocorreu_em')
-            ->label('Ocorreu em')
-            ->dateTime('d/m/Y H:i')
-            ->sortable();
+            Grid::make([
+                'default' => 1,
+                'md' => 2,
+            ])
+                ->schema([
+                    TextColumn::make('user.name')
+                        ->label('Usuário')
+                        ->description('Usuário', position: 'above')
+                        ->searchable()
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-        $columns[] = TextColumn::make('nota')
-            ->label('Nota')
-            ->limit(80);
-
-        return $columns;
+                    TextColumn::make('nota')
+                        ->label('Nota')
+                        ->description('Nota', position: 'above')
+                        ->limit(80)
+                        ->wrap()
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                ])
+                ->extraAttributes(['class' => 'crm-list-meta']),
+        ];
     }
 
     public static function form(Schema $schema): Schema
@@ -126,10 +154,11 @@ class OportunidadeInteracaoResource extends Resource
         return $table
             ->columns(static::tableColumns())
             ->defaultSort('ocorreu_em', 'desc')
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm')
             ->recordActions([
                 EditAction::make()->label('Editar'),
                 DeleteAction::make()->label('Excluir'),
-            ]);
+            ], position: RecordActionsPosition::AfterContent);
     }
 
     public static function getPages(): array

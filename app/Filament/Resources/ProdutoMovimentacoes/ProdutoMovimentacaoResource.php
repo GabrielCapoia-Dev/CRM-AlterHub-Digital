@@ -22,7 +22,11 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -176,71 +180,103 @@ class ProdutoMovimentacaoResource extends Resource
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['produto', 'user']))
             ->columns([
-                TextColumn::make('realizado_em')
-                    ->label('Data')
-                    ->date('d/m/Y')
-                    ->sortable(),
+                Split::make([
+                    TextColumn::make('realizado_em')
+                        ->label('Data')
+                        ->description('Data', position: 'above')
+                        ->date('d/m/Y')
+                        ->sortable()
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                TextColumn::make('produto.codigo_interno')
-                    ->label('Codigo')
-                    ->fontFamily('mono')
-                    ->searchable()
-                    ->toggleable(),
+                    Stack::make([
+                        TextColumn::make('produto.nome')
+                            ->label('Produto')
+                            ->searchable()
+                            ->weight('semibold')
+                            ->description(fn (ProdutoMovimentacao $record): ?string => $record->unidade)
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
-                TextColumn::make('produto.nome')
-                    ->label('Produto')
-                    ->searchable()
-                    ->weight('semibold')
-                    ->description(fn (ProdutoMovimentacao $record): ?string => $record->unidade),
+                        TextColumn::make('produto.codigo_interno')
+                            ->label('Codigo')
+                            ->fontFamily('mono')
+                            ->searchable()
+                            ->toggleable()
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-code'], merge: true),
+                    ]),
 
-                TextColumn::make('tipo')
-                    ->label('Tipo')
-                    ->badge()
-                    ->color(fn (?string $state): string => ProdutoMovimentacao::tipoColors()[$state] ?? 'gray')
-                    ->formatStateUsing(fn (?string $state): string => ProdutoMovimentacao::tipoOptions()[$state] ?? 'Nao definido'),
+                    TextColumn::make('tipo')
+                        ->label('Tipo')
+                        ->badge()
+                        ->color(fn (?string $state): string => ProdutoMovimentacao::tipoColors()[$state] ?? 'gray')
+                        ->formatStateUsing(fn (?string $state): string => ProdutoMovimentacao::tipoOptions()[$state] ?? 'Nao definido')
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
+                ])
+                    ->from('md')
+                    ->extraAttributes(['class' => 'crm-list-top']),
 
-                TextColumn::make('quantidade')
-                    ->label('Qtd.')
-                    ->alignEnd()
-                    ->formatStateUsing(fn ($state): string => static::formatQuantity($state)),
+                Grid::make([
+                    'default' => 1,
+                    'sm' => 2,
+                    'xl' => 4,
+                ])
+                    ->schema([
+                        TextColumn::make('quantidade')
+                            ->label('Qtd.')
+                            ->description('Quantidade', position: 'above')
+                            ->alignEnd()
+                            ->formatStateUsing(fn ($state): string => static::formatQuantity($state))
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
 
-                TextColumn::make('impacto_estoque')
-                    ->label('Impacto')
-                    ->badge()
-                    ->alignEnd()
-                    ->color(function ($state): string {
-                        $value = (float) $state;
+                        TextColumn::make('impacto_estoque')
+                            ->label('Impacto')
+                            ->description('Impacto', position: 'above')
+                            ->badge()
+                            ->alignEnd()
+                            ->color(function ($state): string {
+                                $value = (float) $state;
 
-                        if ($value > 0) {
-                            return 'success';
-                        }
+                                if ($value > 0) {
+                                    return 'success';
+                                }
 
-                        if ($value < 0) {
-                            return 'danger';
-                        }
+                                if ($value < 0) {
+                                    return 'danger';
+                                }
 
-                        return 'gray';
-                    })
-                    ->formatStateUsing(function ($state): string {
-                        $value = (float) $state;
-                        $prefix = $value > 0 ? '+' : '';
+                                return 'gray';
+                            })
+                            ->formatStateUsing(function ($state): string {
+                                $value = (float) $state;
+                                $prefix = $value > 0 ? '+' : '';
 
-                        return $prefix . static::formatQuantity($value);
-                    }),
+                                return $prefix . static::formatQuantity($value);
+                            })
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-impact'], merge: true),
 
-                TextColumn::make('saldo_atual')
-                    ->label('Saldo')
-                    ->alignEnd()
-                    ->formatStateUsing(fn ($state): string => static::formatQuantity($state)),
+                        TextColumn::make('saldo_atual')
+                            ->label('Saldo')
+                            ->description('Saldo', position: 'above')
+                            ->alignEnd()
+                            ->formatStateUsing(fn ($state): string => static::formatQuantity($state))
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
 
-                TextColumn::make('documento_referencia')
-                    ->label('Documento')
-                    ->limit(28)
-                    ->placeholder('-'),
+                        TextColumn::make('documento_referencia')
+                            ->label('Documento')
+                            ->description('Documento', position: 'above')
+                            ->limit(28)
+                            ->placeholder('-')
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                    ])
+                    ->extraAttributes(['class' => 'crm-list-meta']),
 
                 TextColumn::make('responsavel_nome')
                     ->label('Responsavel')
-                    ->formatStateUsing(fn (?string $state, ProdutoMovimentacao $record): string => $state ?: ($record->user?->name ?? '-')),
+                    ->description('Responsavel', position: 'above')
+                    ->formatStateUsing(fn (?string $state, ProdutoMovimentacao $record): string => $state ?: ($record->user?->name ?? '-'))
+                    ->extraAttributes(['class' => 'crm-list-field crm-list-footer'], merge: true),
             ])
             ->defaultSort('realizado_em', 'desc')
             ->searchPlaceholder('Buscar por codigo, produto ou documento...')
@@ -255,12 +291,13 @@ class ProdutoMovimentacaoResource extends Resource
                     ->label('Tipo')
                     ->options(ProdutoMovimentacao::tipoOptions()),
             ])
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--movement')
             ->recordActions([
                 ViewAction::make()
                     ->label('Visualizar')
                     ->slideOver(),
                 DeleteAction::make()->label('Excluir'),
-            ]);
+            ], position: RecordActionsPosition::AfterContent);
     }
 
     public static function getPages(): array

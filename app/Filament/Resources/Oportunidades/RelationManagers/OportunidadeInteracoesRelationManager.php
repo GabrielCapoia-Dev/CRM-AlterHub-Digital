@@ -29,6 +29,7 @@ class OportunidadeInteracoesRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
-            ->columns(OportunidadeInteracaoResource::tableColumns(withOportunidade: false));
+            ->columns(OportunidadeInteracaoResource::tableColumns(withOportunidade: false))
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm');
     }
 }

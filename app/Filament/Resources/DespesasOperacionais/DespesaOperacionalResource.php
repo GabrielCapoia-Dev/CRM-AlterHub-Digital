@@ -18,7 +18,11 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use UnitEnum;
@@ -110,39 +114,65 @@ class DespesaOperacionalResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('data_competencia')
-                    ->label('Data')
-                    ->date('d/m/Y')
-                    ->sortable(),
+                Split::make([
+                    TextColumn::make('data_competencia')
+                        ->label('Data')
+                        ->description('Data', position: 'above')
+                        ->date('d/m/Y')
+                        ->sortable()
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                TextColumn::make('descricao')
-                    ->label('Descricao')
-                    ->searchable()
-                    ->weight('semibold')
-                    ->description(fn (DespesaOperacional $record): ?string => $record->subcategoria ?: null),
+                    Stack::make([
+                        TextColumn::make('descricao')
+                            ->label('Descricao')
+                            ->searchable()
+                            ->weight('semibold')
+                            ->description(fn (DespesaOperacional $record): ?string => $record->subcategoria ?: null)
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
-                TextColumn::make('categoria')
-                    ->label('Categoria')
-                    ->badge()
-                    ->formatStateUsing(fn (string $state): string => DespesaOperacional::categoriaOptions()[$state] ?? $state),
+                        TextColumn::make('produto.nome')
+                            ->label('Produto')
+                            ->searchable()
+                            ->placeholder('Geral')
+                            ->description(fn (DespesaOperacional $record): ?string => $record->produto?->codigo_interno)
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                    ]),
 
-                TextColumn::make('tipo')
-                    ->label('Tipo')
-                    ->badge()
-                    ->color(fn (string $state): string => $state === 'fixa' ? 'info' : 'warning')
-                    ->formatStateUsing(fn (string $state): string => DespesaOperacional::tipoOptions()[$state] ?? $state),
+                    TextColumn::make('valor')
+                        ->label('Valor')
+                        ->description('Valor', position: 'above')
+                        ->money('BRL')
+                        ->sortable()
+                        ->alignEnd()
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
+                ])
+                    ->from('md')
+                    ->extraAttributes(['class' => 'crm-list-top']),
 
-                TextColumn::make('produto.nome')
-                    ->label('Produto')
-                    ->searchable()
-                    ->placeholder('Geral')
-                    ->description(fn (DespesaOperacional $record): ?string => $record->produto?->codigo_interno),
+                Grid::make([
+                    'default' => 1,
+                    'sm' => 2,
+                ])
+                    ->schema([
+                        TextColumn::make('categoria')
+                            ->label('Categoria')
+                            ->description('Categoria', position: 'above')
+                            ->badge()
+                            ->formatStateUsing(fn (string $state): string => DespesaOperacional::categoriaOptions()[$state] ?? $state)
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
 
-                TextColumn::make('valor')
-                    ->label('Valor')
-                    ->money('BRL')
-                    ->sortable()
-                    ->alignEnd(),
+                        TextColumn::make('tipo')
+                            ->label('Tipo')
+                            ->description('Tipo', position: 'above')
+                            ->badge()
+                            ->color(fn (string $state): string => $state === 'fixa' ? 'info' : 'warning')
+                            ->formatStateUsing(fn (string $state): string => DespesaOperacional::tipoOptions()[$state] ?? $state)
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
+                    ])
+                    ->extraAttributes(['class' => 'crm-list-meta']),
             ])
             ->defaultSort('data_competencia', 'desc')
             ->searchPlaceholder('Buscar por descricao, subcategoria ou produto...')
@@ -182,10 +212,11 @@ class DespesaOperacionalResource extends Resource
                     ->searchable()
                     ->preload(),
             ])
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--operation')
             ->recordActions([
                 static::configureEditAction(EditAction::make()->label('Editar')),
                 DeleteAction::make()->label('Excluir'),
-            ]);
+            ], position: RecordActionsPosition::AfterContent);
     }
 
     public static function getPages(): array

@@ -21,7 +21,11 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Grid;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use UnitEnum;
@@ -172,53 +176,87 @@ class VendaOperacaoResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('data_venda')
-                    ->label('Data')
-                    ->date('d/m/Y')
-                    ->sortable(),
+                Split::make([
+                    TextColumn::make('data_venda')
+                        ->label('Data')
+                        ->description('Data', position: 'above')
+                        ->date('d/m/Y')
+                        ->sortable()
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                TextColumn::make('produto_nome_snapshot')
-                    ->label('Produto')
-                    ->searchable(['produto_nome_snapshot', 'produto_codigo_snapshot'])
-                    ->weight('semibold')
-                    ->description(fn (VendaOperacao $record): ?string => $record->produto_codigo_snapshot),
+                    Stack::make([
+                        TextColumn::make('produto_nome_snapshot')
+                            ->label('Produto')
+                            ->searchable(['produto_nome_snapshot', 'produto_codigo_snapshot'])
+                            ->weight('semibold')
+                            ->description(fn (VendaOperacao $record): ?string => $record->produto_codigo_snapshot)
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
-                TextColumn::make('quantidade')
-                    ->label('Qtd.')
-                    ->alignEnd()
-                    ->formatStateUsing(fn ($state): string => NumericFormat::decimal($state)),
+                        TextColumn::make('cliente_nome')
+                            ->label('Cliente')
+                            ->searchable()
+                            ->placeholder('-')
+                            ->wrap()
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+                    ]),
 
-                TextColumn::make('preco_unitario')
-                    ->label('Preco un.')
-                    ->money('BRL')
-                    ->alignEnd(),
+                    TextColumn::make('lucro_apos_impostos')
+                        ->label('Lucro')
+                        ->description('Lucro', position: 'above')
+                        ->money('BRL')
+                        ->sortable()
+                        ->alignEnd()
+                        ->grow(false)
+                        ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
+                ])
+                    ->from('md')
+                    ->extraAttributes(['class' => 'crm-list-top']),
 
-                TextColumn::make('receita_bruta')
-                    ->label('Receita')
-                    ->money('BRL')
-                    ->sortable()
-                    ->alignEnd(),
+                Grid::make([
+                    'default' => 1,
+                    'sm' => 2,
+                    'xl' => 4,
+                ])
+                    ->schema([
+                        TextColumn::make('quantidade')
+                            ->label('Qtd.')
+                            ->description('Quantidade', position: 'above')
+                            ->alignEnd()
+                            ->formatStateUsing(fn ($state): string => NumericFormat::decimal($state))
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
 
-                TextColumn::make('custo_total_snapshot')
-                    ->label('Custo')
-                    ->money('BRL')
-                    ->alignEnd(),
+                        TextColumn::make('preco_unitario')
+                            ->label('Preco un.')
+                            ->description('Preco un.', position: 'above')
+                            ->money('BRL')
+                            ->alignEnd()
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
 
-                TextColumn::make('lucro_apos_impostos')
-                    ->label('Lucro')
-                    ->money('BRL')
-                    ->sortable()
-                    ->alignEnd(),
+                        TextColumn::make('receita_bruta')
+                            ->label('Receita')
+                            ->description('Receita', position: 'above')
+                            ->money('BRL')
+                            ->sortable()
+                            ->alignEnd()
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
 
-                TextColumn::make('cliente_nome')
-                    ->label('Cliente')
-                    ->searchable()
-                    ->placeholder('-'),
+                        TextColumn::make('custo_total_snapshot')
+                            ->label('Custo')
+                            ->description('Custo', position: 'above')
+                            ->money('BRL')
+                            ->alignEnd()
+                            ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
+                    ])
+                    ->extraAttributes(['class' => 'crm-list-finance']),
 
                 TextColumn::make('vendedor_nome')
                     ->label('Vendedor')
+                    ->description('Vendedor', position: 'above')
                     ->searchable()
-                    ->placeholder('-'),
+                    ->placeholder('-')
+                    ->extraAttributes(['class' => 'crm-list-field crm-list-footer'], merge: true),
             ])
             ->defaultSort('data_venda', 'desc')
             ->searchPlaceholder('Buscar por cliente, vendedor ou SKU...')
@@ -250,12 +288,13 @@ class VendaOperacaoResource extends Resource
                     ->searchable()
                     ->preload(),
             ])
+            ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--operation')
             ->recordActions([
                 ViewAction::make()
                     ->label('Visualizar')
                     ->slideOver()
                     ->modalWidth('4xl'),
-            ]);
+            ], position: RecordActionsPosition::AfterContent);
     }
 
     public static function getPages(): array
