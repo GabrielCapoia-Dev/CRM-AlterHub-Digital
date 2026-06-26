@@ -1,14 +1,19 @@
 <x-filament-panels::page>
+    @include('filament.partials.stock-theme-styles')
+
     @php($snapshot = $this->snapshot)
     @php($salesMax = collect($snapshot['sales_by_day'] ?? [])->max('receita') ?: 1)
     @php($expenseMax = collect($snapshot['expenses_by_category'] ?? [])->max('valor') ?: 1)
 
-    <div class="oa-root">
-        <section class="oa-hero">
-            <div>
-                <p class="oa-eyebrow">Operacao</p>
-                <h1 class="oa-title">Dashboard BI</h1>
-                <p class="oa-subtitle">
+    <div class="crm-resource-page oa-root">
+        <section class="crm-resource-hero">
+            <div class="crm-resource-hero__inner">
+                <div class="crm-resource-hero__content">
+                    <p class="crm-resource-hero__eyebrow">Operacao</p>
+                    <h2 class="crm-resource-hero__title">Dashboard BI</h2>
+                </div>
+
+                <p class="crm-resource-hero__description">
                     Painel executivo com indicadores, ranking de produtos, vendedores, clientes e alertas de estoque.
                 </p>
             </div>

@@ -120,6 +120,25 @@ class ProdutoCostingService
         return $updatedCount;
     }
 
+    public function savePreparedProduct(Produto $produto, array $prepared): Produto
+    {
+        return DB::transaction(function () use ($produto, $prepared): Produto {
+            $produto->fill(Arr::except($prepared, [
+                'produtoInsumos',
+                'produtoComponentesCusto',
+                'produto_unico_sem_insumo',
+                'custo_produto_unico',
+                'lucro_percentual',
+            ]));
+
+            $produto->save();
+
+            $this->syncPreparedRelations($produto, $prepared);
+
+            return $produto->refresh();
+        });
+    }
+
     public function syncPreparedRelations(Produto $produto, array $prepared, bool $syncInsumos = true): void
     {
         if ($syncInsumos) {

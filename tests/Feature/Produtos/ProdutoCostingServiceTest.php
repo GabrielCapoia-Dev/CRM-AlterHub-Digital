@@ -6,6 +6,7 @@ use App\Models\Produto;
 use App\Models\Categorias\TipoUnidadeMedida;
 use App\Models\Produtos\Insumo;
 use App\Services\Produtos\ProdutoCostingService;
+use App\Services\Produtos\ProdutoPricingCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -71,6 +72,78 @@ class ProdutoCostingServiceTest extends TestCase
         }
     }
 
+    public function test_it_saves_fractional_insumo_quantities_with_four_decimal_places(): void
+    {
+        $unidade = TipoUnidadeMedida::query()->create([
+            'nome' => 'Quilograma',
+            'sigla' => 'KG',
+        ]);
+
+        $sal = $this->createInsumo('INS-SAL-01', 'Sal leve refinado', $unidade, 0.9500);
+        $benzoato = $this->createInsumo('INS-BEN-01', 'Benzoato de sodio', $unidade, 11.0000);
+
+        $prepared = app(ProdutoPricingCalculator::class)->prepareForPersistence([
+            'nome' => 'Produto fracionado',
+            'unidade_medida' => 'KG',
+            'status' => 'ativo',
+            'produtoInsumos' => [
+                ['insumo_id' => $sal->id, 'quantidade' => '0,265'],
+                ['insumo_id' => $benzoato->id, 'quantidade' => '0,015'],
+            ],
+            'produtoComponentesCusto' => [],
+        ]);
+
+        $produto = app(ProdutoCostingService::class)->savePreparedProduct(new Produto(), $prepared);
+        $quantidades = $produto->produtoInsumos()->orderBy('ordem')->pluck('quantidade')->all();
+
+        $this->assertSame(['0.2650', '0.0150'], $quantidades);
+        $this->assertSame('0.2518', $produto->produtoInsumos()->orderBy('ordem')->first()->custo_total_snapshot);
+    }
+
+    public function test_it_syncs_updated_removed_and_added_insumo_links_when_saving_product(): void
+    {
+        $unidade = TipoUnidadeMedida::query()->create([
+            'nome' => 'Unidade',
+            'sigla' => 'un',
+        ]);
+
+        $insumoA = $this->createInsumo('INS-SYNC-A', 'Insumo A', $unidade, 10.0000);
+        $insumoB = $this->createInsumo('INS-SYNC-B', 'Insumo B', $unidade, 20.0000);
+        $insumoC = $this->createInsumo('INS-SYNC-C', 'Insumo C', $unidade, 30.0000);
+
+        $produto = $this->createProdutoComConfiguracaoInicial('Produto sync', $insumoA);
+        $keptLink = $produto->produtoInsumos()->where('insumo_id', $insumoA->id)->firstOrFail();
+        $removedLink = $produto->produtoInsumos()->create([
+            'insumo_id' => $insumoB->id,
+            'quantidade' => 2,
+            'unidade_consumo' => 'un',
+            'ordem' => 1,
+            'custo_unitario_snapshot' => 20.0000,
+            'custo_total_snapshot' => 40.0000,
+        ]);
+
+        $prepared = app(ProdutoPricingCalculator::class)->prepareForPersistence([
+            'nome' => 'Produto sync editado',
+            'unidade_medida' => 'un',
+            'status' => 'ativo',
+            'produtoInsumos' => [
+                ['id' => $keptLink->id, 'insumo_id' => $insumoA->id, 'quantidade' => '0,750'],
+                ['insumo_id' => $insumoC->id, 'quantidade' => '0,125'],
+            ],
+            'produtoComponentesCusto' => [],
+        ]);
+
+        $produto = app(ProdutoCostingService::class)->savePreparedProduct($produto, $prepared);
+        $links = $produto->produtoInsumos()->orderBy('ordem')->get();
+
+        $this->assertDatabaseMissing('produto_insumos', ['id' => $removedLink->id]);
+        $this->assertCount(2, $links);
+        $this->assertSame($keptLink->id, $links[0]->id);
+        $this->assertSame('0.7500', $links[0]->quantidade);
+        $this->assertSame($insumoC->id, $links[1]->insumo_id);
+        $this->assertSame('0.1250', $links[1]->quantidade);
+    }
+
     private function createProdutoComConfiguracaoInicial(string $nome, Insumo $insumo): Produto
     {
         $produto = Produto::query()->create([
@@ -100,5 +173,16 @@ class ProdutoCostingServiceTest extends TestCase
         ]);
 
         return $produto;
+    }
+
+    private function createInsumo(string $codigo, string $nome, TipoUnidadeMedida $unidade, float $custoReferencia): Insumo
+    {
+        return Insumo::query()->create([
+            'codigo_interno' => $codigo,
+            'nome' => $nome,
+            'origem' => 'nacional',
+            'tipo_unidade_medida_id' => $unidade->id,
+            'custo_referencia' => $custoReferencia,
+        ]);
     }
 }

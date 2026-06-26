@@ -1,16 +1,21 @@
 <x-filament-panels::page>
+    @include('filament.partials.stock-theme-styles')
+
     @php($rows = $this->rows)
     @php($drilldown = $this->drilldown)
     @php($best = collect($rows)->sortByDesc('lucro_liquido')->first())
     @php($bestMargin = collect($rows)->filter(fn ($row) => $row['margem_lucro_liquido_perc'] !== null)->sortByDesc('margem_lucro_liquido_perc')->first())
     @php($worstMargin = collect($rows)->filter(fn ($row) => $row['margem_lucro_liquido_perc'] !== null)->sortBy('margem_lucro_liquido_perc')->first())
 
-    <div class="oa-root">
-        <section class="oa-hero">
-            <div>
-                <p class="oa-eyebrow">Operacao</p>
-                <h1 class="oa-title">Lucro por produto</h1>
-                <p class="oa-subtitle">
+    <div class="crm-resource-page oa-root">
+        <section class="crm-resource-hero">
+            <div class="crm-resource-hero__inner">
+                <div class="crm-resource-hero__content">
+                    <p class="crm-resource-hero__eyebrow">Operacao</p>
+                    <h2 class="crm-resource-hero__title">Lucro por produto</h2>
+                </div>
+
+                <p class="crm-resource-hero__description">
                     Ranking de desempenho por SKU com receitas, impostos, CMV e despesas alocadas.
                 </p>
             </div>

@@ -188,8 +188,6 @@ class ProdutoResource extends Resource
                                     ->visible(fn (Get $get): bool => ! (bool) $get('produto_unico_sem_insumo'))
                                     ->schema([
                                         Repeater::make('produtoInsumos')
-                                            ->relationship()
-                                            ->orderColumn('ordem')
                                             ->columnSpanFull()
                                             ->addActionLabel('Adicionar insumo')
                                             ->table([
@@ -201,14 +199,11 @@ class ProdutoResource extends Resource
                                             ])
                                             ->live()
                                             ->schema([
+                                                Hidden::make('id'),
+
                                                 Select::make('insumo_id')
                                                     ->hiddenLabel()
-                                                    ->relationship('insumo', 'nome')
-                                                    ->getOptionLabelFromRecordUsing(
-                                                        fn(Insumo $record): string => $record->codigo_interno
-                                                            ? "{$record->codigo_interno} - {$record->nome}"
-                                                            : $record->nome
-                                                    )
+                                                    ->options(fn (): array => static::insumoOptions())
                                                     ->searchable()
                                                     ->preload()
                                                     ->required()
@@ -218,8 +213,9 @@ class ProdutoResource extends Resource
                                                 TextInput::make('quantidade')
                                                     ->hiddenLabel()
                                                     ->numeric()
-                                                    ->rule('decimal:0,2')
-                                                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
+                                                    ->rule('decimal:0,4')
+                                                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state, 4))
+                                                    ->step('0.0001')
                                                     ->minValue(0.0001)
                                                     ->required()
                                                     ->live()
@@ -499,20 +495,14 @@ class ProdutoResource extends Resource
         return static::configureModalAction($action)
             ->label('Novo produto')
             ->createAnother(false)
-            ->mutateFormDataUsing(fn(array $data): array => static::prepareProductFormData($data))
-            ->after(function (Produto $record, array $data): void {
-                static::syncPreparedProductRelations($record, $data);
-            });
+            ->using(fn (array $data, string $model): Produto => static::saveProduct(new $model, $data));
     }
 
     public static function configureEditAction(EditAction $action): EditAction
     {
         return static::configureModalAction($action, withDelete: true)
             ->fillForm(fn(Produto $record): array => static::getModalFormData($record))
-            ->mutateFormDataUsing(fn(array $data): array => static::prepareProductFormData($data))
-            ->after(function (Produto $record, array $data): void {
-                static::syncPreparedProductRelations($record, $data);
-            });
+            ->using(fn (Produto $record, array $data): Produto => static::saveProduct($record, $data));
     }
 
     public static function getModalFormData(Produto $record): array
@@ -616,8 +606,6 @@ class ProdutoResource extends Resource
     {
         return Repeater::make('produtoComponentesCusto')
             ->label('')
-            ->relationship()
-            ->orderColumn('ordem')
             ->columnSpanFull()
             ->addActionLabel('Criar novo fator')
             ->table([
@@ -627,6 +615,8 @@ class ProdutoResource extends Resource
             ])
             ->live()
             ->schema([
+                Hidden::make('id'),
+
                 TextInput::make('nome')
                     ->hiddenLabel()
                     ->required()
@@ -695,6 +685,14 @@ class ProdutoResource extends Resource
         return $prepared;
     }
 
+    protected static function saveProduct(Produto $record, array $data): Produto
+    {
+        return app(ProdutoCostingService::class)->savePreparedProduct(
+            $record,
+            static::prepareProductFormData($data),
+        );
+    }
+
     protected static function componentesFromGuidedFields(array $data): array
     {
         $componentes = collect([
@@ -742,15 +740,6 @@ class ProdutoResource extends Resource
                 return $item;
             })
             ->all();
-    }
-
-    protected static function syncPreparedProductRelations(Produto $record, array $data): void
-    {
-        $prepared = array_key_exists('produtoComponentesCusto', $data)
-            ? $data
-            : static::prepareProductFormData($data);
-
-        app(ProdutoCostingService::class)->syncPreparedRelations($record, $prepared, syncInsumos: false);
     }
 
     protected static function isGuidedComponent(array $item): bool
@@ -806,6 +795,24 @@ class ProdutoResource extends Resource
                 (string) ($record->sigla ?: $record->nome) => static::formatUnidadeLabel($record),
             ])
             ->all();
+    }
+
+    protected static function insumoOptions(): array
+    {
+        return Insumo::query()
+            ->orderBy('nome')
+            ->get()
+            ->mapWithKeys(fn (Insumo $record): array => [
+                (string) $record->getKey() => static::formatInsumoLabel($record),
+            ])
+            ->all();
+    }
+
+    protected static function formatInsumoLabel(Insumo $record): string
+    {
+        return $record->codigo_interno
+            ? "{$record->codigo_interno} - {$record->nome}"
+            : $record->nome;
     }
 
     protected static function formatUnidadeLabel(TipoUnidadeMedida $record): string

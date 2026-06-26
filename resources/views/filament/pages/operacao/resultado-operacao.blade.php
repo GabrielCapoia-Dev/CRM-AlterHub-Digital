@@ -1,13 +1,18 @@
 <x-filament-panels::page>
+    @include('filament.partials.stock-theme-styles')
+
     @php($snapshot = $this->snapshot)
     @php($detailRows = $this->detailRows)
 
-    <div class="oa-root">
-        <section class="oa-hero">
-            <div>
-                <p class="oa-eyebrow">Operacao</p>
-                <h1 class="oa-title">Resultado (DRE)</h1>
-                <p class="oa-subtitle">
+    <div class="crm-resource-page oa-root">
+        <section class="crm-resource-hero">
+            <div class="crm-resource-hero__inner">
+                <div class="crm-resource-hero__content">
+                    <p class="crm-resource-hero__eyebrow">Operacao</p>
+                    <h2 class="crm-resource-hero__title">Resultado (DRE)</h2>
+                </div>
+
+                <p class="crm-resource-hero__description">
                     Demonstrativo em tempo real com vendas, impostos, CMV e despesas do periodo selecionado.
                 </p>
             </div>

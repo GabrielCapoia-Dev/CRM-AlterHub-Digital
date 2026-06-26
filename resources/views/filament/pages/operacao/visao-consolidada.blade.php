@@ -1,12 +1,17 @@
 <x-filament-panels::page>
+    @include('filament.partials.stock-theme-styles')
+
     @php($snapshot = $this->snapshot)
 
-    <div class="oa-root">
-        <section class="oa-hero">
-            <div>
-                <p class="oa-eyebrow">Operacao</p>
-                <h1 class="oa-title">Visao consolidada</h1>
-                <p class="oa-subtitle">
+    <div class="crm-resource-page oa-root">
+        <section class="crm-resource-hero">
+            <div class="crm-resource-hero__inner">
+                <div class="crm-resource-hero__content">
+                    <p class="crm-resource-hero__eyebrow">Operacao</p>
+                    <h2 class="crm-resource-hero__title">Visao consolidada</h2>
+                </div>
+
+                <p class="crm-resource-hero__description">
                     Leitura rapida da operacao comercial com receita, custo, despesas e lucro no mesmo painel.
                 </p>
             </div>
