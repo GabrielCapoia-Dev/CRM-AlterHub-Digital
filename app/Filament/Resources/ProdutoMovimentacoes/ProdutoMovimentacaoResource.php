@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ProdutoMovimentacoes;
 
 use App\Filament\Resources\ProdutoMovimentacoes\Pages\ManageProdutoMovimentacoes;
+use App\Models\Empresas\Fornecedor;
 use App\Models\Produto;
 use App\Models\ProdutoMovimentacao;
 use App\Services\Produtos\MovimentacaoEstoqueService;
@@ -118,7 +119,7 @@ class ProdutoMovimentacaoResource extends Resource
                             ->label('Realizado em')
                             ->default(now())
                             ->required()
-                            ->columnSpan(4),
+                            ->columnSpan(3),
 
                         Select::make('user_id')
                             ->label('Responsavel')
@@ -127,25 +128,29 @@ class ProdutoMovimentacaoResource extends Resource
                             ->searchable()
                             ->preload()
                             ->required()
-                            ->columnSpan(4),
+                            ->columnSpan(3),
+
+                        Select::make('fornecedor_id')
+                            ->label('Fornecedor')
+                            ->relationship('fornecedor', 'razao_social', modifyQueryUsing: fn (Builder $query): Builder => $query->orderBy('razao_social'))
+                            ->getOptionLabelFromRecordUsing(fn (Fornecedor $record): string => $record->codigo_interno
+                                ? "{$record->codigo_interno} - {$record->razao_social}"
+                                : $record->razao_social)
+                            ->searchable(['codigo_interno', 'razao_social', 'nome_fantasia', 'cnpj'])
+                            ->preload()
+                            ->columnSpan(3),
 
                         TextInput::make('documento_referencia')
                             ->label('Documento / referencia')
                             ->maxLength(255)
                             ->placeholder('NF, ordem interna, requisicao...')
-                            ->columnSpan(4),
+                            ->columnSpan(3),
 
                         View::make('filament.resources.produto-movimentacoes.forms.financial-summary')
                             ->columnSpanFull()
                             ->viewData(fn (Get $get): array => [
                                 'summary' => static::buildFinancialSummary($get),
                             ]),
-
-                        TextInput::make('origem_destino')
-                            ->label('Origem / contexto')
-                            ->maxLength(255)
-                            ->placeholder('Loja, producao, estoque, setor...')
-                            ->columnSpan(6),
 
                         TextInput::make('destino')
                             ->label('Destino')
@@ -163,12 +168,7 @@ class ProdutoMovimentacaoResource extends Resource
                             ->columnSpanFull(),
 
                         Textarea::make('observacao')
-                            ->label('Observacao operacional')
-                            ->rows(3)
-                            ->columnSpanFull(),
-
-                        Textarea::make('observacao_interna')
-                            ->label('Observacao interna')
+                            ->label('Observacao')
                             ->rows(3)
                             ->columnSpanFull(),
                     ]),
@@ -178,7 +178,7 @@ class ProdutoMovimentacaoResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['produto', 'user']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['produto', 'user', 'fornecedor']))
             ->columns([
                 Split::make([
                     TextColumn::make('realizado_em')
@@ -220,7 +220,7 @@ class ProdutoMovimentacaoResource extends Resource
                 Grid::make([
                     'default' => 1,
                     'sm' => 2,
-                    'xl' => 4,
+                    'xl' => 5,
                 ])
                     ->schema([
                         TextColumn::make('quantidade')
@@ -268,6 +268,14 @@ class ProdutoMovimentacaoResource extends Resource
                             ->description('Documento', position: 'above')
                             ->limit(28)
                             ->placeholder('-')
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+
+                        TextColumn::make('fornecedor.razao_social')
+                            ->label('Fornecedor')
+                            ->description('Fornecedor', position: 'above')
+                            ->limit(28)
+                            ->placeholder('-')
+                            ->searchable()
                             ->extraAttributes(['class' => 'crm-list-field'], merge: true),
                     ])
                     ->extraAttributes(['class' => 'crm-list-meta']),

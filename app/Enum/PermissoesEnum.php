@@ -61,6 +61,7 @@ enum PermissoesEnum: string
     case CriarProdutosDaOportunidade = 'Criar Produtos da Oportunidade';
     case EditarProdutosDaOportunidade = 'Editar Produtos da Oportunidade';
     case ExcluirProdutosDaOportunidade = 'Excluir Produtos da Oportunidade';
+    case AprovarDesconto = 'Aprovar Desconto';
 
     // CRM - Interações
     case ListarInteracoesDeOportunidade = 'Listar Interações de Oportunidade';

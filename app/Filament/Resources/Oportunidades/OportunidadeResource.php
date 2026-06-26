@@ -112,7 +112,8 @@ class OportunidadeResource extends Resource
                             ->rule('decimal:0,2')
                             ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                             ->prefix('R$')
-                            ->minValue(0)
+                            ->disabled()
+                            ->dehydrated(false)
                             ->placeholder('0,00'),
                     ]),
 
@@ -140,7 +141,7 @@ class OportunidadeResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['cliente.categoriaSegmento', 'etapa', 'user']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['cliente.categoriaSegmento', 'etapa', 'user', 'oportunidadeProdutos.produto']))
             ->columns([
                 Split::make([
                     Stack::make([
@@ -163,6 +164,7 @@ class OportunidadeResource extends Resource
                     TextColumn::make('valor_estimado')
                         ->label('Valor estimado')
                         ->description('Valor estimado', position: 'above')
+                        ->state(fn (Oportunidade $record): float => $record->calcularValorEstimado())
                         ->money('BRL')
                         ->sortable()
                         ->placeholder('Sem valor')

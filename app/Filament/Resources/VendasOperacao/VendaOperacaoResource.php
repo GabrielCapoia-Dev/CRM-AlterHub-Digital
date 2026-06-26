@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\VendasOperacao;
 
 use App\Filament\Resources\VendasOperacao\Pages\ManageVendasOperacao;
+use App\Models\Clientes\Cliente;
 use App\Models\Produto;
 use App\Models\VendaOperacaoPedido;
 use App\Services\Operacao\OperacaoAnalyticsService;
@@ -161,9 +162,15 @@ class VendaOperacaoResource extends Resource
                             ->default(now())
                             ->required(),
 
-                        TextInput::make('cliente_nome')
+                        Select::make('cliente_id')
                             ->label('Cliente')
-                            ->maxLength(255)
+                            ->relationship('cliente', 'razao_social', modifyQueryUsing: fn (Builder $query): Builder => $query->orderBy('razao_social'))
+                            ->getOptionLabelFromRecordUsing(fn (Cliente $record): string => $record->codigo_interno
+                                ? "{$record->codigo_interno} - {$record->razao_social}"
+                                : $record->razao_social)
+                            ->searchable(['codigo_interno', 'razao_social', 'nome_fantasia', 'cnpj'])
+                            ->preload()
+                            ->required()
                             ->columnSpanFull(),
 
                         TextInput::make('vendedor_nome')
@@ -182,7 +189,7 @@ class VendaOperacaoResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['oportunidade', 'vendasOperacao.produto', 'vendasOperacao.produtoMovimentacao']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['cliente', 'oportunidade', 'vendasOperacao.produto', 'vendasOperacao.produtoMovimentacao']))
             ->columns([
                 Split::make([
                     TextColumn::make('data_venda')

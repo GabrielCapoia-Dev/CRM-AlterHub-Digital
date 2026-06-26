@@ -4,6 +4,7 @@ namespace App\Filament\Resources\OportunidadeProdutos;
 
 use App\Filament\Resources\OportunidadeProdutos\Pages\ManageOportunidadeProdutos;
 use App\Models\OportunidadeProduto;
+use App\Models\Produto;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
@@ -13,6 +14,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Layout\Split;
@@ -56,14 +59,47 @@ class OportunidadeProdutoResource extends Resource
             ->relationship('produto', 'nome')
             ->searchable()
             ->preload()
-            ->required();
+            ->required()
+            ->live()
+            ->afterStateUpdated(function (?int $state, Set $set): void {
+                static::fillPricingFromProduct($state, $set);
+            });
+
+        $components[] = TextInput::make('preco_tabela_preview')
+            ->label('Preco de tabela')
+            ->numeric()
+            ->prefix('R$')
+            ->readOnly()
+            ->dehydrated(false)
+            ->afterStateHydrated(function (TextInput $component, ?OportunidadeProduto $record): void {
+                $produto = $record?->produto;
+
+                $component->state($produto?->preco_tabela !== null
+                    ? number_format((float) $produto->preco_tabela, 2, '.', '')
+                    : null);
+            });
+
+        $components[] = TextInput::make('desconto_percentual')
+            ->label('Desconto (%)')
+            ->numeric()
+            ->rule('decimal:0,2')
+            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
+            ->minValue(0)
+            ->maxValue(100)
+            ->default(0)
+            ->live(onBlur: true)
+            ->afterStateUpdated(function (Get $get, Set $set): void {
+                static::refreshNegotiatedPrice($get, $set);
+            });
 
         $components[] = TextInput::make('preco_negociado')
-            ->label('Preço negociado')
+            ->label('Preco final')
             ->numeric()
             ->rule('decimal:0,2')
             ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
             ->prefix('R$')
+            ->readOnly()
+            ->dehydrated()
             ->minValue(0)
             ->placeholder('0,00');
 
@@ -131,6 +167,12 @@ class OportunidadeProdutoResource extends Resource
                 ->formatStateUsing(fn ($state): string => NumericFormat::decimal($state))
                 ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
 
+            TextColumn::make('desconto_percentual')
+                ->label('Desconto')
+                ->description('Desconto', position: 'above')
+                ->formatStateUsing(fn ($state): string => NumericFormat::percent((float) ($state ?? 0)))
+                ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
+
             TextColumn::make('updated_at')
                 ->label('Atualizado em')
                 ->description('Atualizado em', position: 'above')
@@ -162,6 +204,27 @@ class OportunidadeProdutoResource extends Resource
                 EditAction::make()->label('Editar'),
                 DeleteAction::make()->label('Excluir'),
             ], position: RecordActionsPosition::AfterContent);
+    }
+
+    protected static function fillPricingFromProduct(?int $productId, Set $set): void
+    {
+        $produto = $productId ? Produto::query()->find($productId) : null;
+        $precoTabela = $produto?->preco_tabela !== null ? (float) $produto->preco_tabela : 0.0;
+
+        $set('preco_tabela_preview', $precoTabela > 0 ? number_format($precoTabela, 2, '.', '') : null);
+        $set('desconto_percentual', 0);
+        $set('preco_negociado', $precoTabela > 0 ? number_format($precoTabela, 2, '.', '') : null);
+    }
+
+    protected static function refreshNegotiatedPrice(Get $get, Set $set): void
+    {
+        $precoTabela = (float) ($get('preco_tabela_preview') ?? 0);
+        $desconto = min(max((float) ($get('desconto_percentual') ?? 0), 0), 100);
+
+        $set('desconto_percentual', $desconto);
+        $set('preco_negociado', $precoTabela > 0
+            ? number_format(round($precoTabela * (1 - ($desconto / 100)), 2), 2, '.', '')
+            : null);
     }
 
     public static function getPages(): array

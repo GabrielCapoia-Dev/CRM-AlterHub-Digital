@@ -159,6 +159,26 @@ class Oportunidade extends Model
         );
     }
 
+    public function calcularValorEstimado(): float
+    {
+        $produtos = $this->relationLoaded('oportunidadeProdutos')
+            ? $this->oportunidadeProdutos
+            : $this->oportunidadeProdutos()->with('produto')->get();
+
+        return round((float) $produtos->sum(
+            fn (OportunidadeProduto $produto): float => $produto->subtotalEstimado()
+        ), 2);
+    }
+
+    public function recalcularValorEstimado(): void
+    {
+        $valor = $this->calcularValorEstimado();
+
+        $this->forceFill([
+            'valor_estimado' => $valor > 0 ? $valor : null,
+        ])->saveQuietly();
+    }
+
     public static function temperaturaOptions(): array
     {
         return self::TEMPERATURA_OPTIONS;

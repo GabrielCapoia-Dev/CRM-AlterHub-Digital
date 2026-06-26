@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Oportunidades\Pages;
 
+use App\Enum\PermissoesEnum;
 use App\Filament\Resources\Oportunidades\OportunidadeResource;
 use App\Filament\Resources\VendasOperacao\VendaOperacaoResource;
 use App\Rules\FlexibleTaxIdentifierRule;
@@ -69,10 +70,24 @@ class KanbanOportunidades extends Page
 
     public bool $saleConfirmationModalOpen = false;
 
+    public bool $discountApprovalModalOpen = false;
+
     /**
      * @var array<string, mixed>
      */
     public array $salePreview = [];
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $discountApprovalPreview = [];
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $pendingProductPayload = [];
+
+    public ?int $pendingProductEditingId = null;
 
     /**
      * @var array<string, mixed>
@@ -101,6 +116,7 @@ class KanbanOportunidades extends Page
         $this->resetInteractionForm();
         $this->resetTaskForm();
         $this->closeSaleConfirmation();
+        $this->closeDiscountApproval();
     }
 
     public function updated(string $name, mixed $value): void
@@ -123,6 +139,14 @@ class KanbanOportunidades extends Page
 
         if ($name === 'ownerFilter') {
             $this->ownerFilter = blank($value) ? null : (int) $value;
+        }
+
+        if ($name === 'productForm.produto_id') {
+            $this->fillProductPricingFromSelectedProduct();
+        }
+
+        if ($name === 'productForm.desconto_percentual') {
+            $this->refreshProductNegotiatedPrice();
         }
 
         if ($name === 'viewMode') {
@@ -152,7 +176,7 @@ class KanbanOportunidades extends Page
                 'user',
                 'etapa',
                 'oportunidadeProdutos' => fn ($query) => $query
-                    ->with('produto')
+                    ->with(['produto', 'descontoAprovadoPor'])
                     ->latest('updated_at'),
                 'oportunidadeInteracoes' => fn ($query) => $query
                     ->with('user')
@@ -185,7 +209,7 @@ class KanbanOportunidades extends Page
             ->map(function (array $etapa) use ($oportunidadesPorEtapa): array {
                 /** @var EloquentCollection<int, Oportunidade> $cards */
                 $cards = $oportunidadesPorEtapa->get($etapa['id'], new EloquentCollection);
-                $soma = (float) $cards->sum(fn (Oportunidade $oportunidade): float => (float) ($oportunidade->valor_estimado ?? 0));
+                $soma = (float) $cards->sum(fn (Oportunidade $oportunidade): float => $oportunidade->calcularValorEstimado());
 
                 return [
                     'id' => $etapa['id'],
@@ -254,17 +278,21 @@ class KanbanOportunidades extends Page
     }
 
     /**
-     * @return array<int, array{id:int,nome:string}>
+     * @return array<int, array{id:int,nome:string,codigo:?string,unidade:?string,preco_tabela:?float,preco_minimo:?float}>
      */
     public function getProductOptions(): array
     {
         return Produto::query()
             ->where('ativo', true)
             ->orderBy('nome')
-            ->get(['id', 'nome'])
+            ->get(['id', 'codigo_interno', 'nome', 'unidade_medida', 'preco_tabela', 'preco_minimo'])
             ->map(fn (Produto $produto): array => [
                 'id' => $produto->id,
                 'nome' => $produto->nome,
+                'codigo' => $produto->codigo_interno,
+                'unidade' => $produto->unidade_medida,
+                'preco_tabela' => $produto->preco_tabela !== null ? (float) $produto->preco_tabela : null,
+                'preco_minimo' => $produto->preco_minimo !== null ? (float) $produto->preco_minimo : null,
             ])
             ->all();
     }
@@ -505,6 +533,7 @@ class KanbanOportunidades extends Page
         }
 
         $oportunidade = $selected ?? new Oportunidade;
+        $payload['valor_estimado'] = $selected?->calcularValorEstimado() ?: null;
         $oportunidade->fill($payload);
         $oportunidade->save();
 
@@ -588,15 +617,22 @@ class KanbanOportunidades extends Page
         $this->pendingMoveReason = '';
     }
 
-    public function openSaleConfirmation(): void
+    public function openSaleConfirmation(?int $opportunityId = null): void
     {
-        $oportunidade = $this->getSelectedOpportunity();
+        if ($opportunityId) {
+            $this->selectedOpportunityId = $opportunityId;
+        }
+
+        $oportunidade = $opportunityId
+            ? $this->findOpportunityOrFail($opportunityId)
+            : $this->getSelectedOpportunity();
 
         abort_unless($oportunidade, 404);
 
         Gate::authorize('update', $oportunidade);
         Gate::authorize('create', VendaOperacao::class);
 
+        $this->drawerOpen = false;
         $this->salePreview = app(OportunidadeVendaService::class)->preview($oportunidade);
         $this->saleConfirmationModalOpen = true;
     }
@@ -638,7 +674,7 @@ class KanbanOportunidades extends Page
             ->success()
             ->send();
 
-        $this->redirect(VendaOperacaoResource::getUrl(), navigate: true);
+        $this->redirect(VendaOperacaoResource::getUrl('index'), navigate: true);
     }
 
     public function saveProductLink(): void
@@ -655,13 +691,104 @@ class KanbanOportunidades extends Page
 
         $validated = $this->validate($this->productRules());
 
+        $payload = $this->buildProductPayload($validated['productForm'], $oportunidade->id);
+        $approvalPreview = $this->buildDiscountApprovalPreview($payload);
+
+        if ($approvalPreview['required'] && ! $this->discountApprovalStillValid($editing, $payload)) {
+            if (! $this->currentUserCanApproveDiscount()) {
+                Notification::make()
+                    ->title('Desconto precisa de aprovacao')
+                    ->body('O preco final ficou abaixo do minimo do produto. Um responsavel com a permissao Aprovar Desconto deve confirmar esta negociacao.')
+                    ->danger()
+                    ->send();
+
+                return;
+            }
+
+            $this->pendingProductPayload = $payload;
+            $this->pendingProductEditingId = $editing?->id;
+            $this->discountApprovalPreview = $approvalPreview;
+            $this->discountApprovalModalOpen = true;
+
+            return;
+        }
+
+        $this->persistProductLink($payload, $editing, preserveApproval: $approvalPreview['required']);
+    }
+
+    public function confirmDiscountApproval(): void
+    {
+        if (! $this->currentUserCanApproveDiscount()) {
+            Notification::make()
+                ->title('Permissao insuficiente')
+                ->body('Apenas usuarios com a permissao Aprovar Desconto podem confirmar este desconto.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $oportunidade = $this->getSelectedOpportunityForEditing();
+        $editing = $this->pendingProductEditingId
+            ? OportunidadeProduto::query()->findOrFail($this->pendingProductEditingId)
+            : null;
+
+        if ($editing) {
+            Gate::authorize('update', $editing);
+            $this->ensureBelongsToSelectedOpportunity($editing->oportunidade_id);
+        } else {
+            Gate::authorize('create', OportunidadeProduto::class);
+        }
+
         $payload = [
+            ...$this->pendingProductPayload,
             'oportunidade_id' => $oportunidade->id,
-            'produto_id' => (int) $validated['productForm']['produto_id'],
-            'quantidade' => (float) $validated['productForm']['quantidade'],
-            'preco_negociado' => blank($validated['productForm']['preco_negociado']) ? null : (float) $validated['productForm']['preco_negociado'],
-            'observacao' => blank($validated['productForm']['observacao']) ? null : trim((string) $validated['productForm']['observacao']),
         ];
+
+        $this->persistProductLink($payload, $editing, approveDiscount: true);
+        $this->closeDiscountApproval();
+    }
+
+    public function closeDiscountApproval(): void
+    {
+        $this->discountApprovalModalOpen = false;
+        $this->discountApprovalPreview = [];
+        $this->pendingProductPayload = [];
+        $this->pendingProductEditingId = null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function buildProductPayload(array $data, int $opportunityId): array
+    {
+        return [
+            'oportunidade_id' => $opportunityId,
+            'produto_id' => (int) $data['produto_id'],
+            'quantidade' => (float) $data['quantidade'],
+            'preco_negociado' => blank($data['preco_negociado']) ? null : round((float) $data['preco_negociado'], 2),
+            'desconto_percentual' => blank($data['desconto_percentual']) ? 0 : round((float) $data['desconto_percentual'], 2),
+            'observacao' => blank($data['observacao']) ? null : trim((string) $data['observacao']),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function persistProductLink(
+        array $payload,
+        ?OportunidadeProduto $editing,
+        bool $approveDiscount = false,
+        bool $preserveApproval = false,
+    ): void {
+        if ($approveDiscount) {
+            $payload['desconto_aprovado_por'] = Auth::id();
+            $payload['desconto_aprovado_em'] = now();
+        } elseif (! $preserveApproval) {
+            $payload['desconto_aprovado_por'] = null;
+            $payload['desconto_aprovado_em'] = null;
+        }
 
         $registro = $editing ?? new OportunidadeProduto;
         $registro->fill($payload);
@@ -675,6 +802,88 @@ class KanbanOportunidades extends Page
             ->send();
     }
 
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    protected function buildDiscountApprovalPreview(array $payload): array
+    {
+        $produto = Produto::query()->find($payload['produto_id'] ?? null);
+        $precoMinimo = $produto?->preco_minimo !== null ? (float) $produto->preco_minimo : 0.0;
+        $precoFinal = $payload['preco_negociado'] !== null ? (float) $payload['preco_negociado'] : 0.0;
+        $required = $produto && $precoMinimo > 0 && $precoFinal > 0 && $precoFinal < $precoMinimo;
+
+        return [
+            'required' => $required,
+            'produto_nome' => $produto?->nome ?? 'Produto',
+            'preco_tabela' => $produto?->preco_tabela !== null ? (float) $produto->preco_tabela : null,
+            'preco_minimo' => $precoMinimo,
+            'preco_final' => $precoFinal,
+            'desconto_percentual' => (float) ($payload['desconto_percentual'] ?? 0),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function discountApprovalStillValid(?OportunidadeProduto $editing, array $payload): bool
+    {
+        if (! $editing || ! $editing->desconto_aprovado_por) {
+            return false;
+        }
+
+        return (int) $editing->produto_id === (int) $payload['produto_id']
+            && round((float) $editing->preco_negociado, 2) === round((float) ($payload['preco_negociado'] ?? 0), 2)
+            && round((float) $editing->desconto_percentual, 2) === round((float) ($payload['desconto_percentual'] ?? 0), 2);
+    }
+
+    protected function currentUserCanApproveDiscount(): bool
+    {
+        try {
+            return (bool) Auth::user()?->hasPermissionTo(PermissoesEnum::AprovarDesconto->value);
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+            return false;
+        }
+    }
+
+    protected function fillProductPricingFromSelectedProduct(): void
+    {
+        $produtoId = (int) ($this->productForm['produto_id'] ?? 0);
+
+        if (! $produtoId) {
+            $this->productForm['preco_tabela'] = '';
+            $this->productForm['preco_minimo'] = '';
+            $this->productForm['desconto_percentual'] = 0;
+            $this->productForm['preco_negociado'] = '';
+
+            return;
+        }
+
+        $produto = Produto::query()->find($produtoId);
+
+        if (! $produto) {
+            return;
+        }
+
+        $this->productForm['preco_tabela'] = $produto->preco_tabela !== null ? number_format((float) $produto->preco_tabela, 2, '.', '') : '';
+        $this->productForm['preco_minimo'] = $produto->preco_minimo !== null ? number_format((float) $produto->preco_minimo, 2, '.', '') : '';
+
+        $this->productForm['desconto_percentual'] = 0;
+
+        $this->refreshProductNegotiatedPrice();
+    }
+
+    protected function refreshProductNegotiatedPrice(): void
+    {
+        $precoTabela = (float) ($this->productForm['preco_tabela'] ?? 0);
+        $desconto = min(max((float) ($this->productForm['desconto_percentual'] ?? 0), 0), 100);
+
+        $this->productForm['desconto_percentual'] = $desconto;
+        $this->productForm['preco_negociado'] = $precoTabela > 0
+            ? number_format(round($precoTabela * (1 - ($desconto / 100)), 2), 2, '.', '')
+            : '';
+    }
+
     public function editProductLink(int $productLinkId): void
     {
         $registro = OportunidadeProduto::query()->findOrFail($productLinkId);
@@ -684,11 +893,21 @@ class KanbanOportunidades extends Page
         $this->ensureBelongsToSelectedOpportunity($registro->oportunidade_id);
 
         $this->activeDrawerTab = 'products';
+        $produto = $registro->produto;
+        $precoTabela = $produto?->preco_tabela !== null ? (float) $produto->preco_tabela : 0.0;
+        $precoNegociado = $registro->preco_negociado !== null ? (float) $registro->preco_negociado : $precoTabela;
+        $desconto = $registro->desconto_percentual !== null
+            ? (float) $registro->desconto_percentual
+            : $this->calculateDiscountPercent($precoTabela, $precoNegociado);
+
         $this->productForm = [
             'id' => $registro->id,
             'produto_id' => $registro->produto_id,
             'quantidade' => $registro->quantidade,
-            'preco_negociado' => $registro->preco_negociado,
+            'preco_tabela' => $precoTabela > 0 ? number_format($precoTabela, 2, '.', '') : '',
+            'preco_minimo' => $produto?->preco_minimo !== null ? number_format((float) $produto->preco_minimo, 2, '.', '') : '',
+            'desconto_percentual' => number_format($desconto, 2, '.', ''),
+            'preco_negociado' => $precoNegociado > 0 ? number_format($precoNegociado, 2, '.', '') : '',
             'observacao' => $registro->observacao ?? '',
         ];
     }
@@ -718,9 +937,21 @@ class KanbanOportunidades extends Page
             'id' => null,
             'produto_id' => '',
             'quantidade' => 1,
+            'preco_tabela' => '',
+            'preco_minimo' => '',
+            'desconto_percentual' => 0,
             'preco_negociado' => '',
             'observacao' => '',
         ];
+    }
+
+    protected function calculateDiscountPercent(float $precoTabela, float $precoFinal): float
+    {
+        if ($precoTabela <= 0 || $precoFinal <= 0) {
+            return 0.0;
+        }
+
+        return round(max(0, min(100, (1 - ($precoFinal / $precoTabela)) * 100)), 2);
     }
 
     public function saveInteraction(): void
@@ -894,6 +1125,7 @@ class KanbanOportunidades extends Page
                 'cliente.categoriaSegmento',
                 'user',
                 'etapa',
+                'vendaOperacaoPedido',
                 'oportunidadeProdutos' => fn ($builder) => $builder
                     ->with('produto')
                     ->latest('updated_at'),
@@ -997,6 +1229,7 @@ class KanbanOportunidades extends Page
             'productForm.produto_id' => ['required', 'integer', 'exists:produtos,id'],
             'productForm.quantidade' => ['required', 'numeric', 'decimal:0,4', 'min:0.0001'],
             'productForm.preco_negociado' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
+            'productForm.desconto_percentual' => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:100'],
             'productForm.observacao' => ['nullable', 'string', 'max:2000'],
         ];
     }
@@ -1123,6 +1356,8 @@ class KanbanOportunidades extends Page
         $responsavel = $opportunity->user;
         $ultimaInteracao = $opportunity->last_interaction_at ? now()->parse($opportunity->last_interaction_at) : null;
         $etapa = $opportunity->etapa;
+        $valorEstimado = $opportunity->calcularValorEstimado();
+        $convertida = (bool) ($opportunity->venda_operacao_pedido_id || $opportunity->convertida_em);
 
         return [
             'id' => $opportunity->id,
@@ -1135,8 +1370,8 @@ class KanbanOportunidades extends Page
             'owner_initials' => $this->extractInitials($responsavel?->name),
             'temperature' => $opportunity->temperatura,
             'temperature_label' => Oportunidade::temperaturaOptions()[$opportunity->temperatura] ?? $opportunity->temperatura,
-            'value' => $opportunity->valor_estimado,
-            'value_formatted' => blank($opportunity->valor_estimado) ? null : $this->formatMoney((float) $opportunity->valor_estimado),
+            'value' => $valorEstimado,
+            'value_formatted' => $valorEstimado > 0 ? $this->formatMoney($valorEstimado) : null,
             'products' => $produtos,
             'extra_products_count' => max($opportunity->oportunidadeProdutos->count() - count($produtos), 0),
             'last_interaction_label' => $ultimaInteracao ? $this->formatRelativeDate($ultimaInteracao) : 'Sem interacao',
@@ -1146,8 +1381,12 @@ class KanbanOportunidades extends Page
             'stage_slug' => $stage['slug'] ?? $etapa?->slug ?? '',
             'stage_color' => $stage['cor'] ?? $etapa?->cor ?? $this->resolveStageColor(0),
             'stage_is_closing' => (bool) ($stage['fechamento'] ?? $etapa?->fechamento ?? false),
+            'is_converted' => $convertida,
             'can_update' => Gate::allows('update', $opportunity),
             'can_view' => Gate::allows('view', $opportunity),
+            'can_convert_to_sale' => ! $convertida
+                && Gate::allows('update', $opportunity)
+                && Gate::allows('create', VendaOperacao::class),
         ];
     }
 

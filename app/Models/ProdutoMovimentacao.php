@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Acesso\User;
+use App\Models\Empresas\Fornecedor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -13,6 +14,7 @@ class ProdutoMovimentacao extends Model
     protected $fillable = [
         'produto_id',
         'user_id',
+        'fornecedor_id',
         'tipo',
         'quantidade',
         'impacto_estoque',
@@ -32,6 +34,7 @@ class ProdutoMovimentacao extends Model
     ];
 
     protected $casts = [
+        'fornecedor_id' => 'string',
         'quantidade' => 'decimal:4',
         'impacto_estoque' => 'decimal:4',
         'saldo_anterior' => 'decimal:4',
@@ -69,5 +72,14 @@ class ProdutoMovimentacao extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function fornecedor(): BelongsTo
+    {
+        return $this->belongsTo(
+            Fornecedor::class,
+            'fornecedor_id',
+            'uuid',
+        );
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services\Produtos;
 
 use App\Models\Acesso\User;
+use App\Models\Empresas\Fornecedor;
 use App\Models\InsumoMovimentacao;
 use App\Models\Produto;
 use App\Models\ProdutoMovimentacao;
@@ -64,7 +65,7 @@ class MovimentacaoEstoqueService
             $assignedUser = $this->resolveAssignedUser($prepared['user_id'] ?? null, $user);
 
             return InsumoMovimentacao::query()->create([
-                ...Arr::except($prepared, ['insumo_id']),
+                ...Arr::except($prepared, ['insumo_id', 'fornecedor_id']),
                 'insumo_id' => $insumo->id,
                 'user_id' => $assignedUser?->id,
                 'unidade' => $prepared['unidade'] ?? $this->resolveInsumoUnidade($insumo),
@@ -120,6 +121,10 @@ class MovimentacaoEstoqueService
             $messages['user_id'] = 'Selecione um responsavel valido para esta movimentacao.';
         }
 
+        if (($data['fornecedor_id'] ?? null) !== null && Fornecedor::query()->whereKey($data['fornecedor_id'])->doesntExist()) {
+            $messages['fornecedor_id'] = 'Selecione um fornecedor valido para esta movimentacao.';
+        }
+
         if ($this->isOutboundType($data['tipo']) && blank($data['motivo'] ?? null)) {
             $messages['motivo'] = 'Informe o motivo desta movimentacao.';
         }
@@ -135,6 +140,7 @@ class MovimentacaoEstoqueService
             ...$data,
             'tipo' => $data['tipo'] ?? 'entrada',
             'user_id' => isset($data['user_id']) && $data['user_id'] !== '' ? (int) $data['user_id'] : null,
+            'fornecedor_id' => $this->trimOrNull($data['fornecedor_id'] ?? null),
             'quantidade' => $this->toNullableFloat($data['quantidade'] ?? null) ?? 0.0,
             'unidade' => $this->trimOrNull($data['unidade'] ?? null),
             'documento_referencia' => $this->trimOrNull($data['documento_referencia'] ?? null),

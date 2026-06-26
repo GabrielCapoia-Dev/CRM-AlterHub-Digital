@@ -22,8 +22,19 @@
                                 Quantidade: {{ number_format((float) $linkedProduct->quantidade, 4, ',', '.') }}
                                 {{ $linkedProduct->produto?->unidade_medida ? ' ' . $linkedProduct->produto->unidade_medida : '' }}
                                 |
-                                {{ $linkedProduct->preco_negociado ? 'Preco negociado: R$ ' . number_format((float) $linkedProduct->preco_negociado, 2, ',', '.') : 'Sem preco negociado' }}
+                                {{ $linkedProduct->preco_negociado ? 'Preco final: R$ ' . number_format((float) $linkedProduct->preco_negociado, 2, ',', '.') : 'Sem preco final' }}
+                                |
+                                Desconto: {{ number_format((float) ($linkedProduct->desconto_percentual ?? 0), 2, ',', '.') }}%
                             </p>
+
+                            @if ($linkedProduct->desconto_aprovado_por)
+                                <small>
+                                    Desconto aprovado por {{ $linkedProduct->descontoAprovadoPor?->name ?? 'responsavel autorizado' }}
+                                    @if ($linkedProduct->desconto_aprovado_em)
+                                        em {{ $linkedProduct->desconto_aprovado_em->format('d/m/Y H:i') }}
+                                    @endif
+                                </small>
+                            @endif
 
                             @if ($linkedProduct->observacao)
                                 <small>{{ $linkedProduct->observacao }}</small>
@@ -60,10 +71,12 @@
                 <div class="crm-drawer-grid">
                     <label class="crm-field crm-field-full">
                         <span>Produto</span>
-                        <select wire:model.defer="productForm.produto_id">
+                        <select wire:model.live="productForm.produto_id">
                             <option value="">Selecione</option>
                             @foreach ($products as $product)
-                                <option value="{{ $product['id'] }}">{{ $product['nome'] }}</option>
+                                <option value="{{ $product['id'] }}">
+                                    {{ $product['codigo'] ? $product['codigo'] . ' - ' : '' }}{{ $product['nome'] }}
+                                </option>
                             @endforeach
                         </select>
                         @error('productForm.produto_id')
@@ -72,9 +85,14 @@
                     </label>
 
                     <label class="crm-field">
-                        <span>Preco negociado</span>
-                        <input type="number" step="0.01" min="0" wire:model.defer="productForm.preco_negociado">
-                        @error('productForm.preco_negociado')
+                        <span>Preco de tabela</span>
+                        <input type="number" step="0.01" min="0" wire:model="productForm.preco_tabela" readonly>
+                    </label>
+
+                    <label class="crm-field">
+                        <span>Desconto (%)</span>
+                        <input type="number" step="0.01" min="0" max="100" wire:model.live.debounce.300ms="productForm.desconto_percentual">
+                        @error('productForm.desconto_percentual')
                             <small class="crm-field-error">{{ $message }}</small>
                         @enderror
                     </label>
@@ -85,6 +103,19 @@
                         @error('productForm.quantidade')
                             <small class="crm-field-error">{{ $message }}</small>
                         @enderror
+                    </label>
+
+                    <label class="crm-field">
+                        <span>Preco final</span>
+                        <input type="number" step="0.01" min="0" wire:model="productForm.preco_negociado" readonly>
+                        @error('productForm.preco_negociado')
+                            <small class="crm-field-error">{{ $message }}</small>
+                        @enderror
+                    </label>
+
+                    <label class="crm-field">
+                        <span>Preco minimo</span>
+                        <input type="number" step="0.01" min="0" wire:model="productForm.preco_minimo" readonly>
                     </label>
 
                     <label class="crm-field crm-field-full">

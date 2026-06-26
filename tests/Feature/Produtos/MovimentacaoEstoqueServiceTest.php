@@ -3,8 +3,13 @@
 namespace Tests\Feature\Produtos;
 
 use App\Models\Acesso\User;
+use App\Models\Categorias\CategoriaFornecimento;
+use App\Models\Empresas\FormaPagamento;
+use App\Models\Empresas\Fornecedor;
+use App\Models\Empresas\PrazoPagamento;
 use App\Models\Produto;
 use App\Models\Produtos\Insumo;
+use App\Models\Status\StatusHomologacao;
 use App\Services\Produtos\MovimentacaoEstoqueService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -111,6 +116,7 @@ class MovimentacaoEstoqueServiceTest extends TestCase
 
     public function test_it_creates_product_movements_and_computes_total_value(): void
     {
+        $fornecedor = $this->createFornecedor();
         $produto = Produto::query()->create([
             'codigo_interno' => 'PROD-MOV-01',
             'nome' => 'Produto de teste',
@@ -125,11 +131,14 @@ class MovimentacaoEstoqueServiceTest extends TestCase
 
         $movimentacao = $service->createForProduto([
             'produto_id' => $produto->id,
+            'fornecedor_id' => $fornecedor->uuid,
             'tipo' => 'entrada',
             'quantidade' => 2,
             'realizado_em' => now(),
         ]);
 
+        $this->assertSame($fornecedor->uuid, $movimentacao->fornecedor_id);
+        $this->assertSame($fornecedor->razao_social, $movimentacao->fornecedor?->razao_social);
         $this->assertSame('un', $movimentacao->unidade);
         $this->assertSame(10.0, (float) $movimentacao->valor_unitario);
         $this->assertSame(20.0, (float) $movimentacao->valor_total);
@@ -176,5 +185,25 @@ class MovimentacaoEstoqueServiceTest extends TestCase
             'tipo' => 'saida',
             'quantidade' => 1,
         ], 10);
+    }
+
+    private function createFornecedor(): Fornecedor
+    {
+        $categoria = CategoriaFornecimento::query()->create(['nome' => 'Distribuidor']);
+        $status = StatusHomologacao::query()->create(['nome' => 'Homologado']);
+        $prazo = PrazoPagamento::query()->create(['nome' => '30 dias']);
+        $forma = FormaPagamento::query()->create(['nome' => 'Boleto']);
+
+        return Fornecedor::query()->create([
+            'id_categoria_fornecimento' => $categoria->id,
+            'id_status_homologacao' => $status->id,
+            'id_prazo_pagamento' => $prazo->id,
+            'id_forma_pagamento' => $forma->id,
+            'razao_social' => 'Fornecedor Movimento Ltda',
+            'nome_fantasia' => 'Fornecedor Movimento',
+            'cnpj' => '98.765.432/0001-10',
+            'nome_completo' => 'Contato Fornecedor',
+            'email' => 'fornecedor.movimento@example.com',
+        ]);
     }
 }

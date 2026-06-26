@@ -253,6 +253,16 @@
                                 >
                                     Abrir
                                 </button>
+
+                                @if ($card['can_convert_to_sale'])
+                                    <button
+                                        type="button"
+                                        class="crm-btn crm-btn-primary crm-list-sale-btn"
+                                        wire:click.stop="openSaleConfirmation({{ $card['id'] }})"
+                                    >
+                                        Transformar em venda
+                                    </button>
+                                @endif
                             </footer>
                         </article>
                     @empty
@@ -546,7 +556,7 @@
                         <div class="crm-drawer-actions">
                             @if ($selectedOpportunity)
                                 @if ($selectedOpportunity->vendaOperacaoPedido)
-                                    <a href="{{ \App\Filament\Resources\VendasOperacao\VendaOperacaoResource::getUrl() }}" class="crm-btn crm-btn-secondary">
+                                    <a href="{{ \App\Filament\Resources\VendasOperacao\VendaOperacaoResource::getUrl('index') }}" class="crm-btn crm-btn-secondary">
                                         Venda {{ $selectedOpportunity->vendaOperacaoPedido->codigo }}
                                     </a>
                                 @elseif (auth()->user()?->can('update', $selectedOpportunity) && auth()->user()?->can('create', \App\Models\VendaOperacao::class))
@@ -604,6 +614,55 @@
                         @endif
                     </div>
                 </aside>
+            </div>
+        @endif
+
+        @if ($discountApprovalModalOpen)
+            <div class="crm-modal-root" role="dialog" aria-modal="true" aria-labelledby="crm-discount-modal-title">
+                <div class="crm-modal-backdrop" wire:click="closeDiscountApproval"></div>
+
+                <div class="crm-modal-panel crm-sale-modal-panel">
+                    <div class="crm-modal-copy">
+                        <p class="crm-kanban-eyebrow">Aprovacao de desconto</p>
+                        <h3 id="crm-discount-modal-title">Confirmar desconto abaixo do minimo</h3>
+                        <p>
+                            O preco final de <strong>{{ data_get($discountApprovalPreview, 'produto_nome', 'Produto') }}</strong>
+                            ficou abaixo do preco minimo cadastrado para este item.
+                        </p>
+                    </div>
+
+                    <section class="crm-sale-summary">
+                        <div>
+                            <span>Preco tabela</span>
+                            <strong>R$ {{ number_format((float) data_get($discountApprovalPreview, 'preco_tabela', 0), 2, ',', '.') }}</strong>
+                        </div>
+
+                        <div>
+                            <span>Desconto</span>
+                            <strong>{{ number_format((float) data_get($discountApprovalPreview, 'desconto_percentual', 0), 2, ',', '.') }}%</strong>
+                        </div>
+
+                        <div>
+                            <span>Preco minimo</span>
+                            <strong>R$ {{ number_format((float) data_get($discountApprovalPreview, 'preco_minimo', 0), 2, ',', '.') }}</strong>
+                        </div>
+
+                        <div>
+                            <span>Preco final</span>
+                            <strong>R$ {{ number_format((float) data_get($discountApprovalPreview, 'preco_final', 0), 2, ',', '.') }}</strong>
+                        </div>
+                    </section>
+
+                    <div class="crm-modal-actions">
+                        <button type="button" class="crm-btn crm-btn-secondary" wire:click="closeDiscountApproval">
+                            Cancelar
+                        </button>
+
+                        <button type="button" class="crm-btn crm-btn-primary" wire:click="confirmDiscountApproval">
+                            Aprovar desconto
+                        </button>
+                    </div>
+                </div>
             </div>
         @endif
     </div>

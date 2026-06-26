@@ -2,10 +2,14 @@
 
 namespace Tests\Feature\Operacao;
 
+use App\Models\Categorias\CategoriaSegmento;
+use App\Models\Clientes\Cliente;
 use App\Models\Produto;
+use App\Models\Status\StatusCliente;
 use App\Services\Operacao\VendaOperacaoService;
 use App\Services\Produtos\MovimentacaoEstoqueService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -84,6 +88,7 @@ class VendaOperacaoServiceTest extends TestCase
 
     public function test_it_creates_a_grouped_sale_header_for_manual_sale(): void
     {
+        $cliente = $this->createCliente();
         $produto = Produto::query()->create([
             'codigo_interno' => 'PROD-VEN-03',
             'nome' => 'Produto manual agrupado',
@@ -106,16 +111,35 @@ class VendaOperacaoServiceTest extends TestCase
             'data_venda' => now()->toDateString(),
             'quantidade' => 2,
             'preco_unitario' => 10,
-            'cliente_nome' => 'Cliente Manual',
+            'cliente_id' => $cliente->id,
         ]);
 
         $this->assertSame('ativa', $pedido->status);
+        $this->assertSame($cliente->id, $pedido->cliente_id);
+        $this->assertSame($cliente->razao_social, $pedido->cliente_nome_snapshot);
         $this->assertSame(1, $pedido->itens_count);
         $this->assertSame(20.0, (float) $pedido->receita_bruta_total);
         $this->assertSame(3.0, (float) $produto->fresh()->estoqueAtual());
         $this->assertDatabaseHas('vendas_operacao', [
             'venda_operacao_pedido_id' => $pedido->id,
             'produto_id' => $produto->id,
+            'cliente_nome' => $cliente->razao_social,
+        ]);
+    }
+
+    private function createCliente(): Cliente
+    {
+        $status = StatusCliente::query()->create(['nome' => 'Ativo']);
+        $segmento = CategoriaSegmento::query()->create(['nome' => 'Industrial']);
+
+        return Cliente::query()->create([
+            'razao_social' => 'Cliente Manual '.Str::random(6),
+            'nome_fantasia' => 'Cliente Manual',
+            'cnpj' => '12.345.678/0001-90',
+            'id_status_cliente' => $status->id,
+            'id_categoria_segmento' => $segmento->id,
+            'nome_completo' => 'Contato Manual',
+            'email' => 'manual@example.com',
         ]);
     }
 }

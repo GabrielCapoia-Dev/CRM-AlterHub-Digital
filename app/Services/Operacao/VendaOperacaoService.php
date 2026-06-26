@@ -3,6 +3,7 @@
 namespace App\Services\Operacao;
 
 use App\Models\Acesso\User;
+use App\Models\Clientes\Cliente;
 use App\Models\Produto;
 use App\Models\VendaOperacao;
 use App\Models\VendaOperacaoPedido;
@@ -94,10 +95,12 @@ class VendaOperacaoService
             $payload = $this->normalizePayload($data);
 
             $pedido = VendaOperacaoPedido::query()->create([
+                'cliente_id' => $payload['cliente_id'],
                 'user_id' => $user?->id,
                 'status' => VendaOperacaoPedido::STATUS_ATIVA,
                 'data_venda' => $payload['data_venda'],
                 'cliente_nome_snapshot' => $payload['cliente_nome'],
+                'cliente_documento_snapshot' => $payload['cliente_documento'],
                 'vendedor_nome_snapshot' => $payload['vendedor_nome'],
                 'observacao' => $payload['observacao'],
             ]);
@@ -158,16 +161,37 @@ class VendaOperacaoService
 
     protected function normalizePayload(array $data): array
     {
+        $cliente = $this->resolveCliente($data['cliente_id'] ?? null);
+
         return [
             'data_venda' => $data['data_venda'] ?? now()->toDateString(),
             'quantidade' => round((float) ($data['quantidade'] ?? 0), 4),
             'preco_unitario' => round((float) ($data['preco_unitario'] ?? 0), 4),
             'icms_aliquota' => round((float) ($data['icms_aliquota'] ?? 0), 2),
             'outros_impostos_aliquota' => round((float) ($data['outros_impostos_aliquota'] ?? 0), 2),
-            'cliente_nome' => $this->normalizeString($data['cliente_nome'] ?? null),
+            'cliente_id' => $cliente?->id,
+            'cliente_nome' => $cliente?->razao_social ?? $this->normalizeString($data['cliente_nome'] ?? null),
+            'cliente_documento' => $cliente?->cnpj,
             'vendedor_nome' => $this->normalizeString($data['vendedor_nome'] ?? null),
             'observacao' => $this->normalizeString($data['observacao'] ?? null),
         ];
+    }
+
+    protected function resolveCliente(mixed $clienteId): ?Cliente
+    {
+        if (blank($clienteId)) {
+            return null;
+        }
+
+        $cliente = Cliente::query()->find((int) $clienteId);
+
+        if (! $cliente) {
+            throw ValidationException::withMessages([
+                'cliente_id' => 'Selecione um cliente cadastrado valido.',
+            ]);
+        }
+
+        return $cliente;
     }
 
     protected function normalizeString(mixed $value): ?string

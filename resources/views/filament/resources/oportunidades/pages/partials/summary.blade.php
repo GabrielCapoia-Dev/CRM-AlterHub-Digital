@@ -247,10 +247,11 @@
 
             <label class="crm-field">
                 <span>Valor estimado</span>
-                <input type="number" step="0.01" min="0" wire:model.defer="opportunityForm.valor_estimado" @disabled(! $canEditOpportunity)>
-                @error('opportunityForm.valor_estimado')
-                    <small class="crm-field-error">{{ $message }}</small>
-                @enderror
+                <input
+                    type="text"
+                    value="{{ $selectedOpportunity && $selectedOpportunity->calcularValorEstimado() > 0 ? 'R$ ' . number_format($selectedOpportunity->calcularValorEstimado(), 2, ',', '.') : 'Calculado pelos produtos vinculados' }}"
+                    disabled
+                >
             </label>
 
             @if ($this->selectedStageIsClosing())

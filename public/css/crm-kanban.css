@@ -795,6 +795,14 @@
     padding: 0.58rem 0.9rem;
 }
 
+.crm-list-sale-btn {
+    min-height: 2.45rem;
+    padding: 0.58rem 0.9rem;
+    background: linear-gradient(135deg, #123c8c, #1d4ed8);
+    color: #fff;
+    box-shadow: 0 10px 20px rgba(29, 78, 216, 0.22);
+}
+
 .crm-opportunity-empty {
     display: grid;
     place-items: center;
@@ -1763,7 +1771,8 @@ body.crm-kanban-is-dragging .crm-kanban-card * {
         justify-self: start;
     }
 
-    .crm-list-open-btn {
+    .crm-list-open-btn,
+    .crm-list-sale-btn {
         width: 100%;
     }
 
