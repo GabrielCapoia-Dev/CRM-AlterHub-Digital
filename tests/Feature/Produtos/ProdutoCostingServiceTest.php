@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Produtos;
 
-use App\Models\Produto;
 use App\Models\Categorias\TipoUnidadeMedida;
+use App\Models\Empresas\Fornecedor;
+use App\Models\Produto;
 use App\Models\Produtos\Insumo;
 use App\Services\Produtos\ProdutoCostingService;
 use App\Services\Produtos\ProdutoPricingCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ProdutoCostingServiceTest extends TestCase
@@ -144,6 +146,33 @@ class ProdutoCostingServiceTest extends TestCase
         $this->assertSame('0.1250', $links[1]->quantidade);
     }
 
+    public function test_it_saves_preferred_supplier_when_saving_product(): void
+    {
+        $fornecedor = $this->createFornecedor();
+
+        $prepared = app(ProdutoPricingCalculator::class)->prepareForPersistence([
+            'nome' => 'Produto com fornecedor',
+            'fornecedor_id' => $fornecedor->uuid,
+            'unidade_medida' => 'un',
+            'status' => 'ativo',
+            'produtoInsumos' => [],
+            'produtoComponentesCusto' => [
+                [
+                    'nome' => ProdutoPricingCalculator::SINGLE_PRODUCT_COST_COMPONENT,
+                    'categoria' => 'custo_produto',
+                    'tipo' => 'valor_fixo_brl',
+                    'valor' => '50,00',
+                    'obrigatorio' => true,
+                ],
+            ],
+        ]);
+
+        $produto = app(ProdutoCostingService::class)->savePreparedProduct(new Produto(), $prepared);
+
+        $this->assertSame($fornecedor->uuid, $produto->fornecedor_id);
+        $this->assertTrue($produto->fornecedor->is($fornecedor));
+    }
+
     private function createProdutoComConfiguracaoInicial(string $nome, Insumo $insumo): Produto
     {
         $produto = Produto::query()->create([
@@ -183,6 +212,45 @@ class ProdutoCostingServiceTest extends TestCase
             'origem' => 'nacional',
             'tipo_unidade_medida_id' => $unidade->id,
             'custo_referencia' => $custoReferencia,
+        ]);
+    }
+
+    private function createFornecedor(): Fornecedor
+    {
+        $categoriaId = DB::table('categorias_fornecimento')->insertGetId([
+            'nome' => 'Produtos acabados',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $statusId = DB::table('status_homologacao')->insertGetId([
+            'nome' => 'Homologado',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $prazoId = DB::table('prazos_pagamento')->insertGetId([
+            'nome' => '30 dias',
+            'dias' => 30,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $formaId = DB::table('formas_pagamento')->insertGetId([
+            'nome' => 'Boleto',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return Fornecedor::query()->create([
+            'codigo_interno' => 'FOR-PRD-001',
+            'id_categoria_fornecimento' => $categoriaId,
+            'id_status_homologacao' => $statusId,
+            'id_prazo_pagamento' => $prazoId,
+            'id_forma_pagamento' => $formaId,
+            'razao_social' => 'Fornecedor Produto Teste',
+            'cnpj' => '19.437.687/0001-20',
+            'nome_completo' => 'Contato Fornecedor',
         ]);
     }
 }

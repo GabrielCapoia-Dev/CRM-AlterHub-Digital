@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Categorias\CategoriaProduto;
+use App\Models\Empresas\Fornecedor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +15,7 @@ class Produto extends Model
     protected $fillable = [
         'codigo_interno',
         'categoria_produto_id',
+        'fornecedor_id',
         'nome',
         'marca',
         'descricao',
@@ -31,6 +33,7 @@ class Produto extends Model
 
     protected $casts = [
         'categoria_produto_id' => 'integer',
+        'fornecedor_id' => 'string',
         'estoque_minimo' => 'decimal:4',
         'preco_tabela' => 'decimal:2',
         'preco_minimo' => 'decimal:2',
@@ -70,6 +73,11 @@ class Produto extends Model
     public function categoriaProduto(): BelongsTo
     {
         return $this->belongsTo(CategoriaProduto::class, 'categoria_produto_id');
+    }
+
+    public function fornecedor(): BelongsTo
+    {
+        return $this->belongsTo(Fornecedor::class, 'fornecedor_id', 'uuid');
     }
 
     public function oportunidadeProdutos(): HasMany

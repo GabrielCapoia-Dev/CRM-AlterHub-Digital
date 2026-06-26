@@ -514,8 +514,10 @@ class InsumoResource extends Resource
                             ->label('Fornecedor preferencial')
                             ->relationship('fornecedor', 'razao_social')
                             ->getOptionLabelFromRecordUsing(fn (Fornecedor $record): string => static::formatFornecedorLabel($record))
-                            ->searchable()
+                            ->searchable(['codigo_interno', 'razao_social', 'nome_fantasia', 'cnpj'])
                             ->preload()
+                            ->placeholder('Selecione o fornecedor preferencial')
+                            ->helperText('Fornecedor principal para compra ou reposicao deste insumo.')
                             ->required()
                             ->columnSpanFull(),
 

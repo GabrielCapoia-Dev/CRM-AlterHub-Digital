@@ -3,6 +3,7 @@
 namespace App\Models\Empresas;
 
 use App\Models\Categorias\CategoriaFornecimento;
+use App\Models\Produto;
 use App\Models\Produtos\Insumo;
 use App\Models\Status\StatusHomologacao;
 use App\Support\Fiscal\TaxIdentifier;
@@ -123,5 +124,10 @@ class Fornecedor extends Model
     public function insumosPreferenciais(): HasMany
     {
         return $this->hasMany(Insumo::class, 'fornecedor_id', 'uuid');
+    }
+
+    public function produtosPreferenciais(): HasMany
+    {
+        return $this->hasMany(Produto::class, 'fornecedor_id', 'uuid');
     }
 }

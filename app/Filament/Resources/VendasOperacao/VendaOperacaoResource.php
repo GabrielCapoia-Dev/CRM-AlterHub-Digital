@@ -335,6 +335,9 @@ class VendaOperacaoResource extends Resource
                     ->modalWidth('5xl')
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fechar')
+                    ->extraModalWindowAttributes([
+                        'class' => 'oa-record-modal oa-sale-products-modal',
+                    ])
                     ->modalContent(fn (VendaOperacaoPedido $record): View => view('filament.resources.vendas-operacao.modals.products', [
                         'pedido' => $record->load(['vendasOperacao.produto', 'vendasOperacao.produtoMovimentacao']),
                     ])),

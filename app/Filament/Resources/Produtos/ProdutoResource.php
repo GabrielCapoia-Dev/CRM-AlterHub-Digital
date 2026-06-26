@@ -6,6 +6,7 @@ use App\Enum\RolesEnum;
 use App\Filament\Resources\Produtos\Actions\ApplyBulkCostAction;
 use App\Filament\Resources\Produtos\Pages\ManageProdutos;
 use App\Models\Categorias\TipoUnidadeMedida;
+use App\Models\Empresas\Fornecedor;
 use App\Models\Produto;
 use App\Models\ProdutoComponenteCusto;
 use App\Models\Produtos\Insumo;
@@ -126,6 +127,16 @@ class ProdutoResource extends Resource
                                         TextInput::make('marca')
                                             ->label('Marca / fabricante')
                                             ->maxLength(255),
+
+                                        Select::make('fornecedor_id')
+                                            ->label('Fornecedor preferencial')
+                                            ->relationship('fornecedor', 'razao_social')
+                                            ->getOptionLabelFromRecordUsing(fn (Fornecedor $record): string => static::formatFornecedorLabel($record))
+                                            ->searchable(['codigo_interno', 'razao_social', 'nome_fantasia', 'cnpj'])
+                                            ->preload()
+                                            ->placeholder('Selecione o fornecedor preferencial')
+                                            ->helperText('Fornecedor principal para compra ou reposicao deste produto.')
+                                            ->columnSpanFull(),
 
                                         Select::make('unidade_medida')
                                             ->label('Unidade de venda')
@@ -346,7 +357,7 @@ class ProdutoResource extends Resource
     {
         return $table
             ->modifyQueryUsing(fn(Builder $query) => $query
-                ->with(['categoriaProduto'])
+                ->with(['categoriaProduto', 'fornecedor'])
                 ->withSum('produtoMovimentacoes as estoque_atual', 'impacto_estoque')
                 ->withCount('produtoMovimentacoes'))
             ->checkIfRecordIsSelectableUsing(fn (Produto $record): bool => auth()->user()?->can('update', $record) ?? false)
@@ -377,6 +388,13 @@ class ProdutoResource extends Resource
                             ->label('Categoria')
                             ->badge()
                             ->placeholder('Sem categoria')
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+
+                        TextColumn::make('fornecedor.razao_social')
+                            ->label('Fornecedor')
+                            ->searchable()
+                            ->placeholder('Fornecedor nao informado')
+                            ->wrap()
                             ->extraAttributes(['class' => 'crm-list-field'], merge: true),
                     ]),
 
@@ -459,11 +477,17 @@ class ProdutoResource extends Resource
                     ->extraAttributes(['class' => 'crm-list-field crm-list-footer'], merge: true),
             ])
             ->defaultSort('nome')
-            ->searchPlaceholder('Buscar por nome ou codigo...')
+            ->searchPlaceholder('Buscar por nome, codigo ou fornecedor...')
             ->filters([
                 SelectFilter::make('categoria_produto_id')
                     ->label('Categoria')
                     ->relationship('categoriaProduto', 'nome')
+                    ->searchable()
+                    ->preload(),
+
+                SelectFilter::make('fornecedor_id')
+                    ->label('Fornecedor')
+                    ->relationship('fornecedor', 'razao_social')
                     ->searchable()
                     ->preload(),
 
@@ -813,6 +837,19 @@ class ProdutoResource extends Resource
         return $record->codigo_interno
             ? "{$record->codigo_interno} - {$record->nome}"
             : $record->nome;
+    }
+
+    protected static function formatFornecedorLabel(Fornecedor $record): string
+    {
+        if (filled($record->codigo_interno)) {
+            return "{$record->codigo_interno} - {$record->razao_social}";
+        }
+
+        if (filled($record->nome_fantasia)) {
+            return "{$record->razao_social} ({$record->nome_fantasia})";
+        }
+
+        return $record->razao_social;
     }
 
     protected static function formatUnidadeLabel(TipoUnidadeMedida $record): string
