@@ -214,9 +214,9 @@ class ProdutoResource extends Resource
 
                                                 Select::make('insumo_id')
                                                     ->hiddenLabel()
-                                                    ->options(fn (): array => static::insumoOptions())
                                                     ->searchable()
-                                                    ->preload()
+                                                    ->getSearchResultsUsing(fn (?string $search): array => static::searchInsumoOptions($search))
+                                                    ->getOptionLabelUsing(fn (mixed $value): ?string => static::resolveInsumoOptionLabel($value))
                                                     ->required()
                                                     ->live()
                                                     ->afterStateUpdated(fn(Set $set, Get $get) => static::syncInsumoSnapshotLine($set, $get)),
@@ -687,7 +687,7 @@ class ProdutoResource extends Resource
                 'lucro_percentual' => $get('lucro_percentual'),
                 'produtoComponentesCusto' => $get('produtoComponentesCusto') ?? [],
             ]),
-        ]);
+        ], refreshSnapshots: false);
     }
 
     protected static function prepareProductFormData(array $data): array
@@ -821,15 +821,43 @@ class ProdutoResource extends Resource
             ->all();
     }
 
-    protected static function insumoOptions(): array
+    protected static function searchInsumoOptions(?string $search = null): array
     {
+        $search = trim((string) $search);
+
         return Insumo::query()
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->where(function (Builder $query) use ($search): void {
+                    $query
+                        ->where('nome', 'like', "%{$search}%")
+                        ->orWhere('codigo_interno', 'like', "%{$search}%");
+                });
+            })
             ->orderBy('nome')
+            ->limit(50)
             ->get()
             ->mapWithKeys(fn (Insumo $record): array => [
                 (string) $record->getKey() => static::formatInsumoLabel($record),
             ])
             ->all();
+    }
+
+    protected static function resolveInsumoOptionLabel(mixed $value): ?string
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        static $labels = [];
+
+        $key = (string) $value;
+
+        if (! array_key_exists($key, $labels)) {
+            $record = Insumo::query()->find($value);
+            $labels[$key] = $record ? static::formatInsumoLabel($record) : null;
+        }
+
+        return $labels[$key];
     }
 
     protected static function formatInsumoLabel(Insumo $record): string
