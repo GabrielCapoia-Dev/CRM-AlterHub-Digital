@@ -2,10 +2,18 @@
 
 namespace App\Filament\Resources\VendasOperacao;
 
+use App\Enum\RolesEnum;
 use App\Filament\Resources\VendasOperacao\Pages\ManageVendasOperacao;
+use App\Filament\Support\Fields\TaxIdentifierField;
+use App\Models\Acesso\User;
+use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Clientes\Cliente;
 use App\Models\Produto;
+use App\Models\Status\StatusCliente;
 use App\Models\VendaOperacaoPedido;
+use App\Rules\UniqueNormalizedTaxIdentifierRule;
+use App\Services\Acesso\RoleService;
+use App\Services\CRM\OportunidadeClienteService;
 use App\Services\Operacao\VendaOperacaoService;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
@@ -72,48 +80,65 @@ class VendaOperacaoResource extends Resource
      */
     public static function getSaleFormComponents(): array
     {
+        $canPickVendedor = app(RoleService::class)->podeEscolherVendedor(auth()->user());
+
         return [
-            Section::make('Venda')
-                ->columns(3)
+            Section::make('Dados da venda')
+                ->description('Cliente, data e responsavel. Use + no cliente para cadastrar na hora.')
+                ->icon(Heroicon::OutlinedShoppingCart)
+                ->columns(12)
                 ->columnSpanFull()
                 ->schema([
                     Select::make('cliente_id')
                         ->label('Cliente')
-                        ->options(fn (): array => Cliente::query()
-                            ->orderBy('razao_social')
-                            ->get()
-                            ->mapWithKeys(fn (Cliente $cliente): array => [
-                                $cliente->id => $cliente->codigo_interno
-                                    ? "{$cliente->codigo_interno} - {$cliente->razao_social}"
-                                    : $cliente->razao_social,
-                            ])
-                            ->all())
+                        ->options(fn (): array => static::clienteOptions())
                         ->searchable()
                         ->preload()
                         ->required()
-                        ->columnSpan(2),
+                        ->native(false)
+                        ->createOptionForm(static::clienteCreateOptionForm())
+                        ->createOptionUsing(fn (array $data): int => static::createClienteRapido($data))
+                        ->createOptionModalHeading('Novo cliente')
+                        ->createOptionAction(fn (Action $action): Action => $action
+                            ->modalWidth('3xl')
+                            ->modalSubmitActionLabel('Salvar cliente')
+                            ->extraModalWindowAttributes(['class' => 'oa-record-modal oa-sales-modal']))
+                        ->helperText('Se o cliente nao existir, clique no + para cadastrar sem sair da venda.')
+                        ->columnSpan(6),
 
                     DatePicker::make('data_venda')
                         ->label('Data')
                         ->default(now())
-                        ->required(),
+                        ->required()
+                        ->columnSpan(3),
 
-                    TextInput::make('vendedor_nome')
+                    Select::make('vendedor_user_id')
                         ->label('Vendedor')
-                        ->default(fn (): ?string => auth()->user()?->name)
-                        ->maxLength(255)
-                        ->columnSpan(1),
+                        ->options(fn (): array => static::vendedorOptions())
+                        ->default(fn (): ?int => auth()->id())
+                        ->searchable()
+                        ->preload()
+                        ->required()
+                        ->native(false)
+                        ->disabled(! $canPickVendedor)
+                        ->dehydrated()
+                        ->helperText($canPickVendedor
+                            ? 'Selecione o vendedor responsavel pela venda.'
+                            : 'Vendedor fixo no seu usuario.')
+                        ->columnSpan(3),
 
                     Textarea::make('observacao')
                         ->label('Observacao')
                         ->rows(2)
+                        ->placeholder('Opcional')
                         ->columnSpanFull(),
 
                     Hidden::make('origem_pedido_id'),
                 ]),
 
-            Section::make('Produtos')
-                ->description('Preco abaixo do minimo envia a venda para aprovacao.')
+            Section::make('Itens')
+                ->description('Produto, quantidade, desconto e preco. Abaixo do minimo a venda vai para aprovacao.')
+                ->icon(Heroicon::OutlinedCube)
                 ->columnSpanFull()
                 ->schema([
                     Repeater::make('itens')
@@ -124,6 +149,16 @@ class VendaOperacaoResource extends Resource
                         ->reorderable(false)
                         ->columns(12)
                         ->columnSpanFull()
+                        ->itemLabel(function (array $state): ?string {
+                            if (! filled($state['produto_id'] ?? null)) {
+                                return 'Novo item';
+                            }
+
+                            $produto = Produto::query()->find($state['produto_id']);
+
+                            return $produto?->nome ?? 'Item';
+                        })
+                        ->collapsible()
                         ->schema([
                             Select::make('produto_id')
                                 ->label('Produto')
@@ -141,6 +176,7 @@ class VendaOperacaoResource extends Resource
                                 ->searchable()
                                 ->preload()
                                 ->required()
+                                ->native(false)
                                 ->live()
                                 ->afterStateUpdated(function ($state, Set $set): void {
                                     if (! $state) {
@@ -203,17 +239,17 @@ class VendaOperacaoResource extends Resource
                                 ->columnSpan(12),
 
                             TextInput::make('quantidade')
-                                ->label('Qtd.')
+                                ->label('Quantidade')
                                 ->numeric()
                                 ->rule('decimal:0,4')
                                 ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                                 ->minValue(0.0001)
                                 ->placeholder('1')
                                 ->required()
-                                ->columnSpan(3),
+                                ->columnSpan(4),
 
                             TextInput::make('desconto_percentual')
-                                ->label('Desconto %')
+                                ->label('Desconto')
                                 ->numeric()
                                 ->rule('decimal:0,2')
                                 ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state ?? 0))
@@ -225,10 +261,10 @@ class VendaOperacaoResource extends Resource
                                 ->afterStateUpdated(function ($state, Get $get, Set $set): void {
                                     static::syncPrecoFromDesconto($get, $set, $state);
                                 })
-                                ->columnSpan(3),
+                                ->columnSpan(4),
 
                             TextInput::make('preco_unitario')
-                                ->label('Preco unit.')
+                                ->label('Preco unitario')
                                 ->numeric()
                                 ->rule('decimal:0,2')
                                 ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
@@ -240,31 +276,149 @@ class VendaOperacaoResource extends Resource
                                 ->afterStateUpdated(function ($state, Get $get, Set $set): void {
                                     static::syncDescontoFromPreco($get, $set, $state);
                                 })
-                                ->columnSpan(3),
-
-                            Placeholder::make('alerta_aprovacao')
-                                ->label('Status')
-                                ->content(function (Get $get): string {
+                                ->helperText(function (Get $get): ?string {
                                     $produtoId = $get('produto_id');
                                     $preco = (float) ($get('preco_unitario') ?? 0);
 
                                     if (! $produtoId || $preco <= 0) {
-                                        return '—';
+                                        return null;
                                     }
 
                                     $produto = Produto::query()->find($produtoId);
                                     $minimo = $produto?->preco_minimo !== null ? (float) $produto->preco_minimo : 0.0;
 
                                     if ($minimo > 0 && $preco < $minimo) {
-                                        return 'Abaixo do minimo — vai para aprovacao';
+                                        return 'Abaixo do minimo — esta venda ira para aprovacao.';
                                     }
 
-                                    return 'Ok';
+                                    return null;
                                 })
-                                ->columnSpan(3),
+                                ->columnSpan(4),
                         ]),
                 ]),
         ];
+    }
+
+    /**
+     * @return array<int|string, string>
+     */
+    protected static function clienteOptions(): array
+    {
+        return Cliente::query()
+            ->orderBy('razao_social')
+            ->get()
+            ->mapWithKeys(fn (Cliente $cliente): array => [
+                $cliente->id => $cliente->codigo_interno
+                    ? "{$cliente->codigo_interno} - {$cliente->razao_social}"
+                    : $cliente->razao_social,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<int|string, string>
+     */
+    protected static function vendedorOptions(): array
+    {
+        $query = User::query()
+            ->role(RolesEnum::Vendedor->value)
+            ->orderBy('name');
+
+        $options = $query
+            ->get(['id', 'name'])
+            ->mapWithKeys(fn (User $user): array => [$user->id => $user->name])
+            ->all();
+
+        $auth = auth()->user();
+
+        if ($auth && ! array_key_exists($auth->id, $options)) {
+            $options = [$auth->id => $auth->name] + $options;
+        }
+
+        return $options;
+    }
+
+    /**
+     * @return array<int, \Filament\Forms\Components\Component>
+     */
+    protected static function clienteCreateOptionForm(): array
+    {
+        $defaultStatusId = app(OportunidadeClienteService::class)->defaultStatusId();
+
+        return [
+            TextInput::make('razao_social')
+                ->label('Razao social')
+                ->required()
+                ->maxLength(255)
+                ->columnSpanFull(),
+
+            TextInput::make('nome_fantasia')
+                ->label('Nome fantasia')
+                ->maxLength(255),
+
+            TaxIdentifierField::make('cnpj')
+                ->required()
+                ->rule(new UniqueNormalizedTaxIdentifierRule(
+                    table: 'clientes',
+                    column: 'cnpj',
+                )),
+
+            Select::make('id_categoria_segmento')
+                ->label('Segmento')
+                ->options(fn (): array => CategoriaSegmento::query()->orderBy('nome')->pluck('nome', 'id')->all())
+                ->searchable()
+                ->preload()
+                ->required(),
+
+            Select::make('id_status_cliente')
+                ->label('Status')
+                ->options(fn (): array => StatusCliente::query()->orderBy('nome')->pluck('nome', 'id')->all())
+                ->searchable()
+                ->preload()
+                ->required()
+                ->default($defaultStatusId),
+
+            TextInput::make('nome_completo')
+                ->label('Contato')
+                ->required()
+                ->maxLength(255),
+
+            TextInput::make('email')
+                ->label('E-mail')
+                ->email()
+                ->maxLength(255),
+
+            TextInput::make('telefone')
+                ->label('Telefone')
+                ->mask('(99) 99999-9999')
+                ->placeholder('(00) 00000-0000'),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected static function createClienteRapido(array $data): int
+    {
+        $cliente = Cliente::query()->create([
+            'razao_social' => trim((string) ($data['razao_social'] ?? '')),
+            'nome_fantasia' => filled($data['nome_fantasia'] ?? null) ? trim((string) $data['nome_fantasia']) : null,
+            'cnpj' => $data['cnpj'] ?? null,
+            'id_categoria_segmento' => $data['id_categoria_segmento'] ?? null,
+            'id_status_cliente' => $data['id_status_cliente']
+                ?? app(OportunidadeClienteService::class)->defaultStatusId(),
+            'nome_completo' => trim((string) ($data['nome_completo'] ?? '')),
+            'email' => filled($data['email'] ?? null) ? trim((string) $data['email']) : null,
+            'telefone' => filled($data['telefone'] ?? null) ? trim((string) $data['telefone']) : null,
+        ]);
+
+        Notification::make()
+            ->title('Cliente cadastrado')
+            ->body("{$cliente->razao_social} ja pode ser usado nesta venda.")
+            ->success()
+            ->send();
+
+        return (int) $cliente->id;
     }
 
     protected static function syncPrecoFromDesconto(Get $get, Set $set, mixed $descontoState): void
@@ -488,7 +642,7 @@ class VendaOperacaoResource extends Resource
                     ->modalDescription('Dados copiados com precos de tabela, sem desconto. Ajuste se precisar e registre.')
                     ->modalSubmitActionLabel('Registrar venda copiada')
                     ->extraModalWindowAttributes([
-                        'class' => 'oa-record-modal oa-sales-modal',
+                        'class' => 'oa-record-modal oa-sales-modal oa-sales-modal--copy',
                     ])
                     ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('copy', $record) ?? false)
                     ->schema(static::getSaleFormComponents())
@@ -588,7 +742,18 @@ class VendaOperacaoResource extends Resource
             ->modalDescription('Informe cliente, produtos, quantidade e desconto. Preco abaixo do minimo aguarda aprovacao.')
             ->modalSubmitActionLabel('Registrar venda')
             ->extraModalWindowAttributes([
-                'class' => 'oa-record-modal oa-sales-modal',
+                'class' => 'oa-record-modal oa-sales-modal oa-sales-modal--create',
+            ])
+            ->fillForm(fn (): array => [
+                'data_venda' => now()->toDateString(),
+                'vendedor_user_id' => auth()->id(),
+                'itens' => [
+                    [
+                        'quantidade' => null,
+                        'desconto_percentual' => 0,
+                        'preco_unitario' => null,
+                    ],
+                ],
             ])
             ->using(function (array $data): VendaOperacaoPedido {
                 $pedido = app(VendaOperacaoService::class)->createPedido($data, auth()->user());

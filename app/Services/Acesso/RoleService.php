@@ -23,6 +23,23 @@ class RoleService
         return $user?->hasRole(RolesEnum::Vendedor->value) ?? false;
     }
 
+    /**
+     * Admin e Super Admin podem escolher qualquer vendedor na venda.
+     * Perfil Vendedor fica travado no proprio usuario.
+     */
+    public function podeEscolherVendedor(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($this->ehSuperAdmin($user) || $this->ehAdmin($user)) {
+            return true;
+        }
+
+        return ! $this->ehVendedor($user);
+    }
+
     public function roleEhProtegida(Role $record): bool
     {
         return in_array($record->name, [

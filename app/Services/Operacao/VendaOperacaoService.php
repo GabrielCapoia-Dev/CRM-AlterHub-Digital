@@ -9,6 +9,7 @@ use App\Models\Clientes\Cliente;
 use App\Models\Produto;
 use App\Models\VendaOperacao;
 use App\Models\VendaOperacaoPedido;
+use App\Services\Acesso\RoleService;
 use App\Services\Produtos\MovimentacaoEstoqueService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -174,7 +175,7 @@ class VendaOperacaoService
 
             $pedido = VendaOperacaoPedido::query()->create([
                 'cliente_id' => $header['cliente_id'],
-                'user_id' => $user?->id,
+                'user_id' => $header['vendedor_user_id'],
                 'origem_pedido_id' => $header['origem_pedido_id'],
                 'status' => $status,
                 'data_venda' => $header['data_venda'],
@@ -186,9 +187,10 @@ class VendaOperacaoService
             $pedido->assignCodigo();
 
             $deductStock = $status === VendaOperacaoPedido::STATUS_ATIVA;
+            $vendedorUser = $header['vendedor_user'];
 
             foreach ($preparedItems as $prepared) {
-                $this->createLineFromPrepared($prepared, $user, $pedido, $deductStock);
+                $this->createLineFromPrepared($prepared, $vendedorUser ?? $user, $pedido, $deductStock);
             }
 
             return $this->refreshPedidoTotals($pedido)
@@ -336,10 +338,12 @@ class VendaOperacaoService
             ->values()
             ->all();
 
+        $authUser = auth()->user();
+
         return [
             'cliente_id' => $origem->cliente_id,
             'data_venda' => now()->toDateString(),
-            'vendedor_nome' => auth()->user()?->name,
+            'vendedor_user_id' => $authUser?->id,
             'observacao' => null,
             'origem_pedido_id' => $origem->id,
             'itens' => $itens,
@@ -498,16 +502,44 @@ class VendaOperacaoService
     protected function normalizeHeader(array $data, ?User $user): array
     {
         $cliente = $this->resolveCliente($data['cliente_id'] ?? null);
+        $vendedor = $this->resolveVendedor($data['vendedor_user_id'] ?? null, $user);
 
         return [
             'data_venda' => $data['data_venda'] ?? now()->toDateString(),
             'cliente_id' => $cliente?->id,
             'cliente_nome' => $cliente?->razao_social ?? $this->normalizeString($data['cliente_nome'] ?? null),
             'cliente_documento' => $cliente?->cnpj,
-            'vendedor_nome' => $this->normalizeString($data['vendedor_nome'] ?? null) ?? $user?->name,
+            'vendedor_user' => $vendedor,
+            'vendedor_user_id' => $vendedor?->id,
+            'vendedor_nome' => $vendedor?->name
+                ?? $this->normalizeString($data['vendedor_nome'] ?? null)
+                ?? $user?->name,
             'observacao' => $this->normalizeString($data['observacao'] ?? null),
             'origem_pedido_id' => filled($data['origem_pedido_id'] ?? null) ? (int) $data['origem_pedido_id'] : null,
         ];
+    }
+
+    protected function resolveVendedor(mixed $vendedorUserId, ?User $actor): ?User
+    {
+        $roleService = app(RoleService::class);
+
+        if ($actor && ! $roleService->podeEscolherVendedor($actor)) {
+            return $actor;
+        }
+
+        if (filled($vendedorUserId)) {
+            $vendedor = User::query()->find((int) $vendedorUserId);
+
+            if (! $vendedor) {
+                throw ValidationException::withMessages([
+                    'vendedor_user_id' => 'Selecione um vendedor valido.',
+                ]);
+            }
+
+            return $vendedor;
+        }
+
+        return $actor;
     }
 
     /**

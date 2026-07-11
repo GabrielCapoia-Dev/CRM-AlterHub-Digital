@@ -503,6 +503,58 @@
     background: rgba(255, 255, 255, 0.96);
 }
 
+/* Modal de nova/copiar venda — layout mais limpo e denso */
+.oa-sales-modal {
+    max-width: min(56rem, calc(100vw - 2rem));
+}
+
+.oa-sales-modal .fi-modal-heading {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #0f1729;
+}
+
+.oa-sales-modal .fi-modal-description {
+    margin-top: 0.35rem;
+    color: #6b7694;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.oa-sales-modal .fi-section-header-heading {
+    font-size: 0.95rem;
+    font-weight: 650;
+    color: #1a2340;
+}
+
+.oa-sales-modal .fi-section-header-description {
+    color: #6b7694;
+    font-size: 0.82rem;
+}
+
+.oa-sales-modal .fi-fo-repeater-item {
+    border: 1px solid rgba(212, 216, 230, 0.95);
+    border-radius: 1rem;
+    background: linear-gradient(180deg, #fbfcff 0%, #ffffff 100%);
+    box-shadow: 0 8px 20px rgba(15, 34, 97, 0.04);
+    padding: 0.85rem 0.95rem;
+}
+
+.oa-sales-modal .fi-fo-repeater-item + .fi-fo-repeater-item {
+    margin-top: 0.75rem;
+}
+
+.oa-sales-modal .fi-input-wrp,
+.oa-sales-modal .fi-select-input {
+    border-radius: 0.75rem;
+}
+
+.oa-sales-modal .fi-fo-field-wrp-helper-text {
+    color: #b45309;
+    font-weight: 500;
+}
+
 .oa-sale-products-modal .fi-modal-content {
     padding: 1.25rem 1.35rem 1.4rem;
 }
