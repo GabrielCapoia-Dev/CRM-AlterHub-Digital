@@ -304,7 +304,8 @@ class VendaOperacaoServiceTest extends TestCase
         $this->assertSame($produto->id, $payload['itens'][0]['produto_id']);
         $this->assertSame(4.0, $payload['itens'][0]['quantidade']);
         $this->assertSame(32.0, $payload['itens'][0]['preco_unitario']);
-        $this->assertSame(5.0, $payload['itens'][0]['icms_aliquota']);
+        $this->assertSame(0.0, (float) $payload['itens'][0]['desconto_percentual']);
+        $this->assertSame(0.0, (float) $payload['itens'][0]['icms_aliquota']);
     }
 
     public function test_vendedor_query_scope_only_own_sales(): void

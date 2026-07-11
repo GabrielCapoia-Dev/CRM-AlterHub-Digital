@@ -6,7 +6,6 @@ use App\Filament\Resources\VendasOperacao\Pages\ManageVendasOperacao;
 use App\Models\Clientes\Cliente;
 use App\Models\Produto;
 use App\Models\VendaOperacaoPedido;
-use App\Services\Operacao\OperacaoAnalyticsService;
 use App\Services\Operacao\VendaOperacaoService;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
@@ -74,10 +73,8 @@ class VendaOperacaoResource extends Resource
     public static function getSaleFormComponents(): array
     {
         return [
-            Section::make('Cabecalho da venda')
-                ->description('Cliente, data e responsavel comercial.')
-                ->icon(Heroicon::OutlinedUser)
-                ->columns(2)
+            Section::make('Venda')
+                ->columns(3)
                 ->columnSpanFull()
                 ->schema([
                     Select::make('cliente_id')
@@ -94,7 +91,7 @@ class VendaOperacaoResource extends Resource
                         ->searchable()
                         ->preload()
                         ->required()
-                        ->columnSpanFull(),
+                        ->columnSpan(2),
 
                     DatePicker::make('data_venda')
                         ->label('Data')
@@ -104,29 +101,28 @@ class VendaOperacaoResource extends Resource
                     TextInput::make('vendedor_nome')
                         ->label('Vendedor')
                         ->default(fn (): ?string => auth()->user()?->name)
-                        ->maxLength(255),
+                        ->maxLength(255)
+                        ->columnSpan(1),
 
                     Textarea::make('observacao')
                         ->label('Observacao')
-                        ->rows(3)
+                        ->rows(2)
                         ->columnSpanFull(),
 
                     Hidden::make('origem_pedido_id'),
                 ]),
 
-            Section::make('Itens da venda')
-                ->description('Adicione um ou mais produtos. Precos abaixo do minimo enviam a venda para aprovacao do administrador.')
-                ->icon(Heroicon::OutlinedCube)
+            Section::make('Produtos')
+                ->description('Preco abaixo do minimo envia a venda para aprovacao.')
                 ->columnSpanFull()
                 ->schema([
                     Repeater::make('itens')
-                        ->label('Produtos')
+                        ->hiddenLabel()
                         ->minItems(1)
                         ->defaultItems(1)
                         ->addActionLabel('Adicionar produto')
-                        ->collapsible()
-                        ->cloneable()
-                        ->columns(2)
+                        ->reorderable(false)
+                        ->columns(12)
                         ->columnSpanFull()
                         ->schema([
                             Select::make('produto_id')
@@ -148,6 +144,9 @@ class VendaOperacaoResource extends Resource
                                 ->live()
                                 ->afterStateUpdated(function ($state, Set $set): void {
                                     if (! $state) {
+                                        $set('preco_unitario', null);
+                                        $set('desconto_percentual', 0);
+
                                         return;
                                     }
 
@@ -157,19 +156,24 @@ class VendaOperacaoResource extends Resource
                                         return;
                                     }
 
-                                    $set('preco_unitario', $produto->preco_tabela !== null
-                                        ? number_format((float) $produto->preco_tabela, 2, '.', '')
+                                    $tabela = $produto->preco_tabela !== null
+                                        ? round((float) $produto->preco_tabela, 2)
+                                        : null;
+
+                                    $set('preco_unitario', $tabela !== null
+                                        ? number_format($tabela, 2, '.', '')
                                         : null);
+                                    $set('desconto_percentual', 0);
                                 })
-                                ->columnSpanFull(),
+                                ->columnSpan(12),
 
                             Placeholder::make('produto_contexto')
-                                ->label('Contexto do produto')
+                                ->hiddenLabel()
                                 ->content(function (Get $get): string {
                                     $produtoId = $get('produto_id');
 
                                     if (! $produtoId) {
-                                        return 'Selecione um produto.';
+                                        return 'Selecione um produto para ver estoque e precos.';
                                     }
 
                                     $produto = Produto::query()
@@ -181,7 +185,6 @@ class VendaOperacaoResource extends Resource
                                     }
 
                                     $estoque = (float) ($produto->estoqueAtual() ?? 0);
-                                    $custo = app(OperacaoAnalyticsService::class)->currentAverageCostForProduct($produto);
                                     $tabela = $produto->preco_tabela !== null
                                         ? NumericFormat::money((float) $produto->preco_tabela)
                                         : '-';
@@ -190,27 +193,42 @@ class VendaOperacaoResource extends Resource
                                         : '-';
 
                                     return sprintf(
-                                        'Estoque: %s %s | Custo medio: %s | Tabela: %s | Minimo: %s',
+                                        'Estoque: %s %s · Tabela: %s · Minimo: %s',
                                         NumericFormat::decimal($estoque),
                                         $produto->unidade_medida ?: 'un',
-                                        NumericFormat::money($custo),
                                         $tabela,
                                         $minimo,
                                     );
                                 })
-                                ->columnSpanFull(),
+                                ->columnSpan(12),
 
                             TextInput::make('quantidade')
-                                ->label('Quantidade')
+                                ->label('Qtd.')
                                 ->numeric()
                                 ->rule('decimal:0,4')
                                 ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
                                 ->minValue(0.0001)
-                                ->placeholder('0,00')
-                                ->required(),
+                                ->placeholder('1')
+                                ->required()
+                                ->columnSpan(3),
+
+                            TextInput::make('desconto_percentual')
+                                ->label('Desconto %')
+                                ->numeric()
+                                ->rule('decimal:0,2')
+                                ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state ?? 0))
+                                ->default(0)
+                                ->minValue(0)
+                                ->maxValue(100)
+                                ->suffix('%')
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function ($state, Get $get, Set $set): void {
+                                    static::syncPrecoFromDesconto($get, $set, $state);
+                                })
+                                ->columnSpan(3),
 
                             TextInput::make('preco_unitario')
-                                ->label('Preco venda unit.')
+                                ->label('Preco unit.')
                                 ->numeric()
                                 ->rule('decimal:0,2')
                                 ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
@@ -218,60 +236,79 @@ class VendaOperacaoResource extends Resource
                                 ->minValue(0.01)
                                 ->placeholder('0,00')
                                 ->required()
-                                ->live(onBlur: true),
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function ($state, Get $get, Set $set): void {
+                                    static::syncDescontoFromPreco($get, $set, $state);
+                                })
+                                ->columnSpan(3),
 
-                            Placeholder::make('desconto_preview')
-                                ->label('Desconto / aprovacao')
+                            Placeholder::make('alerta_aprovacao')
+                                ->label('Status')
                                 ->content(function (Get $get): string {
                                     $produtoId = $get('produto_id');
                                     $preco = (float) ($get('preco_unitario') ?? 0);
 
                                     if (! $produtoId || $preco <= 0) {
-                                        return 'Informe produto e preco.';
+                                        return '—';
                                     }
 
                                     $produto = Produto::query()->find($produtoId);
-
-                                    if (! $produto) {
-                                        return 'Produto nao encontrado.';
-                                    }
-
-                                    $tabela = $produto->preco_tabela !== null ? (float) $produto->preco_tabela : 0.0;
-                                    $minimo = $produto->preco_minimo !== null ? (float) $produto->preco_minimo : 0.0;
-                                    $desconto = $tabela > 0
-                                        ? round(max(0, min(100, (1 - ($preco / $tabela)) * 100)), 2)
-                                        : 0.0;
+                                    $minimo = $produto?->preco_minimo !== null ? (float) $produto->preco_minimo : 0.0;
 
                                     if ($minimo > 0 && $preco < $minimo) {
-                                        return sprintf(
-                                            'Desconto de %s%%. Abaixo do minimo (%s) — a venda ira para aprovacao.',
-                                            NumericFormat::decimal($desconto),
-                                            NumericFormat::money($minimo),
-                                        );
+                                        return 'Abaixo do minimo — vai para aprovacao';
                                     }
 
-                                    return sprintf('Desconto estimado: %s%%.', NumericFormat::decimal($desconto));
+                                    return 'Ok';
                                 })
-                                ->columnSpanFull(),
-
-                            TextInput::make('icms_aliquota')
-                                ->label('ICMS %')
-                                ->numeric()
-                                ->rule('decimal:0,2')
-                                ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                                ->default(0)
-                                ->minValue(0),
-
-                            TextInput::make('outros_impostos_aliquota')
-                                ->label('Outros impostos %')
-                                ->numeric()
-                                ->rule('decimal:0,2')
-                                ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                                ->default(0)
-                                ->minValue(0),
+                                ->columnSpan(3),
                         ]),
                 ]),
         ];
+    }
+
+    protected static function syncPrecoFromDesconto(Get $get, Set $set, mixed $descontoState): void
+    {
+        $produtoId = $get('produto_id');
+
+        if (! $produtoId) {
+            return;
+        }
+
+        $produto = Produto::query()->find($produtoId);
+        $tabela = $produto?->preco_tabela !== null ? (float) $produto->preco_tabela : 0.0;
+
+        if ($tabela <= 0) {
+            return;
+        }
+
+        $desconto = min(max((float) ($descontoState ?? 0), 0), 100);
+        $preco = round($tabela * (1 - ($desconto / 100)), 2);
+
+        $set('desconto_percentual', number_format($desconto, 2, '.', ''));
+        $set('preco_unitario', number_format(max($preco, 0.01), 2, '.', ''));
+    }
+
+    protected static function syncDescontoFromPreco(Get $get, Set $set, mixed $precoState): void
+    {
+        $produtoId = $get('produto_id');
+
+        if (! $produtoId) {
+            return;
+        }
+
+        $produto = Produto::query()->find($produtoId);
+        $tabela = $produto?->preco_tabela !== null ? (float) $produto->preco_tabela : 0.0;
+        $preco = (float) ($precoState ?? 0);
+
+        if ($tabela <= 0 || $preco <= 0) {
+            $set('desconto_percentual', '0.00');
+
+            return;
+        }
+
+        $desconto = round(max(0, min(100, (1 - ($preco / $tabela)) * 100)), 2);
+        $set('desconto_percentual', number_format($desconto, 2, '.', ''));
     }
 
     public static function table(Table $table): Table
@@ -448,7 +485,7 @@ class VendaOperacaoResource extends Resource
                     ->modalWidth('5xl')
                     ->slideOver(false)
                     ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Copiar venda '.$record->codigo)
-                    ->modalDescription('Formulario preenchido com a venda de origem. Precos voltaram para a tabela atual, sem descontos anteriores.')
+                    ->modalDescription('Dados copiados com precos de tabela, sem desconto. Ajuste se precisar e registre.')
                     ->modalSubmitActionLabel('Registrar venda copiada')
                     ->extraModalWindowAttributes([
                         'class' => 'oa-record-modal oa-sales-modal',
@@ -548,7 +585,7 @@ class VendaOperacaoResource extends Resource
             ->slideOver(false)
             ->createAnother(false)
             ->modalHeading('Nova venda')
-            ->modalDescription('Vendas com preco acima ou igual ao minimo baixam estoque na hora. Abaixo do minimo, aguardam aprovacao.')
+            ->modalDescription('Informe cliente, produtos, quantidade e desconto. Preco abaixo do minimo aguarda aprovacao.')
             ->modalSubmitActionLabel('Registrar venda')
             ->extraModalWindowAttributes([
                 'class' => 'oa-record-modal oa-sales-modal',

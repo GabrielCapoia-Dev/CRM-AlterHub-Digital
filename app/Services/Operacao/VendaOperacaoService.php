@@ -328,8 +328,9 @@ class VendaOperacaoService
                     'produto_id' => $linha->produto_id,
                     'quantidade' => (float) $linha->quantidade,
                     'preco_unitario' => round($precoTabela, 2),
-                    'icms_aliquota' => (float) ($linha->icms_aliquota ?? 0),
-                    'outros_impostos_aliquota' => (float) ($linha->outros_impostos_aliquota ?? 0),
+                    'desconto_percentual' => 0,
+                    'icms_aliquota' => 0,
+                    'outros_impostos_aliquota' => 0,
                 ];
             })
             ->values()
