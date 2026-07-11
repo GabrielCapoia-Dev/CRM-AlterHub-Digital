@@ -42,6 +42,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
@@ -246,6 +247,7 @@ class VendaOperacaoResource extends Resource
                                 ->minValue(0.0001)
                                 ->placeholder('1')
                                 ->required()
+                                ->live(debounce: 300)
                                 ->columnSpan(4),
 
                             TextInput::make('desconto_percentual')
@@ -257,7 +259,7 @@ class VendaOperacaoResource extends Resource
                                 ->minValue(0)
                                 ->maxValue(100)
                                 ->suffix('%')
-                                ->live(onBlur: true)
+                                ->live(debounce: 300)
                                 ->afterStateUpdated(function ($state, Get $get, Set $set): void {
                                     static::syncPrecoFromDesconto($get, $set, $state);
                                 })
@@ -272,7 +274,7 @@ class VendaOperacaoResource extends Resource
                                 ->minValue(0.01)
                                 ->placeholder('0,00')
                                 ->required()
-                                ->live(onBlur: true)
+                                ->live(debounce: 300)
                                 ->afterStateUpdated(function ($state, Get $get, Set $set): void {
                                     static::syncDescontoFromPreco($get, $set, $state);
                                 })
@@ -294,9 +296,161 @@ class VendaOperacaoResource extends Resource
                                     return null;
                                 })
                                 ->columnSpan(4),
+
+                            Placeholder::make('resumo_item')
+                                ->label('Valores do item')
+                                ->content(fn (Get $get): HtmlString => static::renderItemTotals($get))
+                                ->columnSpanFull(),
                         ]),
+
+                    Placeholder::make('resumo_venda')
+                        ->label('Totais da venda')
+                        ->content(fn (Get $get): HtmlString => static::renderSaleTotals($get))
+                        ->columnSpanFull(),
                 ]),
         ];
+    }
+
+    /**
+     * @return array{
+     *     quantidade: float,
+     *     preco_tabela: float,
+     *     preco_final: float,
+     *     desconto_percentual: float,
+     *     total_sem_desconto: float,
+     *     total_com_desconto: float,
+     *     economia: float
+     * }
+     */
+    protected static function calcularLinhaItem(Get $get): array
+    {
+        $quantidade = max(0, (float) ($get('quantidade') ?? 0));
+        $precoFinal = max(0, (float) ($get('preco_unitario') ?? 0));
+        $desconto = min(max((float) ($get('desconto_percentual') ?? 0), 0), 100);
+
+        $produto = filled($get('produto_id'))
+            ? Produto::query()->find($get('produto_id'))
+            : null;
+
+        $precoTabela = $produto?->preco_tabela !== null
+            ? (float) $produto->preco_tabela
+            : 0.0;
+
+        if ($precoTabela <= 0 && $precoFinal > 0 && $desconto < 100) {
+            $precoTabela = $desconto > 0
+                ? round($precoFinal / (1 - ($desconto / 100)), 2)
+                : $precoFinal;
+        }
+
+        $baseTabela = $precoTabela > 0 ? $precoTabela : $precoFinal;
+        $totalSemDesconto = round($quantidade * $baseTabela, 2);
+        $totalComDesconto = round($quantidade * $precoFinal, 2);
+        $economia = round(max(0, $totalSemDesconto - $totalComDesconto), 2);
+
+        return [
+            'quantidade' => $quantidade,
+            'preco_tabela' => round($baseTabela, 2),
+            'preco_final' => round($precoFinal, 2),
+            'desconto_percentual' => round($desconto, 2),
+            'total_sem_desconto' => $totalSemDesconto,
+            'total_com_desconto' => $totalComDesconto,
+            'economia' => $economia,
+        ];
+    }
+
+    protected static function renderItemTotals(Get $get): HtmlString
+    {
+        $calc = static::calcularLinhaItem($get);
+
+        if ($calc['quantidade'] <= 0 && $calc['preco_final'] <= 0) {
+            return new HtmlString(
+                '<div class="oa-sale-calc oa-sale-calc--empty">Informe quantidade e desconto/preco para ver os totais do item.</div>'
+            );
+        }
+
+        return new HtmlString(
+            '<div class="oa-sale-calc">'
+            .'<div class="oa-sale-calc__grid">'
+            .static::calcCard('Preco final unit.', NumericFormat::money($calc['preco_final']), 'Com desconto aplicado')
+            .static::calcCard('Total sem desconto', NumericFormat::money($calc['total_sem_desconto']), 'Qtd. x preco de tabela')
+            .static::calcCard('Total com desconto', NumericFormat::money($calc['total_com_desconto']), 'Qtd. x preco final', highlight: true)
+            .static::calcCard('Economia', NumericFormat::money($calc['economia']), $calc['desconto_percentual'].'% de desconto')
+            .'</div>'
+            .'</div>'
+        );
+    }
+
+    protected static function renderSaleTotals(Get $get): HtmlString
+    {
+        $itens = $get('itens');
+
+        if (! is_array($itens) || $itens === []) {
+            return new HtmlString(
+                '<div class="oa-sale-calc oa-sale-calc--empty">Adicione itens para ver o total da venda.</div>'
+            );
+        }
+
+        $totalSemDesconto = 0.0;
+        $totalComDesconto = 0.0;
+        $itensValidos = 0;
+
+        foreach ($itens as $item) {
+            if (! is_array($item) || blank($item['produto_id'] ?? null)) {
+                continue;
+            }
+
+            $quantidade = max(0, (float) ($item['quantidade'] ?? 0));
+            $precoFinal = max(0, (float) ($item['preco_unitario'] ?? 0));
+            $desconto = min(max((float) ($item['desconto_percentual'] ?? 0), 0), 100);
+
+            if ($quantidade <= 0 || $precoFinal <= 0) {
+                continue;
+            }
+
+            $produto = Produto::query()->find($item['produto_id']);
+            $precoTabela = $produto?->preco_tabela !== null ? (float) $produto->preco_tabela : 0.0;
+
+            if ($precoTabela <= 0) {
+                $precoTabela = $desconto > 0 && $desconto < 100
+                    ? round($precoFinal / (1 - ($desconto / 100)), 2)
+                    : $precoFinal;
+            }
+
+            $baseTabela = $precoTabela > 0 ? $precoTabela : $precoFinal;
+            $totalSemDesconto += round($quantidade * $baseTabela, 2);
+            $totalComDesconto += round($quantidade * $precoFinal, 2);
+            $itensValidos++;
+        }
+
+        if ($itensValidos === 0) {
+            return new HtmlString(
+                '<div class="oa-sale-calc oa-sale-calc--empty">Preencha quantidade e preco dos itens para calcular o total.</div>'
+            );
+        }
+
+        $economia = round(max(0, $totalSemDesconto - $totalComDesconto), 2);
+
+        return new HtmlString(
+            '<div class="oa-sale-calc oa-sale-calc--sale">'
+            .'<div class="oa-sale-calc__grid">'
+            .static::calcCard('Itens', (string) $itensValidos, 'Com valores informados')
+            .static::calcCard('Total sem desconto', NumericFormat::money($totalSemDesconto), 'Soma bruta da venda')
+            .static::calcCard('Total final', NumericFormat::money($totalComDesconto), 'Valor total descontado', highlight: true)
+            .static::calcCard('Desconto total', NumericFormat::money($economia), 'Economia na venda')
+            .'</div>'
+            .'</div>'
+        );
+    }
+
+    protected static function calcCard(string $label, string $value, string $hint, bool $highlight = false): string
+    {
+        $class = $highlight ? 'oa-sale-calc__card oa-sale-calc__card--highlight' : 'oa-sale-calc__card';
+
+        return '<article class="'.$class.'">'
+            .'<span class="oa-sale-calc__label">'.e($label).'</span>'
+            .'<strong class="oa-sale-calc__value">'.e($value).'</strong>'
+            .'<small class="oa-sale-calc__hint">'.e($hint).'</small>'
+            .'</article>';
     }
 
     /**

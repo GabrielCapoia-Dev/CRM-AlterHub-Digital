@@ -555,6 +555,78 @@
     font-weight: 500;
 }
 
+.oa-sale-calc {
+    margin-top: 0.15rem;
+}
+
+.oa-sale-calc--empty {
+    border: 1px dashed rgba(180, 186, 206, 0.9);
+    border-radius: 0.9rem;
+    padding: 0.85rem 1rem;
+    color: #6b7694;
+    background: rgba(244, 245, 249, 0.7);
+    font-size: 0.88rem;
+}
+
+.oa-sale-calc__grid {
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.oa-sale-calc__card {
+    min-width: 0;
+    border: 1px solid rgba(212, 216, 230, 0.95);
+    border-radius: 0.9rem;
+    background: linear-gradient(180deg, #fbfcff 0%, #ffffff 100%);
+    box-shadow: 0 8px 18px rgba(15, 34, 97, 0.04);
+    padding: 0.75rem 0.85rem;
+    display: grid;
+    gap: 0.2rem;
+}
+
+.oa-sale-calc__card--highlight {
+    border-color: rgba(23, 54, 141, 0.28);
+    background: linear-gradient(180deg, rgba(234, 241, 253, 0.95) 0%, #ffffff 100%);
+}
+
+.oa-sale-calc__label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #6b7694;
+}
+
+.oa-sale-calc__value {
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: #0f1729;
+    letter-spacing: -0.01em;
+}
+
+.oa-sale-calc__hint {
+    font-size: 0.78rem;
+    color: #9098b0;
+}
+
+.oa-sale-calc--sale {
+    margin-top: 0.35rem;
+    padding-top: 0.15rem;
+}
+
+@media (max-width: 900px) {
+    .oa-sale-calc__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .oa-sale-calc__grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .oa-sale-products-modal .fi-modal-content {
     padding: 1.25rem 1.35rem 1.4rem;
 }
