@@ -146,6 +146,17 @@ class OportunidadeVendaService
                     $rowErrors[] = 'Informe preco negociado ou preco de tabela maior que zero.';
                 }
 
+                $precoMinimo = $produto?->preco_minimo !== null ? (float) $produto->preco_minimo : 0.0;
+                if (
+                    $produto
+                    && $precoMinimo > 0
+                    && $precoInfo['preco_unitario'] > 0
+                    && $precoInfo['preco_unitario'] < $precoMinimo
+                    && ! $link->desconto_aprovado_por
+                ) {
+                    $rowErrors[] = 'Desconto abaixo do preco minimo ainda nao foi aprovado no CRM.';
+                }
+
                 foreach ($rowErrors as $rowError) {
                     $errors[] = ($produto?->nome ?? 'Produto removido').': '.$rowError;
                 }

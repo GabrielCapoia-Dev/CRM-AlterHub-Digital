@@ -26,6 +26,18 @@ class UserSeeder extends Seeder
                 'role'               => RolesEnum::Admin,
             ],
 
+            // Vendedores
+            [
+                'name'               => 'Vendedor Um',
+                'email'              => 'vendedor1@unibiotech.com',
+                'role'               => RolesEnum::Vendedor,
+            ],
+            [
+                'name'               => 'Vendedor Dois',
+                'email'              => 'vendedor2@unibiotech.com',
+                'role'               => RolesEnum::Vendedor,
+            ],
+
             // Usuários
             [
                 'name'               => 'Usuário Um',

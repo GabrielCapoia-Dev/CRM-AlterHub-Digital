@@ -145,19 +145,23 @@ class OportunidadeVendaServiceTest extends TestCase
             'email' => 'contato@venda.test',
         ]);
 
+        $suffix = Str::lower(Str::random(6));
+
         $lead = Etapa::query()->create([
             'nome' => 'Lead',
-            'slug' => 'lead',
+            'slug' => 'lead-'.$suffix,
             'ordem' => 1,
             'fechamento' => false,
         ]);
 
-        $ganho = Etapa::query()->create([
-            'nome' => 'Ganho',
-            'slug' => 'ganho',
-            'ordem' => 2,
-            'fechamento' => true,
-        ]);
+        $ganho = Etapa::query()->firstOrCreate(
+            ['slug' => 'ganho'],
+            [
+                'nome' => 'Ganho',
+                'ordem' => 2,
+                'fechamento' => true,
+            ],
+        );
 
         return [$user, $cliente, $lead, $ganho];
     }

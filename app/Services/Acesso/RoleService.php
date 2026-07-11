@@ -18,23 +18,32 @@ class RoleService
         return $user?->hasRole(RolesEnum::Admin->value) ?? false;
     }
 
+    public function ehVendedor(?User $user): bool
+    {
+        return $user?->hasRole(RolesEnum::Vendedor->value) ?? false;
+    }
+
     public function roleEhProtegida(Role $record): bool
     {
         return in_array($record->name, [
             RolesEnum::Admin->value,
             RolesEnum::SuperAdmin->value,
+            RolesEnum::Vendedor->value,
             RolesEnum::Usuario->value,
-        ]);
+        ], true);
     }
 
     public function roleEhBloqueadaParaEdicao(Role $record, string $context): bool
     {
-        if ($context === 'create') return false;
+        if ($context === 'create') {
+            return false;
+        }
 
         return in_array($record->name, [
             RolesEnum::SuperAdmin->value,
             RolesEnum::Admin->value,
-        ]);
+            RolesEnum::Vendedor->value,
+        ], true);
     }
 
     public function roleEhBloqueadaParaExclusao(Role $record): bool
@@ -42,8 +51,9 @@ class RoleService
         return in_array($record->name, [
             RolesEnum::SuperAdmin->value,
             RolesEnum::Admin->value,
+            RolesEnum::Vendedor->value,
             RolesEnum::Usuario->value,
-        ]);
+        ], true);
     }
 
     public function roleEhSelecionavelEmMassa(Role $record): bool

@@ -60,10 +60,7 @@ class OperacaoPoliciesTest extends TestCase
         ];
 
         foreach ($permissoes as $permissao) {
-            Permission::create([
-                'name' => $permissao->value,
-                'guard_name' => 'web',
-            ]);
+            Permission::findOrCreate($permissao->value, 'web');
         }
 
         $user->givePermissionTo(collect($permissoes)->map(fn (PermissoesEnum $permissao) => $permissao->value)->all());

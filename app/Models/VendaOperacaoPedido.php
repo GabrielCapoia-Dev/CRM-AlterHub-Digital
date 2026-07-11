@@ -12,14 +12,19 @@ use Illuminate\Support\Carbon;
 class VendaOperacaoPedido extends Model
 {
     public const STATUS_ATIVA = 'ativa';
+    public const STATUS_PENDENTE_APROVACAO = 'pendente_aprovacao';
+    public const STATUS_RECUSADA = 'recusada';
     public const STATUS_CANCELADA = 'cancelada';
 
     protected $table = 'venda_operacao_pedidos';
 
     protected $fillable = [
         'oportunidade_id',
+        'origem_pedido_id',
         'cliente_id',
         'user_id',
+        'aprovado_por',
+        'aprovado_em',
         'codigo',
         'status',
         'data_venda',
@@ -36,12 +41,16 @@ class VendaOperacaoPedido extends Model
         'lucro_bruto_total',
         'lucro_apos_impostos_total',
         'observacao',
+        'motivo_recusa',
     ];
 
     protected $casts = [
         'oportunidade_id' => 'integer',
+        'origem_pedido_id' => 'integer',
         'cliente_id' => 'integer',
         'user_id' => 'integer',
+        'aprovado_por' => 'integer',
+        'aprovado_em' => 'datetime',
         'data_venda' => 'date',
         'ano_referencia' => 'integer',
         'mes_referencia' => 'integer',
@@ -81,8 +90,20 @@ class VendaOperacaoPedido extends Model
     {
         return [
             self::STATUS_ATIVA => 'Ativa',
+            self::STATUS_PENDENTE_APROVACAO => 'Pendente de aprovacao',
+            self::STATUS_RECUSADA => 'Recusada',
             self::STATUS_CANCELADA => 'Cancelada',
         ];
+    }
+
+    public function isPendenteAprovacao(): bool
+    {
+        return $this->status === self::STATUS_PENDENTE_APROVACAO;
+    }
+
+    public function isAtiva(): bool
+    {
+        return $this->status === self::STATUS_ATIVA;
     }
 
     public function assignCodigo(): void
@@ -101,6 +122,11 @@ class VendaOperacaoPedido extends Model
         return $this->belongsTo(Oportunidade::class, 'oportunidade_id');
     }
 
+    public function origemPedido(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'origem_pedido_id');
+    }
+
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class, 'cliente_id');
@@ -109,6 +135,11 @@ class VendaOperacaoPedido extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function aprovadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'aprovado_por');
     }
 
     public function vendasOperacao(): HasMany

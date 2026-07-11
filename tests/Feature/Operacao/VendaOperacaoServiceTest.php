@@ -2,15 +2,22 @@
 
 namespace Tests\Feature\Operacao;
 
+use App\Enum\PermissoesEnum;
+use App\Enum\RolesEnum;
+use App\Models\Acesso\User;
 use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Clientes\Cliente;
 use App\Models\Produto;
 use App\Models\Status\StatusCliente;
+use App\Models\VendaOperacaoPedido;
 use App\Services\Operacao\VendaOperacaoService;
 use App\Services\Produtos\MovimentacaoEstoqueService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class VendaOperacaoServiceTest extends TestCase
@@ -96,6 +103,7 @@ class VendaOperacaoServiceTest extends TestCase
             'unidade_medida' => 'un',
             'custo_base_formacao' => 4.0000,
             'preco_tabela' => 18.00,
+            'preco_minimo' => 8.00,
         ]);
 
         app(MovimentacaoEstoqueService::class)->createForProduto([
@@ -127,10 +135,214 @@ class VendaOperacaoServiceTest extends TestCase
         ]);
     }
 
+    public function test_it_creates_multi_item_active_sale_and_deducts_stock(): void
+    {
+        $cliente = $this->createCliente();
+        $produtoA = $this->createProdutoComEstoque('PROD-MULTI-A', 20, 10, 20, 12);
+        $produtoB = $this->createProdutoComEstoque('PROD-MULTI-B', 12, 8, 15, 10);
+
+        $pedido = app(VendaOperacaoService::class)->createPedido([
+            'cliente_id' => $cliente->id,
+            'data_venda' => now()->toDateString(),
+            'itens' => [
+                [
+                    'produto_id' => $produtoA->id,
+                    'quantidade' => 2,
+                    'preco_unitario' => 16,
+                ],
+                [
+                    'produto_id' => $produtoB->id,
+                    'quantidade' => 3,
+                    'preco_unitario' => 11,
+                ],
+            ],
+        ]);
+
+        $this->assertSame(VendaOperacaoPedido::STATUS_ATIVA, $pedido->status);
+        $this->assertSame(2, $pedido->itens_count);
+        $this->assertSame(65.0, (float) $pedido->receita_bruta_total);
+        $this->assertSame(18.0, (float) $produtoA->fresh()->estoqueAtual());
+        $this->assertSame(9.0, (float) $produtoB->fresh()->estoqueAtual());
+        $this->assertTrue($pedido->vendasOperacao->every(fn ($linha) => $linha->produto_movimentacao_id !== null));
+    }
+
+    public function test_price_below_minimum_creates_pending_sale_without_stock_movement(): void
+    {
+        $cliente = $this->createCliente();
+        $produto = $this->createProdutoComEstoque('PROD-PEND-01', 10, 5, 20, 15);
+
+        $pedido = app(VendaOperacaoService::class)->createPedido([
+            'cliente_id' => $cliente->id,
+            'data_venda' => now()->toDateString(),
+            'itens' => [
+                [
+                    'produto_id' => $produto->id,
+                    'quantidade' => 2,
+                    'preco_unitario' => 12,
+                ],
+            ],
+        ]);
+
+        $linha = $pedido->vendasOperacao->first();
+
+        $this->assertSame(VendaOperacaoPedido::STATUS_PENDENTE_APROVACAO, $pedido->status);
+        $this->assertTrue((bool) $linha->desconto_requer_aprovacao);
+        $this->assertNull($linha->produto_movimentacao_id);
+        $this->assertSame(10.0, (float) $produto->fresh()->estoqueAtual());
+    }
+
+    public function test_approve_pending_sale_deducts_stock_and_marks_active(): void
+    {
+        $cliente = $this->createCliente();
+        $produto = $this->createProdutoComEstoque('PROD-APR-01', 10, 5, 20, 15);
+        $approver = $this->createUserWithPermission(PermissoesEnum::AprovarDesconto->value);
+
+        $pedido = app(VendaOperacaoService::class)->createPedido([
+            'cliente_id' => $cliente->id,
+            'data_venda' => now()->toDateString(),
+            'itens' => [
+                [
+                    'produto_id' => $produto->id,
+                    'quantidade' => 2,
+                    'preco_unitario' => 12,
+                ],
+            ],
+        ], $this->createUserWithPermission(PermissoesEnum::CriarVendasOperacao->value));
+
+        $approved = app(VendaOperacaoService::class)->approve($pedido, $approver);
+        $linha = $approved->vendasOperacao->first();
+
+        $this->assertSame(VendaOperacaoPedido::STATUS_ATIVA, $approved->status);
+        $this->assertSame($approver->id, $approved->aprovado_por);
+        $this->assertNotNull($linha->produto_movimentacao_id);
+        $this->assertSame($approver->id, $linha->desconto_aprovado_por);
+        $this->assertSame(8.0, (float) $produto->fresh()->estoqueAtual());
+    }
+
+    public function test_reject_pending_sale_does_not_touch_stock(): void
+    {
+        $cliente = $this->createCliente();
+        $produto = $this->createProdutoComEstoque('PROD-REJ-01', 10, 5, 20, 15);
+        $approver = $this->createUserWithPermission(PermissoesEnum::AprovarDesconto->value);
+
+        $pedido = app(VendaOperacaoService::class)->createPedido([
+            'cliente_id' => $cliente->id,
+            'data_venda' => now()->toDateString(),
+            'itens' => [
+                [
+                    'produto_id' => $produto->id,
+                    'quantidade' => 1,
+                    'preco_unitario' => 10,
+                ],
+            ],
+        ]);
+
+        $rejected = app(VendaOperacaoService::class)->reject($pedido, $approver, 'Margem insuficiente');
+
+        $this->assertSame(VendaOperacaoPedido::STATUS_RECUSADA, $rejected->status);
+        $this->assertSame('Margem insuficiente', $rejected->motivo_recusa);
+        $this->assertNull($rejected->vendasOperacao->first()->produto_movimentacao_id);
+        $this->assertSame(10.0, (float) $produto->fresh()->estoqueAtual());
+    }
+
+    public function test_approve_fails_when_stock_is_insufficient(): void
+    {
+        $cliente = $this->createCliente();
+        $produto = $this->createProdutoComEstoque('PROD-NOSTOCK', 2, 5, 20, 15);
+        $approver = $this->createUserWithPermission(PermissoesEnum::AprovarDesconto->value);
+
+        $pedido = app(VendaOperacaoService::class)->createPedido([
+            'cliente_id' => $cliente->id,
+            'data_venda' => now()->toDateString(),
+            'itens' => [
+                [
+                    'produto_id' => $produto->id,
+                    'quantidade' => 2,
+                    'preco_unitario' => 10,
+                ],
+            ],
+        ]);
+
+        app(MovimentacaoEstoqueService::class)->createForProduto([
+            'produto_id' => $produto->id,
+            'tipo' => 'saida',
+            'quantidade' => 2,
+            'motivo' => 'Consumo de teste',
+            'realizado_em' => now(),
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(VendaOperacaoService::class)->approve($pedido, $approver);
+    }
+
+    public function test_copy_payload_resets_prices_to_table_without_discount(): void
+    {
+        $cliente = $this->createCliente();
+        $produto = $this->createProdutoComEstoque('PROD-COPY-01', 20, 8, 30, 25);
+
+        $pedido = app(VendaOperacaoService::class)->createPedido([
+            'cliente_id' => $cliente->id,
+            'data_venda' => now()->toDateString(),
+            'itens' => [
+                [
+                    'produto_id' => $produto->id,
+                    'quantidade' => 4,
+                    'preco_unitario' => 26,
+                    'icms_aliquota' => 5,
+                ],
+            ],
+        ]);
+
+        $produto->update(['preco_tabela' => 32]);
+
+        $payload = app(VendaOperacaoService::class)->buildCopyPayload($pedido);
+
+        $this->assertSame($cliente->id, $payload['cliente_id']);
+        $this->assertSame($pedido->id, $payload['origem_pedido_id']);
+        $this->assertCount(1, $payload['itens']);
+        $this->assertSame($produto->id, $payload['itens'][0]['produto_id']);
+        $this->assertSame(4.0, $payload['itens'][0]['quantidade']);
+        $this->assertSame(32.0, $payload['itens'][0]['preco_unitario']);
+        $this->assertSame(5.0, $payload['itens'][0]['icms_aliquota']);
+    }
+
+    public function test_vendedor_query_scope_only_own_sales(): void
+    {
+        $cliente = $this->createCliente();
+        $produto = $this->createProdutoComEstoque('PROD-SCOPE', 50, 5, 20, 12);
+
+        $vendedorA = $this->createUserWithRole(RolesEnum::Vendedor);
+        $vendedorB = $this->createUserWithRole(RolesEnum::Vendedor);
+
+        app(VendaOperacaoService::class)->createPedido([
+            'cliente_id' => $cliente->id,
+            'data_venda' => now()->toDateString(),
+            'itens' => [
+                ['produto_id' => $produto->id, 'quantidade' => 1, 'preco_unitario' => 15],
+            ],
+        ], $vendedorA);
+
+        app(VendaOperacaoService::class)->createPedido([
+            'cliente_id' => $cliente->id,
+            'data_venda' => now()->toDateString(),
+            'itens' => [
+                ['produto_id' => $produto->id, 'quantidade' => 1, 'preco_unitario' => 15],
+            ],
+        ], $vendedorB);
+
+        $idsA = app(VendaOperacaoService::class)->queryPorPerfil($vendedorA)->pluck('user_id')->unique()->all();
+        $idsB = app(VendaOperacaoService::class)->queryPorPerfil($vendedorB)->pluck('user_id')->unique()->all();
+
+        $this->assertSame([$vendedorA->id], $idsA);
+        $this->assertSame([$vendedorB->id], $idsB);
+        $this->assertFalse(app(VendaOperacaoService::class)->podeVerTodasVendas($vendedorA));
+    }
+
     private function createCliente(): Cliente
     {
-        $status = StatusCliente::query()->create(['nome' => 'Ativo']);
-        $segmento = CategoriaSegmento::query()->create(['nome' => 'Industrial']);
+        $status = StatusCliente::query()->create(['nome' => 'Ativo '.Str::random(4)]);
+        $segmento = CategoriaSegmento::query()->create(['nome' => 'Industrial '.Str::random(4)]);
 
         return Cliente::query()->create([
             'razao_social' => 'Cliente Manual '.Str::random(6),
@@ -141,5 +353,82 @@ class VendaOperacaoServiceTest extends TestCase
             'nome_completo' => 'Contato Manual',
             'email' => 'manual@example.com',
         ]);
+    }
+
+    private function createProdutoComEstoque(
+        string $codigo,
+        float $estoque,
+        float $custo,
+        float $precoTabela,
+        float $precoMinimo,
+    ): Produto {
+        $produto = Produto::query()->create([
+            'codigo_interno' => $codigo,
+            'nome' => 'Produto '.$codigo,
+            'status' => 'ativo',
+            'unidade_medida' => 'un',
+            'custo_base_formacao' => $custo,
+            'preco_tabela' => $precoTabela,
+            'preco_minimo' => $precoMinimo,
+            'ativo' => true,
+        ]);
+
+        app(MovimentacaoEstoqueService::class)->createForProduto([
+            'produto_id' => $produto->id,
+            'tipo' => 'entrada',
+            'quantidade' => $estoque,
+            'valor_unitario' => $custo,
+            'realizado_em' => now(),
+        ]);
+
+        return $produto->fresh();
+    }
+
+    private function createUserWithPermission(string $permission): User
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        Permission::findOrCreate($permission, 'web');
+
+        $user = User::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'name' => 'User '.Str::random(5),
+            'email' => Str::lower(Str::random(8)).'@example.com',
+            'password' => bcrypt('password'),
+            'email_verified_at' => now(),
+            'email_approved' => true,
+        ]);
+
+        $user->givePermissionTo($permission);
+
+        return $user;
+    }
+
+    private function createUserWithRole(RolesEnum $role): User
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        Role::findOrCreate($role->value, 'web');
+        Permission::findOrCreate(PermissoesEnum::ListarVendasOperacao->value, 'web');
+        Permission::findOrCreate(PermissoesEnum::CriarVendasOperacao->value, 'web');
+
+        $roleModel = Role::findByName($role->value, 'web');
+        $roleModel->syncPermissions([
+            PermissoesEnum::ListarVendasOperacao->value,
+            PermissoesEnum::CriarVendasOperacao->value,
+        ]);
+
+        $user = User::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'name' => $role->value.' '.Str::random(4),
+            'email' => Str::lower(Str::random(8)).'@example.com',
+            'password' => bcrypt('password'),
+            'email_verified_at' => now(),
+            'email_approved' => true,
+        ]);
+
+        $user->assignRole($role->value);
+
+        return $user->fresh();
     }
 }

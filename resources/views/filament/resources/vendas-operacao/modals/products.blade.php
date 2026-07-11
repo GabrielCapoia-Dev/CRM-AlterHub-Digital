@@ -2,6 +2,7 @@
     $linhas = $pedido->vendasOperacao;
     $itensCount = $linhas->count();
     $quantidadeTotal = $linhas->sum(fn ($linha): float => (float) $linha->quantidade);
+    $statusLabel = \App\Models\VendaOperacaoPedido::statusOptions()[$pedido->status] ?? $pedido->status;
 @endphp
 
 <div class="oa-sale-products">
@@ -9,7 +10,7 @@
         <article class="oa-sale-products__card">
             <span class="oa-sale-products__label">Venda</span>
             <strong class="oa-sale-products__value">{{ $pedido->codigo }}</strong>
-            <small class="oa-sale-products__hint">{{ $itensCount }} item(ns)</small>
+            <small class="oa-sale-products__hint">{{ $statusLabel }} · {{ $itensCount }} item(ns)</small>
         </article>
 
         <article class="oa-sale-products__card">
@@ -25,11 +26,21 @@
         </article>
     </section>
 
+    @if ($pedido->status === \App\Models\VendaOperacaoPedido::STATUS_PENDENTE_APROVACAO)
+        <p class="oa-sale-products__hint" style="margin: 0 0 1rem;">
+            Esta venda aguarda aprovacao de desconto. O estoque ainda nao foi baixado.
+        </p>
+    @elseif ($pedido->status === \App\Models\VendaOperacaoPedido::STATUS_RECUSADA)
+        <p class="oa-sale-products__hint" style="margin: 0 0 1rem;">
+            Desconto recusado{{ $pedido->motivo_recusa ? ': '.$pedido->motivo_recusa : '.' }}
+        </p>
+    @endif
+
     <section class="oa-sale-products__table-card">
         <header class="oa-sale-products__table-header">
             <div>
                 <h3>Itens da venda</h3>
-                <p>Produtos, valores e movimentacoes vinculadas ao estoque.</p>
+                <p>Produtos, valores, descontos e movimentacoes vinculadas ao estoque.</p>
             </div>
 
             <span>{{ $itensCount }} item(ns)</span>
@@ -42,6 +53,7 @@
                         <th>Produto</th>
                         <th class="is-num">Qtd.</th>
                         <th class="is-num">Preco un.</th>
+                        <th class="is-num">Desc.</th>
                         <th class="is-num">Total</th>
                         <th>Movimentacao</th>
                     </tr>
@@ -53,12 +65,18 @@
                             <td data-label="Produto">
                                 <strong>{{ $linha->produto_nome_snapshot }}</strong>
                                 <span class="oa-sale-products__code">{{ $linha->produto_codigo_snapshot ?: 'Sem codigo' }}</span>
+                                @if ($linha->desconto_requer_aprovacao)
+                                    <span class="oa-sale-products__badge">Abaixo do minimo</span>
+                                @endif
                             </td>
                             <td data-label="Qtd." class="is-num">
                                 {{ number_format((float) $linha->quantidade, 4, ',', '.') }} {{ $linha->unidade_snapshot }}
                             </td>
                             <td data-label="Preco un." class="is-num">
                                 R$ {{ number_format((float) $linha->preco_unitario, 2, ',', '.') }}
+                            </td>
+                            <td data-label="Desc." class="is-num">
+                                {{ number_format((float) ($linha->desconto_percentual ?? 0), 2, ',', '.') }}%
                             </td>
                             <td data-label="Total" class="is-num">
                                 <strong>R$ {{ number_format((float) $linha->receita_bruta, 2, ',', '.') }}</strong>
@@ -77,7 +95,7 @@
                         </tr>
                     @empty
                         <tr class="oa-sale-products__empty-row">
-                            <td colspan="5">
+                            <td colspan="6">
                                 <div class="oa-sale-products__empty">
                                     <strong>Nenhum produto registrado nesta venda.</strong>
                                     <span>Quando houver itens vinculados, eles aparecem aqui com quantidade, valor e movimentacao.</span>

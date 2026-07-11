@@ -25,6 +25,12 @@ class VendaOperacao extends Model
         'mes_referencia',
         'quantidade',
         'preco_unitario',
+        'preco_tabela_snapshot',
+        'preco_minimo_snapshot',
+        'desconto_percentual',
+        'desconto_requer_aprovacao',
+        'desconto_aprovado_por',
+        'desconto_aprovado_em',
         'receita_bruta',
         'custo_unitario_snapshot',
         'custo_total_snapshot',
@@ -49,6 +55,12 @@ class VendaOperacao extends Model
         'mes_referencia' => 'integer',
         'quantidade' => 'decimal:4',
         'preco_unitario' => 'decimal:4',
+        'preco_tabela_snapshot' => 'decimal:2',
+        'preco_minimo_snapshot' => 'decimal:2',
+        'desconto_percentual' => 'decimal:2',
+        'desconto_requer_aprovacao' => 'boolean',
+        'desconto_aprovado_por' => 'integer',
+        'desconto_aprovado_em' => 'datetime',
         'receita_bruta' => 'decimal:2',
         'custo_unitario_snapshot' => 'decimal:4',
         'custo_total_snapshot' => 'decimal:2',
@@ -95,5 +107,10 @@ class VendaOperacao extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function descontoAprovadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'desconto_aprovado_por');
     }
 }
