@@ -65,206 +65,213 @@ class VendaOperacaoResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema
-            ->components([
-                Section::make('Cabecalho da venda')
-                    ->description('Cliente, data e responsavel comercial.')
-                    ->icon(Heroicon::OutlinedUser)
-                    ->columns(2)
-                    ->columnSpanFull()
-                    ->schema([
-                        Select::make('cliente_id')
-                            ->label('Cliente')
-                            ->options(fn (): array => Cliente::query()
-                                ->orderBy('razao_social')
-                                ->get()
-                                ->mapWithKeys(fn (Cliente $cliente): array => [
-                                    $cliente->id => $cliente->codigo_interno
-                                        ? "{$cliente->codigo_interno} - {$cliente->razao_social}"
-                                        : $cliente->razao_social,
-                                ])
-                                ->all())
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->columnSpanFull(),
+        return $schema->components(static::getSaleFormComponents());
+    }
 
-                        DatePicker::make('data_venda')
-                            ->label('Data')
-                            ->default(now())
-                            ->required(),
+    /**
+     * @return array<int, \Filament\Schemas\Components\Component|\Filament\Forms\Components\Component>
+     */
+    public static function getSaleFormComponents(): array
+    {
+        return [
+            Section::make('Cabecalho da venda')
+                ->description('Cliente, data e responsavel comercial.')
+                ->icon(Heroicon::OutlinedUser)
+                ->columns(2)
+                ->columnSpanFull()
+                ->schema([
+                    Select::make('cliente_id')
+                        ->label('Cliente')
+                        ->options(fn (): array => Cliente::query()
+                            ->orderBy('razao_social')
+                            ->get()
+                            ->mapWithKeys(fn (Cliente $cliente): array => [
+                                $cliente->id => $cliente->codigo_interno
+                                    ? "{$cliente->codigo_interno} - {$cliente->razao_social}"
+                                    : $cliente->razao_social,
+                            ])
+                            ->all())
+                        ->searchable()
+                        ->preload()
+                        ->required()
+                        ->columnSpanFull(),
 
-                        TextInput::make('vendedor_nome')
-                            ->label('Vendedor')
-                            ->default(fn (): ?string => auth()->user()?->name)
-                            ->maxLength(255),
+                    DatePicker::make('data_venda')
+                        ->label('Data')
+                        ->default(now())
+                        ->required(),
 
-                        Textarea::make('observacao')
-                            ->label('Observacao')
-                            ->rows(3)
-                            ->columnSpanFull(),
+                    TextInput::make('vendedor_nome')
+                        ->label('Vendedor')
+                        ->default(fn (): ?string => auth()->user()?->name)
+                        ->maxLength(255),
 
-                        Hidden::make('origem_pedido_id'),
-                    ]),
+                    Textarea::make('observacao')
+                        ->label('Observacao')
+                        ->rows(3)
+                        ->columnSpanFull(),
 
-                Section::make('Itens da venda')
-                    ->description('Adicione um ou mais produtos. Precos abaixo do minimo enviam a venda para aprovacao do administrador.')
-                    ->icon(Heroicon::OutlinedCube)
-                    ->columnSpanFull()
-                    ->schema([
-                        Repeater::make('itens')
-                            ->label('Produtos')
-                            ->minItems(1)
-                            ->defaultItems(1)
-                            ->addActionLabel('Adicionar produto')
-                            ->collapsible()
-                            ->cloneable()
-                            ->columns(2)
-                            ->columnSpanFull()
-                            ->schema([
-                                Select::make('produto_id')
-                                    ->label('Produto')
-                                    ->options(fn (): array => Produto::query()
-                                        ->where('status', 'ativo')
-                                        ->where('ativo', true)
-                                        ->orderBy('nome')
-                                        ->get()
-                                        ->mapWithKeys(fn (Produto $produto): array => [
-                                            $produto->id => $produto->codigo_interno
-                                                ? "{$produto->codigo_interno} - {$produto->nome}"
-                                                : $produto->nome,
-                                        ])
-                                        ->all())
-                                    ->searchable()
-                                    ->preload()
-                                    ->required()
-                                    ->live()
-                                    ->afterStateUpdated(function ($state, Set $set): void {
-                                        if (! $state) {
-                                            return;
-                                        }
+                    Hidden::make('origem_pedido_id'),
+                ]),
 
-                                        $produto = Produto::query()->find($state);
+            Section::make('Itens da venda')
+                ->description('Adicione um ou mais produtos. Precos abaixo do minimo enviam a venda para aprovacao do administrador.')
+                ->icon(Heroicon::OutlinedCube)
+                ->columnSpanFull()
+                ->schema([
+                    Repeater::make('itens')
+                        ->label('Produtos')
+                        ->minItems(1)
+                        ->defaultItems(1)
+                        ->addActionLabel('Adicionar produto')
+                        ->collapsible()
+                        ->cloneable()
+                        ->columns(2)
+                        ->columnSpanFull()
+                        ->schema([
+                            Select::make('produto_id')
+                                ->label('Produto')
+                                ->options(fn (): array => Produto::query()
+                                    ->where('status', 'ativo')
+                                    ->where('ativo', true)
+                                    ->orderBy('nome')
+                                    ->get()
+                                    ->mapWithKeys(fn (Produto $produto): array => [
+                                        $produto->id => $produto->codigo_interno
+                                            ? "{$produto->codigo_interno} - {$produto->nome}"
+                                            : $produto->nome,
+                                    ])
+                                    ->all())
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated(function ($state, Set $set): void {
+                                    if (! $state) {
+                                        return;
+                                    }
 
-                                        if (! $produto) {
-                                            return;
-                                        }
+                                    $produto = Produto::query()->find($state);
 
-                                        $set('preco_unitario', $produto->preco_tabela !== null
-                                            ? number_format((float) $produto->preco_tabela, 2, '.', '')
-                                            : null);
-                                    })
-                                    ->columnSpanFull(),
+                                    if (! $produto) {
+                                        return;
+                                    }
 
-                                Placeholder::make('produto_contexto')
-                                    ->label('Contexto do produto')
-                                    ->content(function (Get $get): string {
-                                        $produtoId = $get('produto_id');
+                                    $set('preco_unitario', $produto->preco_tabela !== null
+                                        ? number_format((float) $produto->preco_tabela, 2, '.', '')
+                                        : null);
+                                })
+                                ->columnSpanFull(),
 
-                                        if (! $produtoId) {
-                                            return 'Selecione um produto.';
-                                        }
+                            Placeholder::make('produto_contexto')
+                                ->label('Contexto do produto')
+                                ->content(function (Get $get): string {
+                                    $produtoId = $get('produto_id');
 
-                                        $produto = Produto::query()
-                                            ->with('produtoMovimentacoes')
-                                            ->find($produtoId);
+                                    if (! $produtoId) {
+                                        return 'Selecione um produto.';
+                                    }
 
-                                        if (! $produto) {
-                                            return 'Produto nao encontrado.';
-                                        }
+                                    $produto = Produto::query()
+                                        ->with('produtoMovimentacoes')
+                                        ->find($produtoId);
 
-                                        $estoque = (float) ($produto->estoqueAtual() ?? 0);
-                                        $custo = app(OperacaoAnalyticsService::class)->currentAverageCostForProduct($produto);
-                                        $tabela = $produto->preco_tabela !== null
-                                            ? NumericFormat::money((float) $produto->preco_tabela)
-                                            : '-';
-                                        $minimo = $produto->preco_minimo !== null
-                                            ? NumericFormat::money((float) $produto->preco_minimo)
-                                            : '-';
+                                    if (! $produto) {
+                                        return 'Produto nao encontrado.';
+                                    }
 
+                                    $estoque = (float) ($produto->estoqueAtual() ?? 0);
+                                    $custo = app(OperacaoAnalyticsService::class)->currentAverageCostForProduct($produto);
+                                    $tabela = $produto->preco_tabela !== null
+                                        ? NumericFormat::money((float) $produto->preco_tabela)
+                                        : '-';
+                                    $minimo = $produto->preco_minimo !== null
+                                        ? NumericFormat::money((float) $produto->preco_minimo)
+                                        : '-';
+
+                                    return sprintf(
+                                        'Estoque: %s %s | Custo medio: %s | Tabela: %s | Minimo: %s',
+                                        NumericFormat::decimal($estoque),
+                                        $produto->unidade_medida ?: 'un',
+                                        NumericFormat::money($custo),
+                                        $tabela,
+                                        $minimo,
+                                    );
+                                })
+                                ->columnSpanFull(),
+
+                            TextInput::make('quantidade')
+                                ->label('Quantidade')
+                                ->numeric()
+                                ->rule('decimal:0,4')
+                                ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
+                                ->minValue(0.0001)
+                                ->placeholder('0,00')
+                                ->required(),
+
+                            TextInput::make('preco_unitario')
+                                ->label('Preco venda unit.')
+                                ->numeric()
+                                ->rule('decimal:0,2')
+                                ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
+                                ->prefix('R$')
+                                ->minValue(0.01)
+                                ->placeholder('0,00')
+                                ->required()
+                                ->live(onBlur: true),
+
+                            Placeholder::make('desconto_preview')
+                                ->label('Desconto / aprovacao')
+                                ->content(function (Get $get): string {
+                                    $produtoId = $get('produto_id');
+                                    $preco = (float) ($get('preco_unitario') ?? 0);
+
+                                    if (! $produtoId || $preco <= 0) {
+                                        return 'Informe produto e preco.';
+                                    }
+
+                                    $produto = Produto::query()->find($produtoId);
+
+                                    if (! $produto) {
+                                        return 'Produto nao encontrado.';
+                                    }
+
+                                    $tabela = $produto->preco_tabela !== null ? (float) $produto->preco_tabela : 0.0;
+                                    $minimo = $produto->preco_minimo !== null ? (float) $produto->preco_minimo : 0.0;
+                                    $desconto = $tabela > 0
+                                        ? round(max(0, min(100, (1 - ($preco / $tabela)) * 100)), 2)
+                                        : 0.0;
+
+                                    if ($minimo > 0 && $preco < $minimo) {
                                         return sprintf(
-                                            'Estoque: %s %s | Custo medio: %s | Tabela: %s | Minimo: %s',
-                                            NumericFormat::decimal($estoque),
-                                            $produto->unidade_medida ?: 'un',
-                                            NumericFormat::money($custo),
-                                            $tabela,
-                                            $minimo,
+                                            'Desconto de %s%%. Abaixo do minimo (%s) — a venda ira para aprovacao.',
+                                            NumericFormat::decimal($desconto),
+                                            NumericFormat::money($minimo),
                                         );
-                                    })
-                                    ->columnSpanFull(),
+                                    }
 
-                                TextInput::make('quantidade')
-                                    ->label('Quantidade')
-                                    ->numeric()
-                                    ->rule('decimal:0,4')
-                                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                                    ->minValue(0.0001)
-                                    ->placeholder('0,00')
-                                    ->required(),
+                                    return sprintf('Desconto estimado: %s%%.', NumericFormat::decimal($desconto));
+                                })
+                                ->columnSpanFull(),
 
-                                TextInput::make('preco_unitario')
-                                    ->label('Preco venda unit.')
-                                    ->numeric()
-                                    ->rule('decimal:0,2')
-                                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                                    ->prefix('R$')
-                                    ->minValue(0.01)
-                                    ->placeholder('0,00')
-                                    ->required()
-                                    ->live(onBlur: true),
+                            TextInput::make('icms_aliquota')
+                                ->label('ICMS %')
+                                ->numeric()
+                                ->rule('decimal:0,2')
+                                ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
+                                ->default(0)
+                                ->minValue(0),
 
-                                Placeholder::make('desconto_preview')
-                                    ->label('Desconto / aprovacao')
-                                    ->content(function (Get $get): string {
-                                        $produtoId = $get('produto_id');
-                                        $preco = (float) ($get('preco_unitario') ?? 0);
-
-                                        if (! $produtoId || $preco <= 0) {
-                                            return 'Informe produto e preco.';
-                                        }
-
-                                        $produto = Produto::query()->find($produtoId);
-
-                                        if (! $produto) {
-                                            return 'Produto nao encontrado.';
-                                        }
-
-                                        $tabela = $produto->preco_tabela !== null ? (float) $produto->preco_tabela : 0.0;
-                                        $minimo = $produto->preco_minimo !== null ? (float) $produto->preco_minimo : 0.0;
-                                        $desconto = $tabela > 0
-                                            ? round(max(0, min(100, (1 - ($preco / $tabela)) * 100)), 2)
-                                            : 0.0;
-
-                                        if ($minimo > 0 && $preco < $minimo) {
-                                            return sprintf(
-                                                'Desconto de %s%%. Abaixo do minimo (%s) — a venda ira para aprovacao.',
-                                                NumericFormat::decimal($desconto),
-                                                NumericFormat::money($minimo),
-                                            );
-                                        }
-
-                                        return sprintf('Desconto estimado: %s%%.', NumericFormat::decimal($desconto));
-                                    })
-                                    ->columnSpanFull(),
-
-                                TextInput::make('icms_aliquota')
-                                    ->label('ICMS %')
-                                    ->numeric()
-                                    ->rule('decimal:0,2')
-                                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                                    ->default(0)
-                                    ->minValue(0),
-
-                                TextInput::make('outros_impostos_aliquota')
-                                    ->label('Outros impostos %')
-                                    ->numeric()
-                                    ->rule('decimal:0,2')
-                                    ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
-                                    ->default(0)
-                                    ->minValue(0),
-                            ]),
-                    ]),
-            ]);
+                            TextInput::make('outros_impostos_aliquota')
+                                ->label('Outros impostos %')
+                                ->numeric()
+                                ->rule('decimal:0,2')
+                                ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state))
+                                ->default(0)
+                                ->minValue(0),
+                        ]),
+                ]),
+        ];
     }
 
     public static function table(Table $table): Table
@@ -438,19 +445,30 @@ class VendaOperacaoResource extends Resource
                     ->label('Copiar venda')
                     ->icon('heroicon-o-document-duplicate')
                     ->color('gray')
+                    ->modalWidth('5xl')
+                    ->slideOver(false)
+                    ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Copiar venda '.$record->codigo)
+                    ->modalDescription('Formulario preenchido com a venda de origem. Precos voltaram para a tabela atual, sem descontos anteriores.')
+                    ->modalSubmitActionLabel('Registrar venda copiada')
+                    ->extraModalWindowAttributes([
+                        'class' => 'oa-record-modal oa-sales-modal',
+                    ])
                     ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('copy', $record) ?? false)
-                    ->action(function (VendaOperacaoPedido $record, $livewire): void {
-                        $payload = app(VendaOperacaoService::class)->buildCopyPayload($record);
+                    ->schema(static::getSaleFormComponents())
+                    ->fillForm(fn (VendaOperacaoPedido $record): array => app(VendaOperacaoService::class)->buildCopyPayload($record))
+                    ->action(function (array $data): void {
+                        try {
+                            $pedido = app(VendaOperacaoService::class)->createPedido($data, auth()->user());
+                            static::notifySaleCreated($pedido);
+                        } catch (ValidationException $exception) {
+                            Notification::make()
+                                ->title('Nao foi possivel copiar a venda')
+                                ->body(collect($exception->errors())->flatten()->implode(' '))
+                                ->danger()
+                                ->send();
 
-                        if (method_exists($livewire, 'openCreateFromCopy')) {
-                            $livewire->openCreateFromCopy($payload);
+                            throw $exception;
                         }
-
-                        Notification::make()
-                            ->title('Venda copiada para o formulario')
-                            ->body('Os precos voltaram para a tabela atual, sem descontos da venda original.')
-                            ->success()
-                            ->send();
                     }),
 
                 Action::make('approveDiscount')
@@ -537,22 +555,28 @@ class VendaOperacaoResource extends Resource
             ])
             ->using(function (array $data): VendaOperacaoPedido {
                 $pedido = app(VendaOperacaoService::class)->createPedido($data, auth()->user());
-
-                if ($pedido->isPendenteAprovacao()) {
-                    Notification::make()
-                        ->title('Venda enviada para aprovacao')
-                        ->body('Ha item com preco abaixo do minimo. O estoque so sera baixado apos autorizacao.')
-                        ->warning()
-                        ->send();
-                } else {
-                    Notification::make()
-                        ->title('Venda registrada')
-                        ->body('Estoque atualizado e snapshots financeiros gravados.')
-                        ->success()
-                        ->send();
-                }
+                static::notifySaleCreated($pedido);
 
                 return $pedido;
             });
+    }
+
+    protected static function notifySaleCreated(VendaOperacaoPedido $pedido): void
+    {
+        if ($pedido->isPendenteAprovacao()) {
+            Notification::make()
+                ->title('Venda enviada para aprovacao')
+                ->body('Ha item com preco abaixo do minimo. O estoque so sera baixado apos autorizacao.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->title('Venda registrada')
+            ->body('Estoque atualizado e snapshots financeiros gravados.')
+            ->success()
+            ->send();
     }
 }
