@@ -98,13 +98,32 @@
         }
 
         .crm-list-record .fi-ta-actions {
+            display: flex;
             flex-wrap: wrap;
-            gap: 0.4rem;
+            align-items: center;
+            gap: 0.55rem;
+            margin-top: 0.15rem;
+            padding-top: 0.15rem;
         }
 
         .crm-list-record .fi-ta-actions .fi-btn,
         .crm-list-record .fi-ta-actions .fi-icon-btn {
             max-width: 100%;
+        }
+
+        .crm-list-record .fi-ta-actions .fi-btn {
+            min-height: 2.35rem;
+            padding: 0.48rem 0.95rem;
+            border-radius: 0.7rem;
+            font-size: 0.84rem;
+            font-weight: 600;
+            gap: 0.45rem;
+        }
+
+        .crm-list-record .fi-ta-actions .fi-ac-btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.55rem;
         }
 
         @media (max-width: 48rem) {
@@ -115,6 +134,10 @@
 
             .crm-list-top.fi-ta-split {
                 align-items: stretch;
+            }
+
+            .crm-list-record .fi-ta-actions {
+                gap: 0.5rem;
             }
 
             .crm-list-record .fi-ta-actions,

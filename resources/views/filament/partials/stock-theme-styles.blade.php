@@ -2,23 +2,23 @@
     <style>
         .crm-resource-page {
             display: grid;
-            gap: 1.5rem;
+            gap: 1.25rem;
         }
 
         .crm-resource-hero {
-            border-radius: 1.5rem;
+            border-radius: 1.35rem;
             border: 1px solid rgba(226, 232, 240, 0.92);
             background:
                 linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96)),
                 linear-gradient(135deg, rgba(37, 99, 235, 0.03), rgba(15, 23, 42, 0.02));
             box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
-            padding: 1.25rem;
+            padding: 1.15rem 1.25rem;
         }
 
         .crm-resource-hero__inner {
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.85rem;
         }
 
         .crm-resource-hero__content {

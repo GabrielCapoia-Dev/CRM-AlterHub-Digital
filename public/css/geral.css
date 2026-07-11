@@ -502,37 +502,119 @@ html.dark {
 }
 
 /* ═══════════════════════════════════════════════
-   BOTÕES
+   BOTÕES — alinhado ao ritmo do Gestao-Edu
    ═══════════════════════════════════════════════ */
 .fi-btn {
-    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+    padding: 0.55rem 1rem;
+    border-radius: 0.65rem;
     font-weight: 600;
     font-size: 0.875rem;
-    transition: all 0.2s;
+    line-height: 1.2;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
 }
 
-/* Primary button */
 .fi-btn-color-primary {
     background: var(--ub-primary-800);
     border-color: var(--ub-primary-800);
     color: #fff;
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.05),
+        0 8px 18px rgba(23, 54, 141, 0.18);
 }
 
 .fi-btn-color-primary:hover {
-    background: var(--ub-primary-50);
+    background: var(--ub-primary-700);
+    border-color: var(--ub-primary-700);
+    color: #fff;
     box-shadow: 0 6px 20px rgba(23, 54, 141, 0.30);
+    transform: translateY(-1px);
 }
 
-/* Gray/Secondary button */
 .fi-btn-color-gray {
     background: var(--ub-white);
-    border-color: var(--ub-neutral-200);
+    border: 1.5px solid var(--ub-neutral-200);
     color: var(--ub-neutral-700);
 }
 
 .fi-btn-color-gray:hover {
     background: var(--ub-neutral-50);
     border-color: var(--ub-neutral-300);
+    color: var(--ub-neutral-900);
+    transform: translateY(-1px);
+}
+
+.fi-btn-color-success:hover,
+.fi-btn-color-danger:hover,
+.fi-btn-color-warning:hover,
+.fi-btn-color-info:hover {
+    transform: translateY(-1px);
+}
+
+.fi-ac-btn-action {
+    min-height: 2.4rem;
+    padding: 0.5rem 0.9rem;
+}
+
+/* Grupos de ações: header da página, toolbar e linhas */
+.fi-header-actions,
+.fi-page-header-actions,
+.fi-ta-header-toolbar,
+.fi-ta-actions,
+.fi-ac-btn-group,
+.fi-fo-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.625rem;
+}
+
+.fi-header {
+    gap: 1rem;
+    row-gap: 0.85rem;
+}
+
+.fi-header-actions .fi-btn,
+.fi-page-header-actions .fi-btn,
+.fi-ta-header-toolbar .fi-btn {
+    min-height: 2.55rem;
+    padding: 0.62rem 1.05rem;
+}
+
+/* Ações de linha da tabela (cards crm-list) */
+.fi-ta-actions .fi-btn {
+    min-height: 2.35rem;
+    padding: 0.48rem 0.9rem;
+    border-radius: 0.7rem;
+}
+
+.fi-ta-actions .fi-icon-btn {
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 0.7rem;
+}
+
+/* Repeater: botão "Adicionar" com respiro */
+.fi-fo-repeater-add,
+.fi-fo-repeater .fi-btn {
+    min-height: 2.4rem;
+}
+
+.fi-fo-repeater-actions,
+.fi-fo-repeater-item-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 /* ═══════════════════════════════════════════════
@@ -612,10 +694,54 @@ html.dark {
 
 .fi-modal-footer {
     border-top: 1px solid var(--ub-neutral-100);
+    background: var(--ub-neutral-50);
     padding: 1rem 1.5rem;
     display: flex;
-    gap: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.625rem;
     justify-content: flex-end;
+    align-items: center;
+}
+
+.fi-modal-footer .fi-btn {
+    min-height: 2.45rem;
+    padding: 0.5rem 1.2rem;
+}
+
+.fi-modal-footer .fi-btn:not([class*="fi-color-danger"]):not([class*="fi-color-primary"]) {
+    background: var(--ub-white);
+    border: 1.5px solid var(--ub-neutral-200);
+    color: var(--ub-neutral-700);
+}
+
+.fi-modal-footer .fi-btn:not([class*="fi-color-danger"]):not([class*="fi-color-primary"]):hover {
+    background: var(--ub-neutral-100);
+    border-color: var(--ub-neutral-300);
+}
+
+.fi-modal-footer .fi-btn[class*="fi-color-primary"] {
+    background: var(--ub-primary-800);
+    border-color: var(--ub-primary-800);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(23, 54, 141, 0.25);
+}
+
+.fi-modal-footer .fi-btn[class*="fi-color-primary"]:hover {
+    background: var(--ub-primary-700);
+    border-color: var(--ub-primary-700);
+    box-shadow: 0 4px 14px rgba(23, 54, 141, 0.35);
+}
+
+.fi-modal-footer .fi-btn[class*="fi-color-danger"] {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.28);
+}
+
+.fi-modal-footer .fi-btn[class*="fi-color-danger"]:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
 }
 
 /* Overlay do modal */
@@ -707,8 +833,9 @@ html.dark {
 .fi-modal-window .fi-modal-footer {
     flex-shrink: 0 !important;
     border-top: 1px solid var(--ub-neutral-100);
-    background: var(--ub-white);
+    background: var(--ub-neutral-50);
     padding: 1rem 1.5rem;
+    gap: 0.625rem;
 }
 
 /* ── Repeater estilo tabela (dependências) ── */
