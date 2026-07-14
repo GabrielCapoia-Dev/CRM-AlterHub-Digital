@@ -35,6 +35,7 @@ class PainelPanelProvider extends PanelProvider
             ->path('painel')
             ->login()
             ->profile()
+            ->databaseNotifications()
             ->spa()
             ->darkMode(false)
             ->sidebarCollapsibleOnDesktop()

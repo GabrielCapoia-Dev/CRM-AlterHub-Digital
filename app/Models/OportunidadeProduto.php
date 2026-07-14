@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Models\Acesso\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class OportunidadeProduto extends Model
@@ -35,6 +37,19 @@ class OportunidadeProduto extends Model
     protected static function booted(): void
     {
         static::saving(function (self $oportunidadeProduto): void {
+            $oportunidadeId = (int) ($oportunidadeProduto->oportunidade_id ?: $oportunidadeProduto->getOriginal('oportunidade_id'));
+            $oportunidade = Oportunidade::query()->with('etapa')->find($oportunidadeId);
+
+            if ($oportunidade && Auth::check() && ! Gate::forUser(Auth::user())->allows('update', $oportunidade)) {
+                abort(403, 'Voce nao pode alterar itens desta oportunidade.');
+            }
+
+            if ($oportunidade && ! $oportunidade->canEditCommercially()) {
+                throw ValidationException::withMessages([
+                    'oportunidade_id' => 'Reabra a oportunidade perdida antes de alterar itens; oportunidades convertidas permanecem congeladas.',
+                ]);
+            }
+
             $produto = $oportunidadeProduto->produto_id
                 ? Produto::query()->find($oportunidadeProduto->produto_id)
                 : null;
@@ -69,6 +84,16 @@ class OportunidadeProduto extends Model
             Oportunidade::query()
                 ->find($oportunidadeProduto->oportunidade_id)
                 ?->recalcularValorEstimado();
+        });
+
+        static::deleting(function (self $oportunidadeProduto): void {
+            $oportunidade = Oportunidade::query()->with('etapa')->find($oportunidadeProduto->oportunidade_id);
+
+            if ($oportunidade && ! $oportunidade->canEditCommercially()) {
+                throw ValidationException::withMessages([
+                    'oportunidade_id' => 'Itens de oportunidades perdidas ou convertidas nao podem ser excluidos.',
+                ]);
+            }
         });
     }
 

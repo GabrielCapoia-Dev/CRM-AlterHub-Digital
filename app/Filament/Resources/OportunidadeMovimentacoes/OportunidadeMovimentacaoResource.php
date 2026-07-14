@@ -5,7 +5,6 @@ namespace App\Filament\Resources\OportunidadeMovimentacoes;
 use App\Filament\Resources\OportunidadeMovimentacoes\Pages\ManageOportunidadeMovimentacoes;
 use App\Models\OportunidadeMovimentacao;
 use BackedEnum;
-use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
@@ -20,6 +19,7 @@ use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class OportunidadeMovimentacaoResource extends Resource
 {
@@ -38,6 +38,12 @@ class OportunidadeMovimentacaoResource extends Resource
         return false;
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->whereHas('oportunidade', fn (Builder $query) => $query->visiveisPara(auth()->user()));
+    }
+
     public static function formComponents(bool $withOportunidade = true): array
     {
         $components = [];
@@ -45,7 +51,7 @@ class OportunidadeMovimentacaoResource extends Resource
         if ($withOportunidade) {
             $components[] = Select::make('oportunidade_id')
                 ->label('Oportunidade')
-                ->relationship('oportunidade', 'titulo')
+                ->relationship('oportunidade', 'titulo', modifyQueryUsing: fn (Builder $query) => $query->visiveisPara(auth()->user()))
                 ->searchable()
                 ->preload();
         }
@@ -165,7 +171,6 @@ class OportunidadeMovimentacaoResource extends Resource
                 ViewAction::make()
                     ->label('Visualizar')
                     ->slideOver(),
-                DeleteAction::make()->label('Excluir'),
             ], position: RecordActionsPosition::AfterContent);
     }
 

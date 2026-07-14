@@ -23,6 +23,7 @@ use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class OportunidadeProdutoResource extends Resource
 {
@@ -41,6 +42,12 @@ class OportunidadeProdutoResource extends Resource
         return false;
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->whereHas('oportunidade', fn (Builder $query) => $query->visiveisPara(auth()->user()));
+    }
+
     public static function formComponents(bool $withOportunidade = true): array
     {
         $components = [];
@@ -48,7 +55,7 @@ class OportunidadeProdutoResource extends Resource
         if ($withOportunidade) {
             $components[] = Select::make('oportunidade_id')
                 ->label('Oportunidade')
-                ->relationship('oportunidade', 'titulo')
+                ->relationship('oportunidade', 'titulo', modifyQueryUsing: fn (Builder $query) => $query->visiveisPara(auth()->user()))
                 ->searchable()
                 ->preload()
                 ->required();

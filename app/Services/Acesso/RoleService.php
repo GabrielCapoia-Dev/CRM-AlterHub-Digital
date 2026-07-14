@@ -2,9 +2,9 @@
 
 namespace App\Services\Acesso;
 
+use App\Enum\RolesEnum;
 use App\Models\Acesso\Role;
 use App\Models\Acesso\User;
-use App\Enum\RolesEnum;
 
 class RoleService
 {
@@ -23,21 +23,21 @@ class RoleService
         return $user?->hasRole(RolesEnum::Vendedor->value) ?? false;
     }
 
-    /**
-     * Admin e Super Admin podem escolher qualquer vendedor na venda.
-     * Perfil Vendedor fica travado no proprio usuario.
-     */
+    public function ehGestor(?User $user): bool
+    {
+        return $user?->hasRole(RolesEnum::Gestor->value) ?? false;
+    }
+
+    /** Gestor e administradores podem escolher o responsavel pela venda. */
     public function podeEscolherVendedor(?User $user): bool
     {
         if (! $user) {
             return false;
         }
 
-        if ($this->ehSuperAdmin($user) || $this->ehAdmin($user)) {
-            return true;
-        }
-
-        return ! $this->ehVendedor($user);
+        return $this->ehSuperAdmin($user)
+            || $this->ehAdmin($user)
+            || $this->ehGestor($user);
     }
 
     public function roleEhProtegida(Role $record): bool
@@ -45,6 +45,7 @@ class RoleService
         return in_array($record->name, [
             RolesEnum::Admin->value,
             RolesEnum::SuperAdmin->value,
+            RolesEnum::Gestor->value,
             RolesEnum::Vendedor->value,
             RolesEnum::Usuario->value,
         ], true);
@@ -59,6 +60,7 @@ class RoleService
         return in_array($record->name, [
             RolesEnum::SuperAdmin->value,
             RolesEnum::Admin->value,
+            RolesEnum::Gestor->value,
             RolesEnum::Vendedor->value,
         ], true);
     }
@@ -68,6 +70,7 @@ class RoleService
         return in_array($record->name, [
             RolesEnum::SuperAdmin->value,
             RolesEnum::Admin->value,
+            RolesEnum::Gestor->value,
             RolesEnum::Vendedor->value,
             RolesEnum::Usuario->value,
         ], true);

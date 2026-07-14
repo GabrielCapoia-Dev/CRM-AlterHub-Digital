@@ -8,13 +8,14 @@ use App\Models\Produtos\Insumo;
 use App\Services\Produtos\MovimentacaoEstoqueService;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
-use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -305,7 +306,29 @@ class InsumoMovimentacaoResource extends Resource
                 ViewAction::make()
                     ->label('Visualizar')
                     ->slideOver(),
-                DeleteAction::make()->label('Excluir'),
+                Action::make('estornar')
+                    ->label('Estornar')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalDescription('O razao e imutavel. Sera criada uma movimentacao compensatoria vinculada a esta.')
+                    ->schema([
+                        Textarea::make('justificativa')
+                            ->label('Justificativa')
+                            ->required()
+                            ->minLength(10),
+                    ])
+                    ->visible(fn (InsumoMovimentacao $record): bool => ! $record->estornada_em && ! $record->estorno_de_id)
+                    ->authorize(fn (): bool => auth()->user()?->can('create', InsumoMovimentacao::class) ?? false)
+                    ->action(function (InsumoMovimentacao $record, array $data): void {
+                        app(MovimentacaoEstoqueService::class)->estornarInsumo(
+                            $record,
+                            auth()->user(),
+                            $data['justificativa'],
+                            "estorno:insumo:{$record->id}",
+                        );
+                        Notification::make()->title('Estorno registrado no razao')->success()->send();
+                    }),
             ], position: RecordActionsPosition::AfterContent);
     }
 

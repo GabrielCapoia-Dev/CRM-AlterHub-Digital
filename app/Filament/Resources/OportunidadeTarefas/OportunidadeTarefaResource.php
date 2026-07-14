@@ -20,6 +20,7 @@ use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
 class OportunidadeTarefaResource extends Resource
@@ -39,6 +40,12 @@ class OportunidadeTarefaResource extends Resource
         return false;
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->whereHas('oportunidade', fn (Builder $query) => $query->visiveisPara(auth()->user()));
+    }
+
     public static function formComponents(bool $withOportunidade = true): array
     {
         $components = [];
@@ -46,7 +53,7 @@ class OportunidadeTarefaResource extends Resource
         if ($withOportunidade) {
             $components[] = Select::make('oportunidade_id')
                 ->label('Oportunidade')
-                ->relationship('oportunidade', 'titulo')
+                ->relationship('oportunidade', 'titulo', modifyQueryUsing: fn (Builder $query) => $query->visiveisPara(auth()->user()))
                 ->searchable()
                 ->preload()
                 ->required();

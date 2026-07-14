@@ -2,22 +2,17 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
-use App\Enum\PermissoesEnum;
 use App\Models\Acesso\User;
 use App\Services\Acesso\RoleService;
 use App\Services\Acesso\UserService;
-use Filament\Actions\Action;
-use Filament\Actions\BulkAction;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
-use Filament\Notifications\Notification;
-use Filament\Schemas\Components;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Tables\Columns\Layout\Grid;
 use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\Layout\Stack;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
@@ -26,14 +21,14 @@ class UsersTable
 {
     public static function configure(Table $table): Table
     {
-        /** @var \App\Models\Acesso\User */
+        /** @var User */
         $user = Auth::user();
         $userService = app(UserService::class);
         $roleService = app(RoleService::class);
 
         return $table
             ->paginated([5, 10, 25, 50, 100])
-            ->checkIfRecordIsSelectableUsing(fn(User $record) => $userService->podeSelecionarRegistro($user, $record))
+            ->checkIfRecordIsSelectableUsing(fn (User $record) => $userService->podeSelecionarRegistro($user, $record))
             ->columns(self::columns($userService))
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--access')
             ->recordActions(self::recordActions($userService, $roleService, $user), position: RecordActionsPosition::AfterContent)
@@ -52,7 +47,7 @@ class UsersTable
         return [
             Split::make([
                 Stack::make([
-                    \Filament\Tables\Columns\TextColumn::make('name')
+                    TextColumn::make('name')
                         ->label('Nome de usuário')
                         ->wrap()
                         ->sortable()
@@ -60,7 +55,7 @@ class UsersTable
                         ->weight('semibold')
                         ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
-                    \Filament\Tables\Columns\TextColumn::make('email')
+                    TextColumn::make('email')
                         ->label('E-mail')
                         ->wrap()
                         ->copyable()
@@ -68,12 +63,12 @@ class UsersTable
                         ->extraAttributes(['class' => 'crm-list-field'], merge: true),
                 ]),
 
-                \Filament\Tables\Columns\TextColumn::make('role')
+                TextColumn::make('role')
                     ->label('Nível de acesso')
                     ->description('Nível de acesso', position: 'above')
                     ->alignCenter()
                     ->grow(false)
-                    ->getStateUsing(fn(User $record) => $record->roles->first()?->name ?? '-')
+                    ->getStateUsing(fn (User $record) => $record->roles->first()?->name ?? '-')
                     ->toggleable(isToggledHiddenByDefault: false)
                     ->extraAttributes(['class' => 'crm-list-field crm-list-status'], merge: true),
             ])
@@ -86,13 +81,13 @@ class UsersTable
                 'xl' => 4,
             ])
                 ->schema([
-                    \Filament\Tables\Columns\ToggleColumn::make('email_approved')
+                    ToggleColumn::make('email_approved')
                         ->label('Verificação')
                         ->sortable()
                         ->alignCenter()
                         ->grow(false)
-                        ->disabled(fn(User $record) => $userService->desabilitarToggleAprovacaoEmail(Auth::user(), $record))
-                        ->visible(fn() => $userService->podeVerToggleAprovacaoEmail(Auth::user(), null, 'table'))
+                        ->disabled(fn (User $record) => $userService->desabilitarToggleAprovacaoEmail(Auth::user(), $record))
+                        ->visible(fn () => $userService->podeVerToggleAprovacaoEmail(Auth::user(), null, 'table'))
                         ->inline(false)
                         ->onColor('success')
                         ->offColor('danger')
@@ -101,7 +96,7 @@ class UsersTable
                         ->columnSpan(1)
                         ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                    \Filament\Tables\Columns\TextColumn::make('email_verified_at')
+                    TextColumn::make('email_verified_at')
                         ->label('Verificado em')
                         ->description('Verificado em', position: 'above')
                         ->grow(false)
@@ -116,14 +111,14 @@ class UsersTable
                         })
                         ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                    \Filament\Tables\Columns\TextColumn::make('created_at')
+                    TextColumn::make('created_at')
                         ->label('Criado em')
                         ->description('Criado em', position: 'above')
                         ->sortable()
                         ->toggleable(isToggledHiddenByDefault: true)
                         ->extraAttributes(['class' => 'crm-list-field'], merge: true),
 
-                    \Filament\Tables\Columns\TextColumn::make('updated_at')
+                    TextColumn::make('updated_at')
                         ->label('Atualizado em')
                         ->description('Atualizado em', position: 'above')
                         ->sortable()
@@ -139,15 +134,15 @@ class UsersTable
         return [
             EditAction::make(),
 
-            \Filament\Actions\DeleteAction::make()
-                ->before(function (User $record, \Filament\Actions\DeleteAction $action) use ($userService, $user) {
+            DeleteAction::make()
+                ->before(function (User $record, DeleteAction $action) use ($userService, $user) {
                     if (! $userService->podeDeletar($user, $record)) {
                         $action->failure();
                         $action->halt();
                     }
                 })
-                ->disabled(fn(User $record) => ($record->id === 1) || (Auth::id() === $record->id))
-                ->visible(fn() => $roleService->ehSuperAdmin(Auth::user())),
+                ->disabled(fn (User $record) => ($record->id === 1) || (Auth::id() === $record->id))
+                ->visible(fn () => $roleService->ehSuperAdmin(Auth::user())),
         ];
     }
 
@@ -161,7 +156,7 @@ class UsersTable
                         $action->halt();
                     }
                 })
-                ->visible(fn() => $roleService->ehSuperAdmin(Auth::user())),
+                ->visible(fn () => $roleService->ehSuperAdmin(Auth::user())),
         ];
     }
 }

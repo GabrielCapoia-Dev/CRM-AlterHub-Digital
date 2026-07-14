@@ -171,6 +171,7 @@ class KanbanOportunidades extends Page
         }
 
         return Oportunidade::query()
+            ->visiveisPara(auth()->user())
             ->with([
                 'cliente.categoriaSegmento',
                 'user',
@@ -670,7 +671,7 @@ class KanbanOportunidades extends Page
 
         Notification::make()
             ->title('Venda confirmada')
-            ->body("A venda {$pedido->codigo} foi registrada e o estoque foi baixado.")
+            ->body("A venda {$pedido->codigo} foi confirmada e o estoque foi reservado. A baixa ocorrera no despacho.")
             ->success()
             ->send();
 
@@ -1121,6 +1122,7 @@ class KanbanOportunidades extends Page
     protected function getBoardQuery(): Builder
     {
         $query = Oportunidade::query()
+            ->visiveisPara(auth()->user())
             ->with([
                 'cliente.categoriaSegmento',
                 'user',
@@ -1336,7 +1338,9 @@ class KanbanOportunidades extends Page
 
     protected function findOpportunityOrFail(int $opportunityId): Oportunidade
     {
-        return Oportunidade::query()->findOrFail($opportunityId);
+        return Oportunidade::query()
+            ->visiveisPara(auth()->user())
+            ->findOrFail($opportunityId);
     }
 
     /**

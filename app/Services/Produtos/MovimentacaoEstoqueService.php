@@ -51,53 +51,166 @@ class MovimentacaoEstoqueService
     public function createForInsumo(array $data, ?User $user = null): InsumoMovimentacao
     {
         return DB::transaction(function () use ($data, $user): InsumoMovimentacao {
+            if ($existing = $this->findIdempotentInsumoMovement($data['idempotency_key'] ?? null)) {
+                return $existing;
+            }
+
             $insumo = Insumo::query()
                 ->with(['tipoUnidadeMedida', 'insumoFatoresCusto'])
+                ->lockForUpdate()
                 ->findOrFail($data['insumo_id']);
+
+            $saldoFisico = (float) ($insumo->estoque_fisico ?? 0);
+            $saldoDisponivel = round($saldoFisico - (float) ($insumo->estoque_reservado ?? 0), 4);
+            if (! ($data['consome_reserva'] ?? false)) {
+                $this->validateAvailableBalance($data, $saldoDisponivel);
+            }
 
             $prepared = $this->prepareForPersistence([
                 ...$data,
                 'unidade' => $data['unidade'] ?? $this->resolveInsumoUnidade($insumo),
                 'valor_unitario' => $data['valor_unitario'] ?? $insumo->finalCostAmount(),
                 'valor_total' => $data['valor_total'] ?? ($insumo->finalCostAmount() * ((float) ($data['quantidade'] ?? 0))),
-            ], $insumo->estoqueAtual() ?? 0.0);
+            ], $saldoFisico);
 
             $assignedUser = $this->resolveAssignedUser($prepared['user_id'] ?? null, $user);
 
-            return InsumoMovimentacao::query()->create([
-                ...Arr::except($prepared, ['insumo_id', 'fornecedor_id']),
+            $movimentacao = InsumoMovimentacao::query()->create([
+                ...Arr::except($prepared, ['insumo_id', 'fornecedor_id', 'consome_reserva']),
                 'insumo_id' => $insumo->id,
                 'user_id' => $assignedUser?->id,
                 'unidade' => $prepared['unidade'] ?? $this->resolveInsumoUnidade($insumo),
                 'responsavel_nome' => $assignedUser?->name ?? $prepared['responsavel_nome'] ?? $user?->name,
             ]);
+
+            $insumo->forceFill(['estoque_fisico' => $prepared['saldo_atual']])->save();
+
+            return $movimentacao;
         });
     }
 
     public function createForProduto(array $data, ?User $user = null): ProdutoMovimentacao
     {
         return DB::transaction(function () use ($data, $user): ProdutoMovimentacao {
+            if ($existing = $this->findIdempotentProdutoMovement($data['idempotency_key'] ?? null)) {
+                return $existing;
+            }
+
             $produto = Produto::query()
                 ->lockForUpdate()
                 ->findOrFail($data['produto_id']);
 
             $custoBase = $this->resolveProdutoCustoBase($produto);
+            $saldoFisico = (float) ($produto->estoque_fisico ?? 0);
+            $saldoDisponivel = round($saldoFisico - (float) ($produto->estoque_reservado ?? 0), 4);
+
+            if (! ($data['consome_reserva'] ?? false)) {
+                $this->validateAvailableBalance($data, $saldoDisponivel);
+            }
 
             $prepared = $this->prepareForPersistence([
                 ...$data,
                 'unidade' => $data['unidade'] ?? $produto->unidade_medida,
                 'valor_unitario' => $data['valor_unitario'] ?? $custoBase,
                 'valor_total' => $data['valor_total'] ?? ($custoBase * ((float) ($data['quantidade'] ?? 0))),
-            ], $produto->estoqueAtual() ?? 0.0);
+            ], $saldoFisico);
             $assignedUser = $this->resolveAssignedUser($prepared['user_id'] ?? null, $user);
 
-            return ProdutoMovimentacao::query()->create([
-                ...Arr::except($prepared, ['produto_id']),
+            $movimentacao = ProdutoMovimentacao::query()->create([
+                ...Arr::except($prepared, ['produto_id', 'consome_reserva']),
                 'produto_id' => $produto->id,
                 'user_id' => $assignedUser?->id,
                 'unidade' => $prepared['unidade'] ?? $produto->unidade_medida,
                 'responsavel_nome' => $assignedUser?->name ?? $prepared['responsavel_nome'] ?? $user?->name,
             ]);
+
+            $produto->forceFill(['estoque_fisico' => $prepared['saldo_atual']])->save();
+
+            return $movimentacao;
+        });
+    }
+
+    public function estornarProduto(
+        ProdutoMovimentacao $movimentacao,
+        User $user,
+        string $justificativa,
+        string $idempotencyKey,
+    ): ProdutoMovimentacao {
+        return DB::transaction(function () use ($movimentacao, $user, $justificativa, $idempotencyKey): ProdutoMovimentacao {
+            if ($existing = $this->findIdempotentProdutoMovement($idempotencyKey)) {
+                return $existing;
+            }
+
+            $original = ProdutoMovimentacao::query()->lockForUpdate()->findOrFail($movimentacao->id);
+
+            if ($original->estornada_em || $original->estorno()->exists()) {
+                throw ValidationException::withMessages([
+                    'movimentacao' => 'Esta movimentacao ja foi estornada.',
+                ]);
+            }
+
+            $estorno = $this->createForProduto([
+                'produto_id' => $original->produto_id,
+                'tipo' => (float) $original->impacto_estoque < 0 ? 'entrada' : 'saida',
+                'quantidade' => abs((float) $original->impacto_estoque),
+                'motivo' => 'Estorno de movimentacao',
+                'origem_tipo' => 'estorno',
+                'origem_id' => $original->id,
+                'idempotency_key' => $idempotencyKey,
+                'estorno_de_id' => $original->id,
+                'documento_referencia' => $original->documento_referencia,
+                'observacao' => $justificativa,
+                'realizado_em' => now(),
+            ], $user);
+
+            $original->forceFill([
+                'estornado_por' => $user->id,
+                'estornada_em' => now(),
+            ])->save();
+
+            return $estorno;
+        });
+    }
+
+    public function estornarInsumo(
+        InsumoMovimentacao $movimentacao,
+        User $user,
+        string $justificativa,
+        string $idempotencyKey,
+    ): InsumoMovimentacao {
+        return DB::transaction(function () use ($movimentacao, $user, $justificativa, $idempotencyKey): InsumoMovimentacao {
+            if ($existing = $this->findIdempotentInsumoMovement($idempotencyKey)) {
+                return $existing;
+            }
+
+            $original = InsumoMovimentacao::query()->lockForUpdate()->findOrFail($movimentacao->id);
+
+            if ($original->estornada_em || $original->estorno()->exists()) {
+                throw ValidationException::withMessages([
+                    'movimentacao' => 'Esta movimentacao ja foi estornada.',
+                ]);
+            }
+
+            $estorno = $this->createForInsumo([
+                'insumo_id' => $original->insumo_id,
+                'tipo' => (float) $original->impacto_estoque < 0 ? 'entrada' : 'saida',
+                'quantidade' => abs((float) $original->impacto_estoque),
+                'motivo' => 'Estorno de movimentacao',
+                'origem_tipo' => 'estorno',
+                'origem_id' => $original->id,
+                'idempotency_key' => $idempotencyKey,
+                'estorno_de_id' => $original->id,
+                'documento_referencia' => $original->documento_referencia,
+                'observacao' => $justificativa,
+                'realizado_em' => now(),
+            ], $user);
+
+            $original->forceFill([
+                'estornado_por' => $user->id,
+                'estornada_em' => now(),
+            ])->save();
+
+            return $estorno;
         });
     }
 
@@ -155,6 +268,36 @@ class MovimentacaoEstoqueService
             'observacao_interna' => $this->trimOrNull($data['observacao_interna'] ?? null),
             'realizado_em' => $data['realizado_em'] ?? now(),
         ];
+    }
+
+    protected function validateAvailableBalance(array $data, float $saldoDisponivel): void
+    {
+        $tipo = (string) ($data['tipo'] ?? 'entrada');
+        $quantidade = round((float) ($data['quantidade'] ?? 0), 4);
+
+        if ($this->isOutboundType($tipo) && $quantidade > $saldoDisponivel) {
+            throw ValidationException::withMessages([
+                'quantidade' => sprintf(
+                    'Quantidade indisponivel. Solicitado: %s. Disponivel: %s.',
+                    number_format($quantidade, 4, ',', '.'),
+                    number_format($saldoDisponivel, 4, ',', '.'),
+                ),
+            ]);
+        }
+    }
+
+    protected function findIdempotentProdutoMovement(?string $key): ?ProdutoMovimentacao
+    {
+        return filled($key)
+            ? ProdutoMovimentacao::query()->where('idempotency_key', $key)->first()
+            : null;
+    }
+
+    protected function findIdempotentInsumoMovement(?string $key): ?InsumoMovimentacao
+    {
+        return filled($key)
+            ? InsumoMovimentacao::query()->where('idempotency_key', $key)->first()
+            : null;
     }
 
     protected function resolveImpactoEstoque(string $tipo, float $quantidade): float

@@ -2,8 +2,12 @@
 
 namespace App\Models;
 
+use App\Enum\EtapaTipo;
+use App\Enum\PermissoesEnum;
+use App\Enum\RolesEnum;
 use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -47,6 +51,28 @@ class Oportunidade extends Model
     protected static function booted(): void
     {
         static::saving(function (self $oportunidade): void {
+            if ($oportunidade->exists && $oportunidade->wasCommerciallyFrozen()) {
+                $camposComerciais = [
+                    'titulo', 'cliente_id', 'etapa_id', 'user_id', 'temperatura',
+                    'valor_estimado', 'motivo_fechamento', 'notas',
+                ];
+
+                if ($oportunidade->isDirty($camposComerciais)) {
+                    throw ValidationException::withMessages([
+                        'oportunidade' => 'Oportunidade convertida: dados comerciais e itens ficam congelados.',
+                    ]);
+                }
+            }
+
+            if ($oportunidade->exists
+                && $oportunidade->originalStageWasLost()
+                && ! $oportunidade->isDirty('etapa_id')
+                && $oportunidade->isDirty(['titulo', 'cliente_id', 'user_id', 'temperatura', 'valor_estimado', 'notas'])) {
+                throw ValidationException::withMessages([
+                    'oportunidade' => 'Reabra a oportunidade perdida antes de editar os dados comerciais.',
+                ]);
+            }
+
             $etapaId = $oportunidade->etapa_id;
             $isFechamento = $oportunidade->etapaEhDeFechamento($etapaId);
             $motivo = trim((string) ($oportunidade->motivo_fechamento ?? ''));
@@ -182,6 +208,66 @@ class Oportunidade extends Model
     public static function temperaturaOptions(): array
     {
         return self::TEMPERATURA_OPTIONS;
+    }
+
+    public function scopeVisiveisPara(Builder $query, ?User $user): Builder
+    {
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->hasAnyRole([
+            RolesEnum::SuperAdmin->value,
+            RolesEnum::Admin->value,
+            RolesEnum::Gestor->value,
+        ])
+            || $user->hasPermissionTo(PermissoesEnum::AprovarDesconto->value)) {
+            return $query;
+        }
+
+        return $query->where('user_id', $user->id);
+    }
+
+    public function isConverted(): bool
+    {
+        return filled($this->venda_operacao_pedido_id) || filled($this->convertida_em);
+    }
+
+    public function isLost(): bool
+    {
+        if ($this->relationLoaded('etapa')) {
+            return $this->etapa?->tipo === EtapaTipo::Perdida;
+        }
+
+        return Etapa::query()->whereKey($this->etapa_id)->value('tipo') === EtapaTipo::Perdida->value;
+    }
+
+    public function isOpen(): bool
+    {
+        if ($this->relationLoaded('etapa')) {
+            return $this->etapa?->tipo === EtapaTipo::Aberta;
+        }
+
+        return Etapa::query()->whereKey($this->etapa_id)->value('tipo') === EtapaTipo::Aberta->value;
+    }
+
+    public function canEditCommercially(): bool
+    {
+        return ! $this->isConverted() && ! $this->isLost();
+    }
+
+    protected function wasCommerciallyFrozen(): bool
+    {
+        return filled($this->getOriginal('venda_operacao_pedido_id'))
+            || filled($this->getOriginal('convertida_em'));
+    }
+
+    protected function originalStageWasLost(): bool
+    {
+        $etapaId = (int) $this->getOriginal('etapa_id');
+
+        return $etapaId > 0
+            && Etapa::query()->whereKey($etapaId)->value('tipo') === EtapaTipo::Perdida->value;
     }
 
     protected function etapaEhDeFechamento(?int $etapaId): bool

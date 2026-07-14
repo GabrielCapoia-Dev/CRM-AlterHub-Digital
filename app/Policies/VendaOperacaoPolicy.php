@@ -48,7 +48,9 @@ class VendaOperacaoPolicy
 
     public function deleteAny(User $user): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::ExcluirVendasOperacao->value);
+        // A exclusao em lote nao carrega o registro necessario para validar o
+        // dono. Exclusoes individuais continuam submetidas ao escopo abaixo.
+        return false;
     }
 
     protected function withinScope(User $user, VendaOperacao $vendaOperacao): bool
@@ -57,8 +59,12 @@ class VendaOperacaoPolicy
             return true;
         }
 
-        if (! $vendaOperacao->exists || $vendaOperacao->user_id === null) {
+        if (! $vendaOperacao->exists) {
             return true;
+        }
+
+        if ($vendaOperacao->user_id === null) {
+            return false;
         }
 
         return (int) $vendaOperacao->user_id === (int) $user->id;

@@ -143,13 +143,13 @@ class CrmPoliciesTest extends TestCase
 
         $this->assertTrue(app(EtapaPolicy::class)->viewAny($user));
         $this->assertTrue(app(OportunidadePolicy::class)->create($user));
-        $this->assertTrue(app(OportunidadePolicy::class)->deleteAny($user));
+        $this->assertFalse(app(OportunidadePolicy::class)->deleteAny($user));
         $this->assertTrue(app(OportunidadeProdutoPolicy::class)->create($user));
         $this->assertTrue(app(OportunidadeInteracaoPolicy::class)->update($user, $interacao));
         $this->assertTrue(app(OportunidadeTarefaPolicy::class)->delete($user, $tarefa));
         $this->assertTrue(app(OportunidadeMovimentacaoPolicy::class)->view($user, $movimentacao));
-        $this->assertTrue(app(OportunidadeMovimentacaoPolicy::class)->delete($user, $movimentacao));
-        $this->assertTrue(app(OportunidadeMovimentacaoPolicy::class)->deleteAny($user));
+        $this->assertFalse(app(OportunidadeMovimentacaoPolicy::class)->delete($user, $movimentacao));
+        $this->assertFalse(app(OportunidadeMovimentacaoPolicy::class)->deleteAny($user));
         $this->assertFalse(app(OportunidadeMovimentacaoPolicy::class)->create($user));
         $this->assertFalse(app(OportunidadeMovimentacaoPolicy::class)->update($user, $movimentacao));
 

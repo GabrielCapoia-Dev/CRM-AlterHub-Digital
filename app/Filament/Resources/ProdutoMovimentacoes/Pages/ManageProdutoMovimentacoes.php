@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProdutoMovimentacoes\Pages;
 
+use App\Filament\Exports\Actions\CrmExportActions;
 use App\Filament\Resources\ProdutoMovimentacoes\ProdutoMovimentacaoResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
@@ -16,6 +17,7 @@ class ManageProdutoMovimentacoes extends ManageRecords
     {
         return [
             ProdutoMovimentacaoResource::configureCreateAction(CreateAction::make()),
+            CrmExportActions::produtoMovimentacoes(),
         ];
     }
 }

@@ -18,6 +18,7 @@ use App\Models\Etapa;
 use App\Models\Oportunidade;
 use App\Models\Status\StatusCliente;
 use App\Services\CRM\OportunidadeClienteService;
+use App\Services\CRM\OportunidadeWorkflowService;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -66,6 +67,11 @@ class OportunidadeResource extends Resource
     protected static string|UnitEnum|null $navigationGroup = 'Comercial';
 
     protected static ?int $navigationSort = 3;
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->visiveisPara(auth()->user());
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -244,6 +250,35 @@ class OportunidadeResource extends Resource
             ->recordActions([
                 ViewAction::make()->label('Visualizar'),
                 static::configureEditAction(EditAction::make()->label('Editar')),
+                Action::make('reopen')
+                    ->label('Reabrir')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->visible(fn (Oportunidade $record): bool => auth()->user()?->can('reopen', $record) ?? false)
+                    ->schema([
+                        Select::make('etapa_id')
+                            ->label('Nova etapa')
+                            ->options(fn (): array => Etapa::query()
+                                ->where('tipo', 'aberta')
+                                ->orderBy('ordem')
+                                ->pluck('nome', 'id')
+                                ->all())
+                            ->required(),
+                        Textarea::make('justificativa')
+                            ->label('Justificativa')
+                            ->required()
+                            ->minLength(10),
+                    ])
+                    ->requiresConfirmation()
+                    ->action(function (Oportunidade $record, array $data): void {
+                        app(OportunidadeWorkflowService::class)->reabrir(
+                            $record,
+                            Etapa::query()->findOrFail($data['etapa_id']),
+                            auth()->user(),
+                            $data['justificativa'],
+                        );
+                        Notification::make()->title('Oportunidade reaberta')->success()->send();
+                    }),
                 DeleteAction::make()->label('Excluir'),
             ], position: RecordActionsPosition::AfterContent);
     }

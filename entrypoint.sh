@@ -1,47 +1,24 @@
-#!/bin/bash
-set -e
+#!/bin/sh
+set -eu
 
-cd /var/www
+# Runtime containers must never install dependencies or mutate application
+# state. Deployments run migrations and seeders as explicit one-off commands.
+if [ "${APP_ENV:-production}" = "production" ]; then
+    if [ "${APP_DEBUG:-false}" != "false" ]; then
+        echo "Refusing to start production with APP_DEBUG enabled." >&2
+        exit 1
+    fi
 
-# Permissões (após mount do volume)
-chown -R www-data:www-data \
-    /var/www/storage \
-    /var/www/bootstrap/cache
-
-chmod -R 775 \
-    /var/www/storage \
-    /var/www/bootstrap/cache
-
-# Dependências PHP
-if [ ! -f "vendor/autoload.php" ]; then
-    composer install --no-interaction --prefer-dist --optimize-autoloader
+    if ! php -r '
+        $key = getenv("APP_KEY") ?: "";
+        $decoded = str_starts_with($key, "base64:")
+            ? base64_decode(substr($key, 7), true)
+            : $key;
+        exit(is_string($decoded) && strlen($decoded) === 32 ? 0 : 1);
+    '; then
+        echo "APP_KEY must decode to exactly 32 bytes before production starts." >&2
+        exit 1
+    fi
 fi
 
-# APP_KEY
-if [ -z "$APP_KEY" ] || [ "$APP_KEY" = "base64:" ]; then
-    php artisan key:generate --force
-fi
-
-# Migrations
-php artisan migrate --force --seed
-
-# Storage link
-php artisan storage:link --force 2>/dev/null || true
-
-# Limpa caches
-php artisan config:clear
-php artisan route:clear
-php artisan event:clear
-php artisan view:clear
-
-# Recria caches
-php artisan config:cache
-php artisan route:cache
-php artisan event:cache
-php artisan filament:cache-components
-php artisan filament:assets
-php artisan optimize:clear
-
-# Start
-php-fpm -D
-nginx -g "daemon off;"
+exec "$@"

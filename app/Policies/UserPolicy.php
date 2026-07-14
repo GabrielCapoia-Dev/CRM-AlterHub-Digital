@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enum\PermissoesEnum;
+use App\Enum\RolesEnum;
 use App\Models\Acesso\User;
 
 class UserPolicy
@@ -24,16 +25,38 @@ class UserPolicy
 
     public function update(User $user, User $model): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::EditarUsuarios->value);
+        if (! $user->hasPermissionTo(PermissoesEnum::EditarUsuarios->value)) {
+            return false;
+        }
+
+        if ($model->hasRole(RolesEnum::SuperAdmin->value)) {
+            return $user->hasRole(RolesEnum::SuperAdmin->value)
+                && (int) $user->id === (int) $model->id;
+        }
+
+        if ($model->hasRole(RolesEnum::Admin->value)) {
+            return $user->hasRole(RolesEnum::SuperAdmin->value)
+                || $user->hasPermissionTo(PermissoesEnum::EditarNivelDeAcessoAdmin->value);
+        }
+
+        return true;
     }
 
     public function delete(User $user, User $model): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::ExcluirUsuarios->value);
+        if (! $user->hasPermissionTo(PermissoesEnum::ExcluirUsuarios->value)
+            || (int) $user->id === (int) $model->id
+            || $model->hasRole(RolesEnum::SuperAdmin->value)) {
+            return false;
+        }
+
+        return ! $model->hasRole(RolesEnum::Admin->value)
+            || $user->hasRole(RolesEnum::SuperAdmin->value);
     }
 
     public function deleteAny(User $user): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::ExcluirUsuarios->value);
+        return $user->hasRole(RolesEnum::SuperAdmin->value)
+            && $user->hasPermissionTo(PermissoesEnum::ExcluirUsuarios->value);
     }
 }

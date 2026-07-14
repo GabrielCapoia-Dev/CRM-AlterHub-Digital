@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\VendasOperacao;
 
 use App\Enum\RolesEnum;
+use App\Enum\VendaStatus;
 use App\Filament\Resources\VendasOperacao\Pages\ManageVendasOperacao;
 use App\Filament\Support\Fields\TaxIdentifierField;
 use App\Models\Acesso\User;
@@ -10,11 +11,14 @@ use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Clientes\Cliente;
 use App\Models\Produto;
 use App\Models\Status\StatusCliente;
+use App\Models\Transportadora;
 use App\Models\VendaOperacaoPedido;
 use App\Rules\UniqueNormalizedTaxIdentifierRule;
 use App\Services\Acesso\RoleService;
 use App\Services\CRM\OportunidadeClienteService;
+use App\Services\Operacao\RemessaService;
 use App\Services\Operacao\VendaOperacaoService;
+use App\Services\Operacao\VendaWorkflowService;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -24,10 +28,11 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -43,6 +48,7 @@ use Filament\Tables\Table;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
@@ -77,7 +83,7 @@ class VendaOperacaoResource extends Resource
     }
 
     /**
-     * @return array<int, \Filament\Schemas\Components\Component|\Filament\Forms\Components\Component>
+     * @return array<int, Component|\Filament\Forms\Components\Component>
      */
     public static function getSaleFormComponents(): array
     {
@@ -476,6 +482,7 @@ class VendaOperacaoResource extends Resource
     {
         $query = User::query()
             ->role(RolesEnum::Vendedor->value)
+            ->where('email_approved', true)
             ->orderBy('name');
 
         $options = $query
@@ -678,11 +685,15 @@ class VendaOperacaoResource extends Resource
                             ->label('Status')
                             ->description('Status', position: 'above')
                             ->badge()
-                            ->formatStateUsing(fn (?string $state): string => VendaOperacaoPedido::statusOptions()[$state] ?? 'Ativa')
+                            ->formatStateUsing(fn (?string $state): string => VendaOperacaoPedido::statusOptions()[$state] ?? (string) $state)
                             ->color(fn (?string $state): string => match ($state) {
+                                VendaOperacaoPedido::STATUS_RASCUNHO => 'gray',
                                 VendaOperacaoPedido::STATUS_PENDENTE_APROVACAO => 'warning',
                                 VendaOperacaoPedido::STATUS_RECUSADA => 'danger',
                                 VendaOperacaoPedido::STATUS_CANCELADA => 'gray',
+                                VendaOperacaoPedido::STATUS_PARCIALMENTE_DESPACHADA => 'info',
+                                VendaOperacaoPedido::STATUS_DEVOLVIDA_PARCIAL => 'warning',
+                                VendaOperacaoPedido::STATUS_DEVOLVIDA => 'danger',
                                 default => 'success',
                             })
                             ->extraAttributes(['class' => 'crm-list-field'], merge: true),
@@ -772,6 +783,19 @@ class VendaOperacaoResource extends Resource
             ])
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--operation')
             ->recordActions([
+                Action::make('editDraft')
+                    ->label('Editar')
+                    ->icon('heroicon-o-pencil-square')
+                    ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Editar '.$record->codigo)
+                    ->modalWidth('5xl')
+                    ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('update', $record) ?? false)
+                    ->schema(static::getSaleFormComponents())
+                    ->fillForm(fn (VendaOperacaoPedido $record): array => app(VendaOperacaoService::class)->buildEditPayload($record))
+                    ->action(function (VendaOperacaoPedido $record, array $data): void {
+                        app(VendaOperacaoService::class)->updatePedido($record, $data, auth()->user());
+                        Notification::make()->title('Venda atualizada')->success()->send();
+                    }),
+
                 Action::make('products')
                     ->label('Visualizar produtos')
                     ->icon('heroicon-o-list-bullet')
@@ -793,7 +817,7 @@ class VendaOperacaoResource extends Resource
                     ->modalWidth('5xl')
                     ->slideOver(false)
                     ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Copiar venda '.$record->codigo)
-                    ->modalDescription('Dados copiados com precos de tabela, sem desconto. Ajuste se precisar e registre.')
+                    ->modalDescription('Cria um novo rascunho com cliente, produtos, quantidades e valores atuais.')
                     ->modalSubmitActionLabel('Registrar venda copiada')
                     ->extraModalWindowAttributes([
                         'class' => 'oa-record-modal oa-sales-modal oa-sales-modal--copy',
@@ -816,13 +840,120 @@ class VendaOperacaoResource extends Resource
                         }
                     }),
 
+                Action::make('confirm')
+                    ->label('Confirmar venda')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Confirmar e reservar estoque')
+                    ->modalDescription('As regras fiscais vigentes serao aplicadas e os itens ficarao reservados. A baixa fisica ocorre somente no despacho.')
+                    ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('confirm', $record) ?? false)
+                    ->action(function (VendaOperacaoPedido $record): void {
+                        app(VendaWorkflowService::class)->confirmar(
+                            $record,
+                            auth()->user(),
+                            "confirmar:venda:{$record->id}:v{$record->versao}",
+                        );
+                        Notification::make()
+                            ->title('Venda confirmada')
+                            ->body('Estoque reservado. A baixa fisica ocorrera no despacho.')
+                            ->success()
+                            ->send();
+                    }),
+
+                Action::make('createShipment')
+                    ->label('Criar remessa')
+                    ->icon('heroicon-o-truck')
+                    ->color('info')
+                    ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Nova remessa — '.$record->codigo)
+                    ->visible(fn (VendaOperacaoPedido $record): bool => (auth()->user()?->can('manageShipments', $record) ?? false)
+                        && in_array($record->status, [VendaStatus::Confirmada->value, VendaStatus::ParcialmenteDespachada->value], true))
+                    ->schema([
+                        Select::make('modalidade_entrega')
+                            ->label('Modalidade')
+                            ->options(['transportadora' => 'Transportadora', 'retirada' => 'Retirada'])
+                            ->default('transportadora')
+                            ->live()
+                            ->required(),
+                        Select::make('transportadora_id')
+                            ->label('Transportadora')
+                            ->options(fn (): array => Transportadora::query()->where('ativo', true)->orderBy('razao_social')->pluck('razao_social', 'id')->all())
+                            ->searchable()
+                            ->visible(fn (Get $get): bool => $get('modalidade_entrega') === 'transportadora')
+                            ->required(fn (Get $get): bool => $get('modalidade_entrega') === 'transportadora'),
+                        TextInput::make('valor_frete_custo')->label('Custo do frete')->numeric()->default(0)->minValue(0),
+                        TextInput::make('valor_frete_cobrado')->label('Frete cobrado')->numeric()->default(0)->minValue(0),
+                        TextInput::make('codigo_rastreio')->label('Codigo de rastreio')->maxLength(100),
+                        Repeater::make('itens')
+                            ->label('Itens da remessa')
+                            ->minItems(1)
+                            ->schema([
+                                Select::make('venda_operacao_id')
+                                    ->label('Produto')
+                                    ->options(fn (VendaOperacaoPedido $record): array => $record->vendasOperacao()
+                                        ->get()
+                                        ->mapWithKeys(fn ($linha): array => [$linha->id => $linha->produto_nome_snapshot])
+                                        ->all())
+                                    ->disableOptionsWhenSelectedInSiblingRepeaterItems()
+                                    ->required(),
+                                TextInput::make('quantidade')
+                                    ->label('Quantidade')
+                                    ->numeric()
+                                    ->minValue(0.0001)
+                                    ->required(),
+                            ])
+                            ->columns(2),
+                        Textarea::make('observacao')->label('Observacao')->rows(3),
+                    ])
+                    ->action(function (VendaOperacaoPedido $record, array $data): void {
+                        $remessa = app(RemessaService::class)->criar(
+                            $record,
+                            $data['itens'] ?? [],
+                            auth()->user(),
+                            [...$data, 'idempotency_key' => 'criar-remessa:'.Str::uuid()],
+                        );
+                        Notification::make()
+                            ->title('Remessa '.$remessa->codigo.' criada')
+                            ->body('Avance a separacao, deixe pronta e confirme o despacho na tela de remessas.')
+                            ->success()
+                            ->send();
+                    }),
+
+                Action::make('cancel')
+                    ->label('Cancelar venda')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('cancel', $record) ?? false)
+                    ->schema([
+                        Textarea::make('justificativa')->label('Justificativa')->required()->minLength(10),
+                    ])
+                    ->requiresConfirmation()
+                    ->action(function (VendaOperacaoPedido $record, array $data): void {
+                        app(VendaWorkflowService::class)->cancelar($record, auth()->user(), $data['justificativa']);
+                        Notification::make()->title('Venda cancelada e reservas liberadas')->success()->send();
+                    }),
+
+                Action::make('reopen')
+                    ->label('Reabrir venda')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('gray')
+                    ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('reopen', $record) ?? false)
+                    ->schema([
+                        Textarea::make('justificativa')->label('Justificativa')->required()->minLength(10),
+                    ])
+                    ->requiresConfirmation()
+                    ->action(function (VendaOperacaoPedido $record, array $data): void {
+                        app(VendaWorkflowService::class)->reabrir($record, auth()->user(), $data['justificativa']);
+                        Notification::make()->title('Venda reaberta como rascunho')->success()->send();
+                    }),
+
                 Action::make('approveDiscount')
                     ->label('Aprovar desconto')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Aprovar desconto da venda')
-                    ->modalDescription('A venda sera confirmada e o estoque sera baixado agora.')
+                    ->modalDescription('A venda sera confirmada e o estoque sera reservado. A baixa fisica ocorre no despacho.')
                     ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('approveDiscount', $record) ?? false)
                     ->action(function (VendaOperacaoPedido $record): void {
                         try {
@@ -830,7 +961,7 @@ class VendaOperacaoResource extends Resource
 
                             Notification::make()
                                 ->title('Desconto aprovado')
-                                ->body('A venda foi confirmada e o estoque foi atualizado.')
+                                ->body('A venda foi confirmada e o estoque foi reservado.')
                                 ->success()
                                 ->send();
                         } catch (ValidationException $exception) {
@@ -922,7 +1053,7 @@ class VendaOperacaoResource extends Resource
         if ($pedido->isPendenteAprovacao()) {
             Notification::make()
                 ->title('Venda enviada para aprovacao')
-                ->body('Ha item com preco abaixo do minimo. O estoque so sera baixado apos autorizacao.')
+                ->body('Ha item com preco abaixo do minimo. O estoque so sera reservado apos autorizacao.')
                 ->warning()
                 ->send();
 
@@ -930,8 +1061,8 @@ class VendaOperacaoResource extends Resource
         }
 
         Notification::make()
-            ->title('Venda registrada')
-            ->body('Estoque atualizado e snapshots financeiros gravados.')
+            ->title('Rascunho de venda criado')
+            ->body('Revise os dados e confirme a venda para aplicar a regra fiscal e reservar o estoque.')
             ->success()
             ->send();
     }

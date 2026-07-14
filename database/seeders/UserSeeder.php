@@ -6,6 +6,7 @@ use App\Enum\RolesEnum;
 use App\Models\Acesso\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 class UserSeeder extends Seeder
 {
@@ -66,7 +67,11 @@ class UserSeeder extends Seeder
             ],
         ];
 
-        $senha = env('SEED_USER_PASSWORD', 'password');
+        $senha = (string) env('DEMO_USER_PASSWORD', '');
+
+        if (strlen($senha) < 16) {
+            throw new RuntimeException('DEMO_USER_PASSWORD precisa ter ao menos 16 caracteres.');
+        }
 
         foreach ($usuarios as $dados) {
             $user = User::firstOrCreate(
@@ -87,11 +92,10 @@ class UserSeeder extends Seeder
         $this->command->info('✅ Usuários de teste criados!');
         $this->command->newLine();
         $this->command->table(
-            ['Role', 'Email', 'Senha'],
+            ['Role', 'Email'],
             collect($usuarios)->map(fn($u) => [
                 $u['role']->value,
                 $u['email'],
-                $senha,
             ])->toArray()
         );
     }

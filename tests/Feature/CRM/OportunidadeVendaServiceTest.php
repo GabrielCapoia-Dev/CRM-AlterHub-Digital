@@ -9,6 +9,7 @@ use App\Models\Etapa;
 use App\Models\Oportunidade;
 use App\Models\OportunidadeProduto;
 use App\Models\Produto;
+use App\Models\RegraTributaria;
 use App\Models\Status\StatusCliente;
 use App\Services\CRM\OportunidadeVendaService;
 use App\Services\Produtos\MovimentacaoEstoqueService;
@@ -21,7 +22,7 @@ class OportunidadeVendaServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_converts_an_opportunity_into_grouped_sale_and_deducts_stock(): void
+    public function test_it_converts_an_opportunity_into_confirmed_sale_and_reserves_stock(): void
     {
         [$user, $cliente, $lead, $ganho] = $this->baseData();
         $produto = $this->produtoComEstoque(10, precoTabela: 20);
@@ -36,18 +37,19 @@ class OportunidadeVendaServiceTest extends TestCase
 
         $pedido = app(OportunidadeVendaService::class)->convert($oportunidade, $user);
 
-        $this->assertSame('ativa', $pedido->status);
+        $this->assertSame('confirmada', $pedido->status);
         $this->assertSame($oportunidade->id, $pedido->oportunidade_id);
         $this->assertSame(1, $pedido->itens_count);
         $this->assertSame(2.0, (float) $pedido->quantidade_total);
         $this->assertSame(24.0, (float) $pedido->receita_bruta_total);
-        $this->assertSame(8.0, (float) $produto->fresh()->estoqueAtual());
+        $this->assertSame(10.0, (float) $produto->fresh()->estoqueAtual());
+        $this->assertSame(2.0, (float) $produto->fresh()->estoque_reservado);
 
         $linha = $pedido->vendasOperacao()->first();
 
         $this->assertNotNull($linha);
         $this->assertSame($pedido->id, $linha->venda_operacao_pedido_id);
-        $this->assertSame($pedido->codigo, $linha->produtoMovimentacao?->documento_referencia);
+        $this->assertNull($linha->produto_movimentacao_id);
 
         $oportunidade->refresh();
 
@@ -101,7 +103,7 @@ class OportunidadeVendaServiceTest extends TestCase
         app(OportunidadeVendaService::class)->convert($oportunidade, $user);
     }
 
-    public function test_it_blocks_duplicate_conversion_for_the_same_opportunity(): void
+    public function test_duplicate_conversion_is_idempotent(): void
     {
         [$user, $cliente, $lead] = $this->baseData();
         $produto = $this->produtoComEstoque(10, precoTabela: 20);
@@ -114,11 +116,12 @@ class OportunidadeVendaServiceTest extends TestCase
             'preco_negociado' => 12,
         ]);
 
-        app(OportunidadeVendaService::class)->convert($oportunidade, $user);
+        $primeira = app(OportunidadeVendaService::class)->convert($oportunidade, $user);
+        $segunda = app(OportunidadeVendaService::class)->convert($oportunidade->fresh(), $user);
 
-        $this->expectException(ValidationException::class);
-
-        app(OportunidadeVendaService::class)->convert($oportunidade->fresh(), $user);
+        $this->assertSame($primeira->id, $segunda->id);
+        $this->assertDatabaseCount('venda_operacao_pedidos', 1);
+        $this->assertSame(1.0, (float) $produto->fresh()->estoque_reservado);
     }
 
     private function baseData(): array
@@ -143,7 +146,18 @@ class OportunidadeVendaServiceTest extends TestCase
             'id_categoria_segmento' => $segmento->id,
             'nome_completo' => 'Contato Venda',
             'email' => 'contato@venda.test',
+            'uf' => 'SP',
         ]);
+
+        RegraTributaria::query()->firstOrCreate(
+            ['uf_destino' => 'SP', 'ncm' => null, 'versao' => 1],
+            [
+                'nome' => 'Regra geral SP',
+                'vigencia_inicio' => now()->subYear()->toDateString(),
+                'aliquota_icms' => 0,
+                'ativo' => true,
+            ],
+        );
 
         $suffix = Str::lower(Str::random(6));
 

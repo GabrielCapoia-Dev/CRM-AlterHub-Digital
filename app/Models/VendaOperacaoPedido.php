@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
 use Illuminate\Database\Eloquent\Model;
@@ -11,10 +12,18 @@ use Illuminate\Support\Carbon;
 
 class VendaOperacaoPedido extends Model
 {
-    public const STATUS_ATIVA = 'ativa';
-    public const STATUS_PENDENTE_APROVACAO = 'pendente_aprovacao';
-    public const STATUS_RECUSADA = 'recusada';
-    public const STATUS_CANCELADA = 'cancelada';
+    /** @deprecated Use VendaStatus::Confirmada. */
+    public const STATUS_ATIVA = VendaStatus::Confirmada->value;
+    public const STATUS_RASCUNHO = VendaStatus::Rascunho->value;
+    public const STATUS_PENDENTE_APROVACAO = VendaStatus::PendenteAprovacao->value;
+    public const STATUS_CONFIRMADA = VendaStatus::Confirmada->value;
+    public const STATUS_PARCIALMENTE_DESPACHADA = VendaStatus::ParcialmenteDespachada->value;
+    public const STATUS_DESPACHADA = VendaStatus::Despachada->value;
+    public const STATUS_CONCLUIDA = VendaStatus::Concluida->value;
+    public const STATUS_RECUSADA = VendaStatus::Recusada->value;
+    public const STATUS_CANCELADA = VendaStatus::Cancelada->value;
+    public const STATUS_DEVOLVIDA_PARCIAL = VendaStatus::DevolvidaParcial->value;
+    public const STATUS_DEVOLVIDA = VendaStatus::Devolvida->value;
 
     protected $table = 'venda_operacao_pedidos';
 
@@ -26,8 +35,14 @@ class VendaOperacaoPedido extends Model
         'aprovado_por',
         'aprovado_em',
         'codigo',
+        'idempotency_key',
         'status',
+        'versao',
         'data_venda',
+        'confirmada_em',
+        'cancelada_em',
+        'concluida_em',
+        'reaberta_em',
         'ano_referencia',
         'mes_referencia',
         'cliente_nome_snapshot',
@@ -40,6 +55,8 @@ class VendaOperacaoPedido extends Model
         'custo_total_snapshot',
         'lucro_bruto_total',
         'lucro_apos_impostos_total',
+        'valor_frete_custo',
+        'valor_frete_cobrado',
         'observacao',
         'motivo_recusa',
     ];
@@ -52,6 +69,11 @@ class VendaOperacaoPedido extends Model
         'aprovado_por' => 'integer',
         'aprovado_em' => 'datetime',
         'data_venda' => 'date',
+        'confirmada_em' => 'datetime',
+        'cancelada_em' => 'datetime',
+        'concluida_em' => 'datetime',
+        'reaberta_em' => 'datetime',
+        'versao' => 'integer',
         'ano_referencia' => 'integer',
         'mes_referencia' => 'integer',
         'itens_count' => 'integer',
@@ -61,13 +83,15 @@ class VendaOperacaoPedido extends Model
         'custo_total_snapshot' => 'decimal:2',
         'lucro_bruto_total' => 'decimal:2',
         'lucro_apos_impostos_total' => 'decimal:2',
+        'valor_frete_custo' => 'decimal:2',
+        'valor_frete_cobrado' => 'decimal:2',
     ];
 
     protected static function booted(): void
     {
         static::saving(function (self $pedido): void {
             if (! $pedido->status) {
-                $pedido->status = self::STATUS_ATIVA;
+                $pedido->status = VendaStatus::Rascunho->value;
             }
 
             if (! $pedido->data_venda) {
@@ -88,12 +112,7 @@ class VendaOperacaoPedido extends Model
      */
     public static function statusOptions(): array
     {
-        return [
-            self::STATUS_ATIVA => 'Ativa',
-            self::STATUS_PENDENTE_APROVACAO => 'Pendente de aprovacao',
-            self::STATUS_RECUSADA => 'Recusada',
-            self::STATUS_CANCELADA => 'Cancelada',
-        ];
+        return VendaStatus::options();
     }
 
     public function isPendenteAprovacao(): bool
@@ -103,7 +122,27 @@ class VendaOperacaoPedido extends Model
 
     public function isAtiva(): bool
     {
-        return $this->status === self::STATUS_ATIVA;
+        return $this->status === VendaStatus::Confirmada->value;
+    }
+
+    public function statusEnum(): VendaStatus
+    {
+        return VendaStatus::from($this->status);
+    }
+
+    public function canEditCommercially(): bool
+    {
+        return $this->statusEnum()->allowsCommercialEditing();
+    }
+
+    public function hasDispatchedItems(): bool
+    {
+        return $this->remessas()
+            ->whereIn('status', [
+                \App\Enum\RemessaStatus::Despachada->value,
+                \App\Enum\RemessaStatus::Entregue->value,
+            ])
+            ->exists();
     }
 
     public function assignCodigo(): void
@@ -146,5 +185,20 @@ class VendaOperacaoPedido extends Model
     {
         return $this->hasMany(VendaOperacao::class, 'venda_operacao_pedido_id')
             ->orderBy('id');
+    }
+
+    public function remessas(): HasMany
+    {
+        return $this->hasMany(Remessa::class, 'venda_operacao_pedido_id')->orderBy('id');
+    }
+
+    public function devolucoes(): HasMany
+    {
+        return $this->hasMany(VendaDevolucao::class, 'venda_operacao_pedido_id')->orderBy('id');
+    }
+
+    public function historicos(): HasMany
+    {
+        return $this->hasMany(VendaHistorico::class, 'venda_operacao_pedido_id')->orderByDesc('id');
     }
 }

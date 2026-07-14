@@ -17,7 +17,7 @@ class OperacaoAnalyticsService
     public function availableYears(): array
     {
         $years = collect([
-            ...VendaOperacao::query()->pluck('ano_referencia')->all(),
+            ...VendaOperacao::query()->efetivadas()->pluck('ano_referencia')->all(),
             ...DespesaOperacional::query()->pluck('ano_referencia')->all(),
             now()->year,
             now()->year - 1,
@@ -580,7 +580,7 @@ class OperacaoAnalyticsService
     {
         $normalized = $this->normalizeFilters($filters);
         $period = $this->resolvePeriod($normalized);
-        $query = VendaOperacao::query();
+        $query = VendaOperacao::query()->efetivadas();
 
         if ($withRelations) {
             $query->with(['produto.categoriaProduto', 'user']);

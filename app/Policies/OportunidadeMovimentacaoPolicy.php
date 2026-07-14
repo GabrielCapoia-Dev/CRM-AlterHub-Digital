@@ -15,7 +15,10 @@ class OportunidadeMovimentacaoPolicy
 
     public function view(User $user, OportunidadeMovimentacao $oportunidadeMovimentacao): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::ListarMovimentacoesDeOportunidade->value);
+        return $user->hasPermissionTo(PermissoesEnum::ListarMovimentacoesDeOportunidade->value)
+            && (! $oportunidadeMovimentacao->exists
+                || ! $oportunidadeMovimentacao->oportunidade_id
+                || $user->can('view', $oportunidadeMovimentacao->oportunidade));
     }
 
     public function create(User $user): bool
@@ -30,11 +33,11 @@ class OportunidadeMovimentacaoPolicy
 
     public function delete(User $user, OportunidadeMovimentacao $oportunidadeMovimentacao): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::ExcluirMovimentacoesDeOportunidade->value);
+        return false;
     }
 
     public function deleteAny(User $user): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::ExcluirMovimentacoesDeOportunidade->value);
+        return false;
     }
 }

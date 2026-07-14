@@ -30,11 +30,11 @@ class ProdutoMovimentacaoPolicy
 
     public function delete(User $user, ProdutoMovimentacao $produtoMovimentacao): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::ExcluirProdutosCRM->value);
+        return false;
     }
 
     public function deleteAny(User $user): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::ExcluirProdutosCRM->value);
+        return false;
     }
 }

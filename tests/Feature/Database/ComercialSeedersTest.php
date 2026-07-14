@@ -3,7 +3,7 @@
 namespace Tests\Feature\Database;
 
 use App\Models\Oportunidade;
-use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -11,9 +11,18 @@ class ComercialSeedersTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_database_seeder_populates_catalogs_and_crm_history(): void
+    public function test_demo_seeder_populates_catalogs_and_crm_history(): void
     {
-        $this->seed(DatabaseSeeder::class);
+        putenv('DEMO_USER_PASSWORD=DemoSeguro#2026!');
+        $_ENV['DEMO_USER_PASSWORD'] = 'DemoSeguro#2026!';
+        $_SERVER['DEMO_USER_PASSWORD'] = 'DemoSeguro#2026!';
+
+        try {
+            $this->seed(DemoSeeder::class);
+        } finally {
+            putenv('DEMO_USER_PASSWORD');
+            unset($_ENV['DEMO_USER_PASSWORD'], $_SERVER['DEMO_USER_PASSWORD']);
+        }
 
         $this->assertGreaterThanOrEqual(14, \App\Models\Clientes\Cliente::query()->count());
         $this->assertGreaterThanOrEqual(14, \App\Models\Produtos\Insumo::query()->count());

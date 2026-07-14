@@ -1,0 +1,140 @@
+name: ${COMPOSE_PROJECT_NAME:-alterhub}
+
+x-app: &app
+  image: ${APP_IMAGE:?Set APP_IMAGE to an immutable registry reference}
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    APP_ENV: production
+    APP_DEBUG: "false"
+    APP_FORCE_HTTPS: ${APP_FORCE_HTTPS:-true}
+    DB_HOST: db
+    DB_PORT: 3306
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+  init: true
+  restart: always
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  volumes:
+    - app_storage:/var/www/storage
+    - app_bootstrap_cache:/var/www/bootstrap/cache
+  networks:
+    - edge
+    - backend
+
+services:
+  app:
+    <<: *app
+    healthcheck:
+      test: ["CMD-SHELL", "php -r '$$s = @fsockopen(\"127.0.0.1\", 9000); exit(is_resource($$s) ? 0 : 1);'"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+
+  nginx:
+    image: ${NGINX_IMAGE:?Set NGINX_IMAGE to an immutable registry reference}
+    environment:
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:?Set NGINX_SERVER_NAME in .env}
+      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-20m}
+      NGINX_FASTCGI_READ_TIMEOUT: ${NGINX_FASTCGI_READ_TIMEOUT:-120s}
+    ports:
+      - "${APP_PORT:-8080}:80"
+    init: true
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - app_storage:/var/www/storage:ro
+    networks:
+      - edge
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/up"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+
+  worker:
+    <<: *app
+    command: ["php", "artisan", "queue:work", "redis", "--queue=exports,default", "--sleep=3", "--tries=3", "--timeout=120", "--max-time=3600"]
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(str_contains(file_get_contents(\"/proc/1/cmdline\"), \"queue:work\") ? 0 : 1);'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  scheduler:
+    <<: *app
+    command: ["php", "artisan", "schedule:work"]
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(str_contains(file_get_contents(\"/proc/1/cmdline\"), \"schedule:work\") ? 0 : 1);'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7.4-alpine}
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}"]
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+
+  db:
+    image: ${MYSQL_IMAGE:-mysql:8.4}
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:?Set DB_DATABASE in .env}
+      MYSQL_USER: ${DB_USERNAME:?Set DB_USERNAME in .env}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+volumes:
+  app_storage:
+  app_bootstrap_cache:
+  db_data:
+  redis_data:
+
+networks:
+  edge:
+  backend:
+    internal: true

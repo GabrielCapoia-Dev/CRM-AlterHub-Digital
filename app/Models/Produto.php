@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enum\ProdutoClassificacao;
+use App\Enum\ProdutoOrigem;
 use App\Models\Categorias\CategoriaProduto;
 use App\Models\Empresas\Fornecedor;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +13,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Produto extends Model
 {
     protected $table = 'produtos';
+
+    protected $attributes = [
+        'classificacao' => 'revenda',
+        'origem' => 'nacional',
+    ];
 
     protected $fillable = [
         'codigo_interno',
@@ -24,10 +31,14 @@ class Produto extends Model
         'status',
         'ncm',
         'estoque_minimo',
+        'estoque_fisico',
+        'estoque_reservado',
         'preco_tabela',
         'preco_minimo',
         'custo_base_formacao',
         'preco_sugerido',
+        'classificacao',
+        'origem',
         'ativo',
     ];
 
@@ -35,10 +46,14 @@ class Produto extends Model
         'categoria_produto_id' => 'integer',
         'fornecedor_id' => 'string',
         'estoque_minimo' => 'decimal:4',
+        'estoque_fisico' => 'decimal:4',
+        'estoque_reservado' => 'decimal:4',
         'preco_tabela' => 'decimal:2',
         'preco_minimo' => 'decimal:2',
         'custo_base_formacao' => 'decimal:4',
         'preco_sugerido' => 'decimal:2',
+        'classificacao' => ProdutoClassificacao::class,
+        'origem' => ProdutoOrigem::class,
         'ativo' => 'boolean',
     ];
 
@@ -68,6 +83,16 @@ class Produto extends Model
             'inativo' => 'Inativo',
             'descontinuado' => 'Descontinuado',
         ];
+    }
+
+    public static function classificacaoOptions(): array
+    {
+        return ProdutoClassificacao::options();
+    }
+
+    public static function origemOptions(): array
+    {
+        return ProdutoOrigem::options();
     }
 
     public function categoriaProduto(): BelongsTo
@@ -105,8 +130,27 @@ class Produto extends Model
             ->orderByDesc('id');
     }
 
+    public function reservas(): HasMany
+    {
+        return $this->hasMany(ProdutoReserva::class, 'produto_id');
+    }
+
+    public function ordensProducao(): HasMany
+    {
+        return $this->hasMany(OrdemProducao::class, 'produto_id');
+    }
+
+    public function isFabricado(): bool
+    {
+        return $this->classificacao === ProdutoClassificacao::Fabricado;
+    }
+
     public function estoqueAtual(): ?float
     {
+        if (array_key_exists('estoque_fisico', $this->attributes)) {
+            return (float) ($this->attributes['estoque_fisico'] ?? 0);
+        }
+
         if (array_key_exists('estoque_atual', $this->attributes)) {
             return $this->attributes['estoque_atual'] !== null
                 ? (float) $this->attributes['estoque_atual']
@@ -126,6 +170,14 @@ class Produto extends Model
         return (float) $this->produtoMovimentacoes()->sum('impacto_estoque');
     }
 
+    public function estoqueDisponivel(): float
+    {
+        return round(
+            (float) ($this->estoqueAtual() ?? 0) - (float) ($this->estoque_reservado ?? 0),
+            4,
+        );
+    }
+
     public function possuiHistoricoEstoque(): bool
     {
         if (array_key_exists('produto_movimentacoes_count', $this->attributes)) {
@@ -137,7 +189,7 @@ class Produto extends Model
 
     public function estoqueEstaBaixo(): bool
     {
-        $estoqueAtual = $this->estoqueAtual();
+        $estoqueAtual = $this->possuiHistoricoEstoque() ? $this->estoqueDisponivel() : null;
         $estoqueMinimo = $this->estoque_minimo !== null ? (float) $this->estoque_minimo : null;
 
         return $estoqueAtual !== null

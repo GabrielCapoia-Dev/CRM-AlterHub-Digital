@@ -2,11 +2,12 @@
 
 namespace App\Models\Produtos;
 
-use App\Models\InsumoMovimentacao;
 use App\Models\Categorias\TipoArmazenamento;
 use App\Models\Categorias\TipoInsumo;
 use App\Models\Categorias\TipoUnidadeMedida;
 use App\Models\Empresas\Fornecedor;
+use App\Models\InsumoMovimentacao;
+use App\Models\OrdemProducaoInsumo;
 use App\Models\ProdutoInsumo;
 use App\Models\Status\StatusInsumo;
 use App\Services\Produtos\InsumoCostCalculator;
@@ -36,6 +37,8 @@ class Insumo extends Model
         'valor_convertido_brl',
         'custo_nacionalizado',
         'estoque_minimo',
+        'estoque_fisico',
+        'estoque_reservado',
         'observacao',
     ];
 
@@ -51,6 +54,8 @@ class Insumo extends Model
         'valor_convertido_brl' => 'decimal:4',
         'custo_nacionalizado' => 'decimal:4',
         'estoque_minimo' => 'decimal:4',
+        'estoque_fisico' => 'decimal:4',
+        'estoque_reservado' => 'decimal:4',
     ];
 
     protected static function booted(): void
@@ -132,8 +137,27 @@ class Insumo extends Model
             ->orderByDesc('id');
     }
 
+    public function ordemProducaoInsumos(): HasMany
+    {
+        return $this->hasMany(OrdemProducaoInsumo::class, 'insumo_id');
+    }
+
+    public function quantidadeReservadaProducao(): float
+    {
+        return (float) $this->ordemProducaoInsumos()->sum('quantidade_reservada');
+    }
+
+    public function estoqueDisponivelParaProducao(): float
+    {
+        return $this->estoqueDisponivel();
+    }
+
     public function estoqueAtual(): ?float
     {
+        if (array_key_exists('estoque_fisico', $this->attributes)) {
+            return (float) ($this->attributes['estoque_fisico'] ?? 0);
+        }
+
         if (array_key_exists('estoque_atual', $this->attributes)) {
             return $this->attributes['estoque_atual'] !== null
                 ? (float) $this->attributes['estoque_atual']
@@ -151,6 +175,14 @@ class Insumo extends Model
         }
 
         return (float) $this->insumoMovimentacoes()->sum('impacto_estoque');
+    }
+
+    public function estoqueDisponivel(): float
+    {
+        return round(
+            (float) ($this->estoqueAtual() ?? 0) - (float) ($this->estoque_reservado ?? 0),
+            4,
+        );
     }
 
     public function possuiHistoricoEstoque(): bool

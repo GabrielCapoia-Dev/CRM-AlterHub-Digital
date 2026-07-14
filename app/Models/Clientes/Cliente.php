@@ -3,12 +3,15 @@
 namespace App\Models\Clientes;
 
 use App\Models\Categorias\CategoriaSegmento;
+use App\Models\ClienteTransportadora;
 use App\Models\Oportunidade;
 use App\Models\Status\StatusCliente;
+use App\Models\Transportadora;
 use App\Support\Fiscal\TaxIdentifier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Cliente extends Model
@@ -88,6 +91,25 @@ class Cliente extends Model
         );
     }
 
+    public function clienteTransportadoras(): HasMany
+    {
+        return $this->hasMany(ClienteTransportadora::class, 'cliente_id');
+    }
+
+    public function transportadoras(): BelongsToMany
+    {
+        return $this->belongsToMany(Transportadora::class, 'cliente_transportadora')
+            ->withPivot([
+                'codigo_cliente_transportadora',
+                'preferencial',
+                'modalidade_entrega_padrao',
+                'valor_frete_custo_padrao',
+                'valor_frete_cobrado_padrao',
+                'observacao',
+            ])
+            ->withTimestamps();
+    }
+
     public function scopeLookupByCodigoOuCnpj(Builder $query, string $termo): Builder
     {
         $termo = trim($termo);
@@ -98,7 +120,7 @@ class Cliente extends Model
 
             if ($normalized !== '') {
                 $builder->orWhereRaw(
-                    TaxIdentifier::comparableExpression('cnpj') . ' = ?',
+                    TaxIdentifier::comparableExpression('cnpj').' = ?',
                     [$normalized],
                 );
             }

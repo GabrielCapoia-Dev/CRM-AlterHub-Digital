@@ -96,4 +96,22 @@ enum PermissoesEnum: string
     case ListarResultadoOperacao = 'Listar Resultado da Operacao';
     case ListarLucroPorProduto = 'Listar Lucro por Produto';
     case ListarDashboardBI = 'Listar Dashboard BI';
+
+    // Producao
+    case ListarOrdensProducao = 'Listar Ordens de Producao';
+    case CriarOrdensProducao = 'Criar Ordens de Producao';
+    case EditarOrdensProducao = 'Editar Ordens de Producao';
+    case ExcluirOrdensProducao = 'Excluir Ordens de Producao';
+
+    // Fiscal
+    case ListarRegrasTributarias = 'Listar Regras Tributarias';
+    case CriarRegrasTributarias = 'Criar Regras Tributarias';
+    case EditarRegrasTributarias = 'Editar Regras Tributarias';
+    case ExcluirRegrasTributarias = 'Excluir Regras Tributarias';
+
+    // Logistica
+    case ListarTransportadoras = 'Listar Transportadoras';
+    case CriarTransportadoras = 'Criar Transportadoras';
+    case EditarTransportadoras = 'Editar Transportadoras';
+    case ExcluirTransportadoras = 'Excluir Transportadoras';
 }

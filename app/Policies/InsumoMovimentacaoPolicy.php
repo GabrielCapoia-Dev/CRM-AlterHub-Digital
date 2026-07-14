@@ -30,11 +30,11 @@ class InsumoMovimentacaoPolicy
 
     public function delete(User $user, InsumoMovimentacao $insumoMovimentacao): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::ExcluirInsumos->value);
+        return false;
     }
 
     public function deleteAny(User $user): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::ExcluirInsumos->value);
+        return false;
     }
 }

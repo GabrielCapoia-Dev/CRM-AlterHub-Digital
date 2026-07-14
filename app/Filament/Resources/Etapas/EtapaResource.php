@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Etapas;
 
+use App\Enum\EtapaTipo;
 use App\Filament\Resources\Etapas\Pages\ManageEtapas;
 use App\Models\Etapa;
 use BackedEnum;
@@ -10,7 +11,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Select;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -79,10 +80,12 @@ class EtapaResource extends Resource
                             ->maxLength(20)
                             ->placeholder('Ex.: #22C55E'),
 
-                        Toggle::make('fechamento')
-                            ->label('Etapa de fechamento')
-                            ->helperText('Quando ativo, a oportunidade exigirá motivo de fechamento.')
-                            ->inline(false)
+                        Select::make('tipo')
+                            ->label('Tipo da etapa')
+                            ->options(EtapaTipo::options())
+                            ->default(EtapaTipo::Aberta->value)
+                            ->required()
+                            ->helperText('Etapas ganhas e perdidas encerram a oportunidade.')
                             ->columnSpanFull(),
                     ]),
             ]);
@@ -137,6 +140,11 @@ class EtapaResource extends Resource
                             ->label('Fechamento')
                             ->boolean()
                             ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+
+                        TextColumn::make('tipo')
+                            ->label('Tipo')
+                            ->badge()
+                            ->formatStateUsing(fn (EtapaTipo|string $state): string => EtapaTipo::options()[$state instanceof EtapaTipo ? $state->value : $state] ?? (string) $state),
                     ])
                     ->extraAttributes(['class' => 'crm-list-meta']),
             ])

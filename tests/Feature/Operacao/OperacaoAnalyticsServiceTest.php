@@ -3,12 +3,17 @@
 namespace Tests\Feature\Operacao;
 
 use App\Models\Categorias\CategoriaProduto;
+use App\Models\Acesso\User;
+use App\Models\Clientes\Cliente;
 use App\Models\DespesaOperacional;
 use App\Models\Produto;
+use App\Models\RegraTributaria;
 use App\Services\Operacao\OperacaoAnalyticsService;
 use App\Services\Operacao\VendaOperacaoService;
+use App\Services\Operacao\VendaWorkflowService;
 use App\Services\Produtos\MovimentacaoEstoqueService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class OperacaoAnalyticsServiceTest extends TestCase
@@ -41,16 +46,38 @@ class OperacaoAnalyticsServiceTest extends TestCase
             'realizado_em' => now()->subDay(),
         ]);
 
-        app(VendaOperacaoService::class)->create([
-            'produto_id' => $produto->id,
-            'data_venda' => now()->toDateString(),
-            'quantidade' => 3,
-            'preco_unitario' => 25,
-            'icms_aliquota' => 10,
-            'outros_impostos_aliquota' => 2,
-            'cliente_nome' => 'Hospital Central',
-            'vendedor_nome' => 'Marina',
+        $vendedor = User::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'name' => 'Marina',
+            'email' => 'marina.analytics@example.com',
+            'password' => bcrypt('password'),
+            'email_verified_at' => now(),
+            'email_approved' => true,
         ]);
+        $cliente = Cliente::query()->create([
+            'razao_social' => 'Hospital Central',
+            'uf' => 'SP',
+        ]);
+        RegraTributaria::query()->create([
+            'nome' => 'Regra analitica SP',
+            'uf_destino' => 'SP',
+            'versao' => 1,
+            'vigencia_inicio' => now()->subYear()->toDateString(),
+            'aliquota_icms' => 10,
+            'aliquota_pis' => 2,
+            'ativo' => true,
+        ]);
+
+        $pedido = app(VendaOperacaoService::class)->createPedido([
+            'cliente_id' => $cliente->id,
+            'data_venda' => now()->toDateString(),
+            'itens' => [[
+                'produto_id' => $produto->id,
+                'quantidade' => 3,
+                'preco_unitario' => 25,
+            ]],
+        ], $vendedor);
+        app(VendaWorkflowService::class)->confirmar($pedido, $vendedor, 'analytics-confirmacao');
 
         DespesaOperacional::query()->create([
             'descricao' => 'Frete geral',

@@ -2,7 +2,10 @@
 
 namespace App\Filament\Resources\Produtos;
 
+use App\Enum\ProdutoClassificacao;
+use App\Enum\ProdutoOrigem;
 use App\Enum\RolesEnum;
+use App\Filament\Exports\Actions\CrmExportActions;
 use App\Filament\Resources\Produtos\Actions\ApplyBulkCostAction;
 use App\Filament\Resources\Produtos\Pages\ManageProdutos;
 use App\Models\Categorias\TipoUnidadeMedida;
@@ -26,8 +29,8 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -54,7 +57,7 @@ class ProdutoResource extends Resource
 {
     protected static ?string $model = Produto::class;
 
-    protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedTag;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTag;
 
     protected static ?string $navigationLabel = 'Produtos';
 
@@ -64,7 +67,7 @@ class ProdutoResource extends Resource
 
     public static ?string $slug = 'produtos';
 
-    protected static string | UnitEnum | null $navigationGroup = 'Estoque';
+    protected static string|UnitEnum|null $navigationGroup = 'Estoque';
 
     protected static ?int $navigationSort = 1;
 
@@ -103,6 +106,18 @@ class ProdutoResource extends Resource
                                             ->label('Status')
                                             ->options(Produto::statusOptions())
                                             ->default('ativo')
+                                            ->required(),
+
+                                        Select::make('classificacao')
+                                            ->label('Classificacao')
+                                            ->options(ProdutoClassificacao::options())
+                                            ->default(ProdutoClassificacao::Revenda->value)
+                                            ->required(),
+
+                                        Select::make('origem')
+                                            ->label('Origem')
+                                            ->options(ProdutoOrigem::options())
+                                            ->default(ProdutoOrigem::Nacional->value)
                                             ->required(),
 
                                         TextInput::make('nome')
@@ -219,7 +234,7 @@ class ProdutoResource extends Resource
                                                     ->getOptionLabelUsing(fn (mixed $value): ?string => static::resolveInsumoOptionLabel($value))
                                                     ->required()
                                                     ->live()
-                                                    ->afterStateUpdated(fn(Set $set, Get $get) => static::syncInsumoSnapshotLine($set, $get)),
+                                                    ->afterStateUpdated(fn (Set $set, Get $get) => static::syncInsumoSnapshotLine($set, $get)),
 
                                                 TextInput::make('quantidade')
                                                     ->hiddenLabel()
@@ -230,7 +245,7 @@ class ProdutoResource extends Resource
                                                     ->minValue(0.0001)
                                                     ->required()
                                                     ->live()
-                                                    ->afterStateUpdated(fn(Set $set, Get $get) => static::syncInsumoSnapshotLine($set, $get)),
+                                                    ->afterStateUpdated(fn (Set $set, Get $get) => static::syncInsumoSnapshotLine($set, $get)),
 
                                                 TextInput::make('unidade_consumo')
                                                     ->hiddenLabel()
@@ -243,13 +258,13 @@ class ProdutoResource extends Resource
 
                                                 Placeholder::make('custo_unitario_snapshot_preview')
                                                     ->hiddenLabel()
-                                                    ->content(fn(Get $get): string => static::formatCurrency(
+                                                    ->content(fn (Get $get): string => static::formatCurrency(
                                                         (float) ($get('custo_unitario_snapshot') ?? 0)
                                                     )),
 
                                                 Placeholder::make('custo_total_snapshot_preview')
                                                     ->hiddenLabel()
-                                                    ->content(fn(Get $get): string => static::formatCurrency(
+                                                    ->content(fn (Get $get): string => static::formatCurrency(
                                                         (float) ($get('custo_total_snapshot') ?? 0)
                                                     )),
                                             ])
@@ -314,38 +329,69 @@ class ProdutoResource extends Resource
                                     ->schema([
                                         Placeholder::make('resumo_preco_produto')
                                             ->label('Preco base do produto')
-                                            ->content(fn(Get $get): string => static::formatCurrency(
+                                            ->content(fn (Get $get): string => static::formatCurrency(
                                                 static::buildResumo($get)['preco_produto']
                                             )),
 
                                         Placeholder::make('resumo_fatores_fixos')
                                             ->label('Fatores fixos')
-                                            ->content(fn(Get $get): string => static::formatCurrency(
+                                            ->content(fn (Get $get): string => static::formatCurrency(
                                                 static::buildResumo($get)['soma_fixos_brl']
                                             )),
 
                                         Placeholder::make('resumo_fatores_percentuais')
                                             ->label('Fatores percentuais')
-                                            ->content(fn(Get $get): string => static::formatPercent(
+                                            ->content(fn (Get $get): string => static::formatPercent(
                                                 static::buildResumo($get)['soma_percentuais']
                                             )),
 
                                         Placeholder::make('resumo_valor_final_produto')
                                             ->label('Preco de venda minimo')
-                                            ->content(fn(Get $get): string => static::formatCurrency(
+                                            ->content(fn (Get $get): string => static::formatCurrency(
                                                 static::buildResumo($get)['preco_minimo']
                                             )),
 
                                         Placeholder::make('resumo_percentual_lucro')
                                             ->label('Percentual de lucro')
-                                            ->content(fn(Get $get): string => static::formatPercent(
+                                            ->content(fn (Get $get): string => static::formatPercent(
                                                 static::buildResumo($get)['percentual_lucro']
                                             )),
 
                                         Placeholder::make('resumo_preco_venda_final')
                                             ->label('Preco de venda final')
-                                            ->content(fn(Get $get): string => static::formatCurrency(
+                                            ->content(fn (Get $get): string => static::formatCurrency(
                                                 static::buildResumo($get)['preco_venda_final']
+                                            )),
+                                    ]),
+
+                                Section::make('Cenarios de lucro')
+                                    ->description('Comparativo de preco sobre a venda minima, sem alterar o percentual escolhido acima.')
+                                    ->icon(Heroicon::OutlinedChartBar)
+                                    ->columns(4)
+                                    ->columnSpanFull()
+                                    ->schema([
+                                        Placeholder::make('cenario_lucro_10')
+                                            ->label('Lucro 10%')
+                                            ->content(fn (Get $get): string => static::formatCurrency(
+                                                static::profitScenario($get, 10)
+                                            )),
+
+                                        Placeholder::make('cenario_lucro_20')
+                                            ->label('Lucro 20%')
+                                            ->content(fn (Get $get): string => static::formatCurrency(
+                                                static::profitScenario($get, 20)
+                                            )),
+
+                                        Placeholder::make('cenario_lucro_30')
+                                            ->label('Lucro 30%')
+                                            ->content(fn (Get $get): string => static::formatCurrency(
+                                                static::profitScenario($get, 30)
+                                            )),
+
+                                        Placeholder::make('cenario_lucro_40')
+                                            ->label('Lucro 40%')
+                                            ->content(fn (Get $get): string => static::formatCurrency(
+                                                static::profitScenario($get, 40)
                                             )),
                                     ]),
                             ]),
@@ -356,7 +402,7 @@ class ProdutoResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn(Builder $query) => $query
+            ->modifyQueryUsing(fn (Builder $query) => $query
                 ->with(['categoriaProduto', 'fornecedor'])
                 ->withSum('produtoMovimentacoes as estoque_atual', 'impacto_estoque')
                 ->withCount('produtoMovimentacoes'))
@@ -380,7 +426,7 @@ class ProdutoResource extends Resource
                             ->searchable()
                             ->sortable()
                             ->weight('semibold')
-                            ->description(fn(Produto $record): ?string => $record->marca)
+                            ->description(fn (Produto $record): ?string => $record->marca)
                             ->wrap()
                             ->extraAttributes(['class' => 'crm-list-title'], merge: true),
 
@@ -422,14 +468,14 @@ class ProdutoResource extends Resource
                 Grid::make([
                     'default' => 1,
                     'sm' => 2,
-                    'xl' => 4,
+                    'xl' => 6,
                 ])
                     ->schema([
                         TextColumn::make('estoque_atual')
                             ->label('Estoque atual')
                             ->badge()
                             ->sortable()
-                            ->description(fn(Produto $record): string => 'Minimo: ' . ($record->estoque_minimo === null ? '-' : static::formatQuantity($record->estoque_minimo)))
+                            ->description(fn (Produto $record): string => 'Minimo: '.($record->estoque_minimo === null ? '-' : static::formatQuantity($record->estoque_minimo)))
                             ->color(function (Produto $record): string {
                                 if (! $record->possuiHistoricoEstoque()) {
                                     return 'gray';
@@ -466,6 +512,24 @@ class ProdutoResource extends Resource
                             ->sortable()
                             ->placeholder('Nao informado')
                             ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
+
+                        TextColumn::make('classificacao')
+                            ->label('Classificacao')
+                            ->description('Classificacao', position: 'above')
+                            ->badge()
+                            ->formatStateUsing(fn (ProdutoClassificacao|string $state): string => $state instanceof ProdutoClassificacao
+                                ? $state->label()
+                                : (ProdutoClassificacao::tryFrom($state)?->label() ?? $state))
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+
+                        TextColumn::make('origem')
+                            ->label('Origem')
+                            ->description('Origem', position: 'above')
+                            ->badge()
+                            ->formatStateUsing(fn (ProdutoOrigem|string $state): string => $state instanceof ProdutoOrigem
+                                ? $state->label()
+                                : (ProdutoOrigem::tryFrom($state)?->label() ?? $state))
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
                     ])
                     ->extraAttributes(['class' => 'crm-list-meta']),
 
@@ -494,10 +558,19 @@ class ProdutoResource extends Resource
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options(Produto::statusOptions()),
+
+                SelectFilter::make('classificacao')
+                    ->label('Classificacao')
+                    ->options(ProdutoClassificacao::options()),
+
+                SelectFilter::make('origem')
+                    ->label('Origem')
+                    ->options(ProdutoOrigem::options()),
             ])
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--catalog')
             ->recordActions([
                 static::configureEditAction(EditAction::make()->label('Editar')),
+                CrmExportActions::produtoDetalhe(),
                 DeleteAction::make()->label('Excluir'),
             ], position: RecordActionsPosition::AfterContent)
             ->toolbarActions([
@@ -525,7 +598,7 @@ class ProdutoResource extends Resource
     public static function configureEditAction(EditAction $action): EditAction
     {
         return static::configureModalAction($action, withDelete: true)
-            ->fillForm(fn(Produto $record): array => static::getModalFormData($record))
+            ->fillForm(fn (Produto $record): array => static::getModalFormData($record))
             ->using(fn (Produto $record, array $data): Produto => static::saveProduct($record, $data));
     }
 
@@ -688,6 +761,18 @@ class ProdutoResource extends Resource
                 'produtoComponentesCusto' => $get('produtoComponentesCusto') ?? [],
             ]),
         ], refreshSnapshots: false);
+    }
+
+    protected static function profitScenario(Get $get, int $percentual): float
+    {
+        $precoMinimo = (float) (static::buildResumo($get)['preco_minimo'] ?? 0);
+
+        return static::profitScenarioAmount($precoMinimo, $percentual);
+    }
+
+    public static function profitScenarioAmount(float $precoMinimo, int $percentual): float
+    {
+        return round(max(0, $precoMinimo) * (1 + (max(0, $percentual) / 100)), 2);
     }
 
     protected static function prepareProductFormData(array $data): array

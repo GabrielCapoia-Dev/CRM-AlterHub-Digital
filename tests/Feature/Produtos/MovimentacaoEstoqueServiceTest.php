@@ -14,6 +14,7 @@ use App\Services\Produtos\MovimentacaoEstoqueService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 use Tests\TestCase;
 
 class MovimentacaoEstoqueServiceTest extends TestCase
@@ -185,6 +186,44 @@ class MovimentacaoEstoqueServiceTest extends TestCase
             'tipo' => 'saida',
             'quantidade' => 1,
         ], 10);
+    }
+
+    public function test_product_ledger_is_immutable_and_reversal_is_idempotent(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Auditor de estoque',
+            'email' => 'auditor.estoque@example.com',
+            'email_verified_at' => now(),
+            'email_approved' => true,
+            'password' => Hash::make('password'),
+        ]);
+        $produto = Produto::query()->create([
+            'codigo_interno' => 'PROD-ESTORNO-01',
+            'nome' => 'Produto para estorno',
+            'status' => 'ativo',
+            'ativo' => true,
+            'unidade_medida' => 'un',
+            'custo_base_formacao' => 10,
+        ]);
+        $service = app(MovimentacaoEstoqueService::class);
+        $entrada = $service->createForProduto([
+            'produto_id' => $produto->id,
+            'tipo' => 'entrada',
+            'quantidade' => 2,
+            'idempotency_key' => 'entrada-estorno-01',
+            'realizado_em' => now(),
+        ], $user);
+
+        $estorno = $service->estornarProduto($entrada, $user, 'Documento de entrada cancelado.', 'estorno-produto-01');
+        $repetido = $service->estornarProduto($entrada->fresh(), $user, 'Documento de entrada cancelado.', 'estorno-produto-01');
+
+        $this->assertSame($estorno->id, $repetido->id);
+        $this->assertSame($entrada->id, $estorno->estorno_de_id);
+        $this->assertSame(0.0, (float) $produto->fresh()->estoque_fisico);
+        $this->assertDatabaseCount('produto_movimentacoes', 2);
+
+        $this->expectException(LogicException::class);
+        $entrada->fresh()->delete();
     }
 
     private function createFornecedor(): Fornecedor

@@ -2,14 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\Acesso\User;
-use App\Enum\RolesEnum;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
-use Illuminate\Support\Facades\Artisan;
-
 
 class DatabaseSeeder extends Seeder
 {
@@ -17,59 +11,6 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        $senhaAdmin = env('SUPER_ADMIN_PASSWORD', 'password');
-
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-
-        // 1. Criar roles
-        $this->command->info('Criando roles...');
-        foreach (RolesEnum::cases() as $role) {
-            Role::firstOrCreate(['name' => $role->value, 'guard_name' => 'web']);
-            $this->command->line("✔ Role criada: {$role->value}");
-        }
-
-        // 2. Criar usuário Super Admin
-        $this->command->info('Criando usuário Super Admin...');
-        $adminUser = User::firstOrCreate(
-            ['email' => 'admin@admin.com'],
-            [
-                'uuid' => \Illuminate\Support\Str::uuid(),
-                'name' => 'Admin',
-                'password' => bcrypt($senhaAdmin),
-                'email_verified_at' => now(),
-                'email_approved' => true,
-            ]
-        );
-
-
-        // 4. Criar permissões
-        Artisan::call('permissoes:criar');
-
-
-        // 3. Atribuir role
-        $this->command->info('Atribuindo role Super Admin...');
-        $adminUser->assignRole(RolesEnum::SuperAdmin->value);
-        $this->command->line('✔ Role atribuída com sucesso');
-
-        $this->command->info('✅ Seeder executado com sucesso!');
-        $this->command->newLine();
-        $this->command->table(
-            ['Campo', 'Valor'],
-            [
-                ['Email', 'admin@admin.com'],
-                ['Senha', $senhaAdmin],
-                ['Role', RolesEnum::SuperAdmin->value],
-                ['UUID', 'gerado automaticamente'],
-            ]
-        );
-
-        $this->call([
-            // UserSeeder::class,
-            // FornecedorSeeder::class,
-            // ClienteSeeder::class,
-            // InsumoSeeder::class,
-            // ProdutoSeeder::class,
-            // CrmSeeder::class,
-        ]);
+        $this->call(EssentialSeeder::class);
     }
 }

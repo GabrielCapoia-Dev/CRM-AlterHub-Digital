@@ -50,6 +50,13 @@ class CriarPermissoes extends Command
         $adminRole->syncPermissions($this->adminPermissions());
         $this->info('Permissoes sincronizadas com Admin.');
 
+        $gestorRole = Role::firstOrCreate([
+            'name' => RolesEnum::Gestor->value,
+            'guard_name' => 'web',
+        ]);
+        $gestorRole->syncPermissions($this->gestorPermissions());
+        $this->info('Permissoes sincronizadas com Gestor.');
+
         $vendedorRole = Role::firstOrCreate([
             'name' => RolesEnum::Vendedor->value,
             'guard_name' => 'web',
@@ -75,8 +82,27 @@ class CriarPermissoes extends Command
             PermissoesEnum::CriarClientes->value,
             PermissoesEnum::EditarClientes->value,
             PermissoesEnum::ListarProdutosCRM->value,
+            PermissoesEnum::ListarEtapasCRM->value,
+            PermissoesEnum::ListarOportunidades->value,
+            PermissoesEnum::CriarOportunidades->value,
+            PermissoesEnum::EditarOportunidades->value,
+            PermissoesEnum::ListarProdutosDaOportunidade->value,
+            PermissoesEnum::CriarProdutosDaOportunidade->value,
+            PermissoesEnum::EditarProdutosDaOportunidade->value,
+            PermissoesEnum::ExcluirProdutosDaOportunidade->value,
+            PermissoesEnum::ListarInteracoesDeOportunidade->value,
+            PermissoesEnum::CriarInteracoesDeOportunidade->value,
+            PermissoesEnum::EditarInteracoesDeOportunidade->value,
+            PermissoesEnum::ExcluirInteracoesDeOportunidade->value,
+            PermissoesEnum::ListarTarefasDeOportunidade->value,
+            PermissoesEnum::CriarTarefasDeOportunidade->value,
+            PermissoesEnum::EditarTarefasDeOportunidade->value,
+            PermissoesEnum::ExcluirTarefasDeOportunidade->value,
+            PermissoesEnum::ListarMovimentacoesDeOportunidade->value,
             PermissoesEnum::ListarVendasOperacao->value,
             PermissoesEnum::CriarVendasOperacao->value,
+            PermissoesEnum::EditarVendasOperacao->value,
+            PermissoesEnum::ListarTransportadoras->value,
         ];
     }
 
@@ -93,5 +119,26 @@ class CriarPermissoes extends Command
             ], true))
             ->values()
             ->all();
+    }
+
+    /**
+     * Gestores operam e aprovam o funil e as vendas, mas nao recebem por
+     * heranca poderes de administracao, fiscal, producao ou edicao de estoque.
+     *
+     * @return list<string>
+     */
+    protected function gestorPermissions(): array
+    {
+        return array_values(array_unique([
+            ...$this->vendedorPermissions(),
+            PermissoesEnum::AprovarDesconto->value,
+            PermissoesEnum::ListarDespesasOperacionais->value,
+            PermissoesEnum::CriarDespesasOperacionais->value,
+            PermissoesEnum::EditarDespesasOperacionais->value,
+            PermissoesEnum::ListarVisaoConsolidadaOperacao->value,
+            PermissoesEnum::ListarResultadoOperacao->value,
+            PermissoesEnum::ListarLucroPorProduto->value,
+            PermissoesEnum::ListarDashboardBI->value,
+        ]));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\InsumoMovimentacoes\Pages;
 
+use App\Filament\Exports\Actions\CrmExportActions;
 use App\Filament\Resources\InsumoMovimentacoes\InsumoMovimentacaoResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
@@ -16,6 +17,7 @@ class ManageInsumoMovimentacoes extends ManageRecords
     {
         return [
             InsumoMovimentacaoResource::configureCreateAction(CreateAction::make()),
+            CrmExportActions::insumoMovimentacoes(),
         ];
     }
 }

@@ -8,6 +8,7 @@ use App\Models\Oportunidade;
 use App\Models\Produto;
 use App\Models\VendaOperacaoPedido;
 use App\Services\Operacao\VendaOperacaoService;
+use App\Services\Operacao\VendaWorkflowService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -16,6 +17,7 @@ class OportunidadeVendaService
 {
     public function __construct(
         protected VendaOperacaoService $vendaOperacaoService,
+        protected VendaWorkflowService $workflowService,
     ) {}
 
     /**
@@ -38,6 +40,12 @@ class OportunidadeVendaService
                 ->lockForUpdate()
                 ->findOrFail($oportunidadeId);
 
+            if ($oportunidade->venda_operacao_pedido_id) {
+                return VendaOperacaoPedido::query()
+                    ->with(['vendasOperacao.produto', 'cliente', 'user'])
+                    ->findOrFail($oportunidade->venda_operacao_pedido_id);
+            }
+
             $preview = $this->buildPreview($oportunidade, lockProducts: true);
 
             if (! $preview['can_convert']) {
@@ -46,11 +54,19 @@ class OportunidadeVendaService
                 ]);
             }
 
+            $actor = $user ?? $oportunidade->user;
+
+            if (! $actor) {
+                throw ValidationException::withMessages([
+                    'user_id' => 'Defina um responsavel antes de converter a oportunidade.',
+                ]);
+            }
+
             $pedido = VendaOperacaoPedido::query()->create([
                 'oportunidade_id' => $oportunidade->id,
                 'cliente_id' => $oportunidade->cliente_id,
-                'user_id' => $user?->id,
-                'status' => VendaOperacaoPedido::STATUS_ATIVA,
+                'user_id' => $oportunidade->user_id ?? $actor->id,
+                'status' => VendaOperacaoPedido::STATUS_RASCUNHO,
                 'data_venda' => now()->toDateString(),
                 'cliente_nome_snapshot' => $oportunidade->cliente?->razao_social,
                 'cliente_documento_snapshot' => $oportunidade->cliente?->cnpj,
@@ -70,10 +86,15 @@ class OportunidadeVendaService
                     'cliente_nome' => $pedido->cliente_nome_snapshot,
                     'vendedor_nome' => $pedido->vendedor_nome_snapshot,
                     'observacao' => "Venda gerada pela oportunidade {$oportunidade->titulo}.",
-                ], $user, $pedido);
+                ], $actor, $pedido, false);
             }
 
             $this->vendaOperacaoService->refreshPedidoTotals($pedido);
+            $pedido = $this->workflowService->confirmar(
+                $pedido,
+                $actor,
+                "converter:oportunidade:{$oportunidade->id}",
+            );
             $this->markOpportunityAsConverted($oportunidade, $pedido);
 
             return $pedido->fresh([
@@ -123,7 +144,7 @@ class OportunidadeVendaService
                 $rowErrors = [];
                 $quantidade = round((float) ($link->quantidade ?? 0), 4);
                 $precoInfo = $this->resolveUnitPrice($link, $produto);
-                $estoqueAtual = $produto ? (float) ($produto->estoqueAtual() ?? 0) : 0.0;
+                $estoqueAtual = $produto ? $produto->estoqueDisponivel() : 0.0;
                 $quantidadeNecessaria = (float) ($requiredByProduct->get($link->produto_id, 0.0));
 
                 if (! $produto) {
@@ -276,7 +297,8 @@ class OportunidadeVendaService
         return Etapa::query()
             ->where(function ($query): void {
                 $query
-                    ->whereIn('slug', ['ganho', 'win'])
+                    ->where('tipo', \App\Enum\EtapaTipo::Ganha->value)
+                    ->orWhereIn('slug', ['ganho', 'win'])
                     ->orWhereRaw('lower(nome) in (?, ?)', ['ganho', 'win']);
             })
             ->orderByDesc('fechamento')

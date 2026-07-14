@@ -6,6 +6,7 @@ use App\Models\Oportunidade;
 use App\Models\OportunidadeInteracao;
 use App\Models\OportunidadeMovimentacao;
 use App\Models\OportunidadeTarefa;
+use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,8 +19,8 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements FilamentUser
 {
     use HasFactory;
-    use Notifiable;
     use HasRoles;
+    use Notifiable;
 
     protected $fillable = [
         'uuid',
@@ -29,8 +30,9 @@ class User extends Authenticatable implements FilamentUser
         'email_verified_at',
         'password',
     ];
+
     protected $guard_name = 'web';
-    
+
     protected $hidden = [
         'password',
     ];
@@ -53,14 +55,22 @@ class User extends Authenticatable implements FilamentUser
         });
     }
 
-    private function emailAprovado(): bool
+    protected static function newFactory(): UserFactory
+    {
+        return UserFactory::new();
+    }
+
+    public function emailAprovado(): bool
     {
         return (bool) $this->email_approved;
     }
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->hasVerifiedEmail() && $this->emailAprovado();
+        // O cadastro e a liberacao de acesso sao administrados internamente.
+        // Nao existe fluxo publico de verificacao de e-mail neste painel, logo
+        // email_verified_at nao pode impedir o acesso de um usuario aprovado.
+        return $this->emailAprovado();
     }
 
     public function oportunidades(): HasMany

@@ -21,6 +21,7 @@ class VendedorRolePermissionsTest extends TestCase
         Artisan::call('permissoes:criar');
 
         $vendedor = Role::findByName(RolesEnum::Vendedor->value, 'web');
+        $gestor = Role::findByName(RolesEnum::Gestor->value, 'web');
         $admin = Role::findByName(RolesEnum::Admin->value, 'web');
 
         $this->assertTrue($vendedor->hasPermissionTo(PermissoesEnum::ListarVendasOperacao->value));
@@ -30,6 +31,12 @@ class VendedorRolePermissionsTest extends TestCase
         $this->assertFalse($vendedor->hasPermissionTo(PermissoesEnum::AprovarDesconto->value));
         $this->assertFalse($vendedor->hasPermissionTo(PermissoesEnum::ExcluirVendasOperacao->value));
         $this->assertFalse($vendedor->hasPermissionTo(PermissoesEnum::ListarDashboardBI->value));
+
+        $this->assertTrue($gestor->hasPermissionTo(PermissoesEnum::AprovarDesconto->value));
+        $this->assertTrue($gestor->hasPermissionTo(PermissoesEnum::ListarDashboardBI->value));
+        $this->assertFalse($gestor->hasPermissionTo(PermissoesEnum::EditarProdutosCRM->value));
+        $this->assertFalse($gestor->hasPermissionTo(PermissoesEnum::EditarInsumos->value));
+        $this->assertFalse($gestor->hasPermissionTo(PermissoesEnum::EditarUsuarios->value));
 
         $this->assertTrue($admin->hasPermissionTo(PermissoesEnum::AprovarDesconto->value));
         $this->assertTrue($admin->hasPermissionTo(PermissoesEnum::ListarVendasOperacao->value));

@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 class VendaOperacao extends Model
@@ -34,6 +37,10 @@ class VendaOperacao extends Model
         'receita_bruta',
         'custo_unitario_snapshot',
         'custo_total_snapshot',
+        'regra_tributaria_id',
+        'regra_tributaria_versao_snapshot',
+        'uf_destino_snapshot',
+        'ncm_snapshot',
         'icms_aliquota',
         'icms_valor',
         'outros_impostos_aliquota',
@@ -64,6 +71,8 @@ class VendaOperacao extends Model
         'receita_bruta' => 'decimal:2',
         'custo_unitario_snapshot' => 'decimal:4',
         'custo_total_snapshot' => 'decimal:2',
+        'regra_tributaria_id' => 'integer',
+        'regra_tributaria_versao_snapshot' => 'integer',
         'icms_aliquota' => 'decimal:2',
         'icms_valor' => 'decimal:2',
         'outros_impostos_aliquota' => 'decimal:2',
@@ -104,6 +113,11 @@ class VendaOperacao extends Model
         return $this->belongsTo(ProdutoMovimentacao::class, 'produto_movimentacao_id');
     }
 
+    public function regraTributaria(): BelongsTo
+    {
+        return $this->belongsTo(RegraTributaria::class, 'regra_tributaria_id');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
@@ -112,5 +126,26 @@ class VendaOperacao extends Model
     public function descontoAprovadoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'desconto_aprovado_por');
+    }
+
+    public function reserva(): HasOne
+    {
+        return $this->hasOne(ProdutoReserva::class, 'venda_operacao_id');
+    }
+
+    public function scopeEfetivadas(Builder $query): Builder
+    {
+        return $query->where(function (Builder $builder): void {
+            $builder
+                ->whereNull('venda_operacao_pedido_id')
+                ->orWhereHas('vendaOperacaoPedido', fn (Builder $pedido) => $pedido->whereIn('status', [
+                    VendaStatus::Confirmada->value,
+                    VendaStatus::ParcialmenteDespachada->value,
+                    VendaStatus::Despachada->value,
+                    VendaStatus::Concluida->value,
+                    VendaStatus::DevolvidaParcial->value,
+                    VendaStatus::Devolvida->value,
+                ]));
+        });
     }
 }
