@@ -56,6 +56,7 @@ RUN composer install \
     --prefer-dist \
     --optimize-autoloader \
     --classmap-authoritative \
+    && php artisan filament:assets \
     && rm -rf /root/.composer/cache
 
 FROM ${NODE_IMAGE} AS assets

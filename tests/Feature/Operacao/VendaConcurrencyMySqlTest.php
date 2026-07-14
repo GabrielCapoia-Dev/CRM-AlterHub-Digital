@@ -6,21 +6,31 @@ use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
 use App\Models\Produto;
-use App\Models\ProdutoReserva;
-use App\Models\RegraTributaria;
+use App\Models\ProdutoMovimentacao;
 use App\Models\VendaOperacaoPedido;
 use App\Services\Operacao\VendaOperacaoService;
 use App\Services\Operacao\VendaWorkflowService;
 use App\Services\Produtos\MovimentacaoEstoqueService;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Concurrency;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class VendaConcurrencyMySqlTest extends TestCase
 {
-    public function test_only_one_sale_reserves_the_last_available_unit(): void
+    protected function tearDown(): void
+    {
+        try {
+            if (isset($this->app) && DB::connection()->getDriverName() === 'mysql') {
+                Artisan::call('migrate:fresh', ['--force' => true]);
+            }
+        } finally {
+            parent::tearDown();
+        }
+    }
+
+    public function test_only_one_sale_consumes_the_last_available_unit(): void
     {
         if (DB::connection()->getDriverName() !== 'mysql') {
             $this->markTestSkipped('Este teste de concorrencia exige MySQL.');
@@ -39,14 +49,6 @@ class VendaConcurrencyMySqlTest extends TestCase
         $cliente = Cliente::query()->create([
             'razao_social' => 'Cliente concorrente',
             'uf' => 'SP',
-        ]);
-        RegraTributaria::query()->create([
-            'nome' => 'Regra concorrencia SP',
-            'uf_destino' => 'SP',
-            'versao' => 1,
-            'vigencia_inicio' => now()->subYear()->toDateString(),
-            'aliquota_icms' => 12,
-            'ativo' => true,
         ]);
         $produto = Produto::query()->create([
             'codigo_interno' => 'PROD-CONCORRENCIA',
@@ -80,17 +82,11 @@ class VendaConcurrencyMySqlTest extends TestCase
         $actorId = $actor->id;
 
         $confirmar = static function (int $pedidoId, string $chave) use ($actorId): string {
-            try {
-                app(VendaWorkflowService::class)->confirmar(
-                    VendaOperacaoPedido::query()->findOrFail($pedidoId),
-                    User::query()->findOrFail($actorId),
-                    $chave,
-                );
-
-                return 'confirmada';
-            } catch (ValidationException) {
-                return 'recusada_por_saldo';
-            }
+            return app(VendaWorkflowService::class)->confirmar(
+                VendaOperacaoPedido::query()->findOrFail($pedidoId),
+                User::query()->findOrFail($actorId),
+                $chave,
+            )->status;
         };
 
         $resultados = Concurrency::driver('process')->run([
@@ -100,10 +96,11 @@ class VendaConcurrencyMySqlTest extends TestCase
 
         sort($resultados);
 
-        $this->assertSame(['confirmada', 'recusada_por_saldo'], $resultados);
-        $this->assertSame(1.0, (float) $produto->fresh()->estoque_reservado);
-        $this->assertSame(1, ProdutoReserva::query()->where('status', 'ativa')->count());
+        $this->assertSame([VendaStatus::Confirmada->value, VendaStatus::PendenteAprovacao->value], $resultados);
+        $this->assertSame(0.0, (float) $produto->fresh()->estoque_fisico);
+        $this->assertSame(0.0, (float) $produto->fresh()->estoque_reservado);
+        $this->assertSame(1, ProdutoMovimentacao::query()->where('origem_tipo', 'venda')->count());
         $this->assertSame(1, VendaOperacaoPedido::query()->where('status', VendaStatus::Confirmada->value)->count());
-        $this->assertSame(1, VendaOperacaoPedido::query()->where('status', VendaStatus::Rascunho->value)->count());
+        $this->assertSame(1, VendaOperacaoPedido::query()->where('status', VendaStatus::PendenteAprovacao->value)->count());
     }
 }

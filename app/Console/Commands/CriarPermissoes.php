@@ -32,7 +32,7 @@ class CriarPermissoes extends Command
             }
         }
 
-        $allPermissions = collect(PermissoesEnum::cases())
+        $allPermissions = collect(PermissoesEnum::activeCases())
             ->map(fn (PermissoesEnum $permissao): string => $permissao->value)
             ->all();
 
@@ -102,7 +102,6 @@ class CriarPermissoes extends Command
             PermissoesEnum::ListarVendasOperacao->value,
             PermissoesEnum::CriarVendasOperacao->value,
             PermissoesEnum::EditarVendasOperacao->value,
-            PermissoesEnum::ListarTransportadoras->value,
         ];
     }
 
@@ -111,7 +110,7 @@ class CriarPermissoes extends Command
      */
     protected function adminPermissions(): array
     {
-        return collect(PermissoesEnum::cases())
+        return collect(PermissoesEnum::activeCases())
             ->map(fn (PermissoesEnum $permissao): string => $permissao->value)
             ->reject(fn (string $permission): bool => in_array($permission, [
                 PermissoesEnum::AplicarPermissoes->value,
@@ -135,7 +134,6 @@ class CriarPermissoes extends Command
             PermissoesEnum::ListarDespesasOperacionais->value,
             PermissoesEnum::CriarDespesasOperacionais->value,
             PermissoesEnum::EditarDespesasOperacionais->value,
-            PermissoesEnum::ListarVisaoConsolidadaOperacao->value,
             PermissoesEnum::ListarResultadoOperacao->value,
             PermissoesEnum::ListarLucroPorProduto->value,
             PermissoesEnum::ListarDashboardBI->value,

@@ -135,13 +135,20 @@ class MovimentacaoEstoqueService
         User $user,
         string $justificativa,
         string $idempotencyKey,
+        bool $permitirOrigemGerenciada = false,
     ): ProdutoMovimentacao {
-        return DB::transaction(function () use ($movimentacao, $user, $justificativa, $idempotencyKey): ProdutoMovimentacao {
+        return DB::transaction(function () use ($movimentacao, $user, $justificativa, $idempotencyKey, $permitirOrigemGerenciada): ProdutoMovimentacao {
+            $original = ProdutoMovimentacao::query()->lockForUpdate()->findOrFail($movimentacao->id);
+
+            if (! $permitirOrigemGerenciada && ! $this->podeEstornarDiretamente($original)) {
+                throw ValidationException::withMessages([
+                    'movimentacao' => 'Esta movimentacao pertence a um fluxo de dominio e deve ser estornada pela operacao de origem.',
+                ]);
+            }
+
             if ($existing = $this->findIdempotentProdutoMovement($idempotencyKey)) {
                 return $existing;
             }
-
-            $original = ProdutoMovimentacao::query()->lockForUpdate()->findOrFail($movimentacao->id);
 
             if ($original->estornada_em || $original->estorno()->exists()) {
                 throw ValidationException::withMessages([
@@ -177,13 +184,20 @@ class MovimentacaoEstoqueService
         User $user,
         string $justificativa,
         string $idempotencyKey,
+        bool $permitirOrigemGerenciada = false,
     ): InsumoMovimentacao {
-        return DB::transaction(function () use ($movimentacao, $user, $justificativa, $idempotencyKey): InsumoMovimentacao {
+        return DB::transaction(function () use ($movimentacao, $user, $justificativa, $idempotencyKey, $permitirOrigemGerenciada): InsumoMovimentacao {
+            $original = InsumoMovimentacao::query()->lockForUpdate()->findOrFail($movimentacao->id);
+
+            if (! $permitirOrigemGerenciada && ! $this->podeEstornarDiretamente($original)) {
+                throw ValidationException::withMessages([
+                    'movimentacao' => 'Esta movimentacao pertence a um fluxo de dominio e deve ser estornada pela operacao de origem.',
+                ]);
+            }
+
             if ($existing = $this->findIdempotentInsumoMovement($idempotencyKey)) {
                 return $existing;
             }
-
-            $original = InsumoMovimentacao::query()->lockForUpdate()->findOrFail($movimentacao->id);
 
             if ($original->estornada_em || $original->estorno()->exists()) {
                 throw ValidationException::withMessages([
@@ -212,6 +226,11 @@ class MovimentacaoEstoqueService
 
             return $estorno;
         });
+    }
+
+    public function podeEstornarDiretamente(ProdutoMovimentacao|InsumoMovimentacao $movimentacao): bool
+    {
+        return in_array($movimentacao->origem_tipo, [null, '', 'manual'], true);
     }
 
     protected function validate(array $data, float $saldoAnterior): void

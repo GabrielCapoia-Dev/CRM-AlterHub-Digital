@@ -5,6 +5,7 @@ namespace App\Filament\Resources\OportunidadeInteracoes;
 use App\Filament\Resources\OportunidadeInteracoes\Pages\ManageOportunidadeInteracoes;
 use App\Models\OportunidadeInteracao;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DateTimePicker;
@@ -27,7 +28,7 @@ class OportunidadeInteracaoResource extends Resource
 {
     protected static ?string $model = OportunidadeInteracao::class;
 
-    protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
     protected static ?string $modelLabel = 'Interação da oportunidade';
 
@@ -163,8 +164,14 @@ class OportunidadeInteracaoResource extends Resource
             ->defaultSort('ocorreu_em', 'desc')
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm')
             ->recordActions([
-                EditAction::make()->label('Editar'),
-                DeleteAction::make()->label('Excluir'),
+                ActionGroup::make([
+                    EditAction::make()->label('Editar'),
+                    DeleteAction::make()->label('Excluir'),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent);
     }
 

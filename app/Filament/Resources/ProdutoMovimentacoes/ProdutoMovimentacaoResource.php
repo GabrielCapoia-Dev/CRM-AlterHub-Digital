@@ -10,12 +10,13 @@ use App\Services\Produtos\MovimentacaoEstoqueService;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -38,7 +39,7 @@ class ProdutoMovimentacaoResource extends Resource
 {
     protected static ?string $model = ProdutoMovimentacao::class;
 
-    protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
     protected static ?string $navigationLabel = 'Movimentacoes';
 
@@ -48,9 +49,14 @@ class ProdutoMovimentacaoResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Movimentacoes de produtos';
 
-    protected static string | UnitEnum | null $navigationGroup = 'Estoque';
+    protected static string|UnitEnum|null $navigationGroup = 'Estoque';
 
     protected static ?int $navigationSort = 2;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -253,7 +259,7 @@ class ProdutoMovimentacaoResource extends Resource
                                 $value = (float) $state;
                                 $prefix = $value > 0 ? '+' : '';
 
-                                return $prefix . static::formatQuantity($value);
+                                return $prefix.static::formatQuantity($value);
                             })
                             ->extraAttributes(['class' => 'crm-list-field crm-list-impact'], merge: true),
 
@@ -302,32 +308,40 @@ class ProdutoMovimentacaoResource extends Resource
             ])
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--movement')
             ->recordActions([
-                ViewAction::make()
-                    ->label('Visualizar')
-                    ->slideOver(),
-                Action::make('estornar')
-                    ->label('Estornar')
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalDescription('O razao e imutavel. Sera criada uma movimentacao compensatoria vinculada a esta.')
-                    ->schema([
-                        Textarea::make('justificativa')
-                            ->label('Justificativa')
-                            ->required()
-                            ->minLength(10),
-                    ])
-                    ->visible(fn (ProdutoMovimentacao $record): bool => ! $record->estornada_em && ! $record->estorno_de_id)
-                    ->authorize(fn (): bool => auth()->user()?->can('create', ProdutoMovimentacao::class) ?? false)
-                    ->action(function (ProdutoMovimentacao $record, array $data): void {
-                        app(MovimentacaoEstoqueService::class)->estornarProduto(
-                            $record,
-                            auth()->user(),
-                            $data['justificativa'],
-                            "estorno:produto:{$record->id}",
-                        );
-                        Notification::make()->title('Estorno registrado no razao')->success()->send();
-                    }),
+                ActionGroup::make([
+                    ViewAction::make()
+                        ->label('Visualizar')
+                        ->slideOver(),
+                    Action::make('estornar')
+                        ->label('Estornar')
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalDescription('O razao e imutavel. Sera criada uma movimentacao compensatoria vinculada a esta.')
+                        ->schema([
+                            Textarea::make('justificativa')
+                                ->label('Justificativa')
+                                ->required()
+                                ->minLength(10),
+                        ])
+                        ->visible(fn (ProdutoMovimentacao $record): bool => ! $record->estornada_em
+                            && ! $record->estorno_de_id
+                            && app(MovimentacaoEstoqueService::class)->podeEstornarDiretamente($record))
+                        ->authorize(fn (): bool => auth()->user()?->can('create', ProdutoMovimentacao::class) ?? false)
+                        ->action(function (ProdutoMovimentacao $record, array $data): void {
+                            app(MovimentacaoEstoqueService::class)->estornarProduto(
+                                $record,
+                                auth()->user(),
+                                $data['justificativa'],
+                                "estorno:produto:{$record->id}",
+                            );
+                            Notification::make()->title('Estorno registrado no razao')->success()->send();
+                        }),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent);
     }
 
@@ -405,13 +419,13 @@ class ProdutoMovimentacaoResource extends Resource
                 ? static::formatCurrency((float) $produto->preco_minimo)
                 : 'Nao definido',
             'status' => Produto::statusOptions()[$produto->status] ?? 'Nao definido',
-            'quantidade' => trim(NumericFormat::decimal($quantidade) . ' ' . $unidade),
-            'quantidade_financeira' => trim(NumericFormat::decimal($quantidadeFinanceira) . ' ' . $unidade),
+            'quantidade' => trim(NumericFormat::decimal($quantidade).' '.$unidade),
+            'quantidade_financeira' => trim(NumericFormat::decimal($quantidadeFinanceira).' '.$unidade),
             'impacto_total' => static::formatCurrency($impactoTotal),
-            'impacto_formula' => NumericFormat::decimal($quantidadeFinanceira) . ' x ' . static::formatCurrency($custoBase),
+            'impacto_formula' => NumericFormat::decimal($quantidadeFinanceira).' x '.static::formatCurrency($custoBase),
             'estoque_atual' => $produto->estoqueAtual() === null
                 ? 'Sem historico'
-                : trim(NumericFormat::decimal($produto->estoqueAtual()) . ' ' . $unidade),
+                : trim(NumericFormat::decimal($produto->estoqueAtual()).' '.$unidade),
         ];
     }
 

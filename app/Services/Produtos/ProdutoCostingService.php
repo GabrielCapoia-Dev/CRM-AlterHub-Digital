@@ -2,7 +2,6 @@
 
 namespace App\Services\Produtos;
 
-use App\Enum\ProdutoClassificacao;
 use App\Models\Produto;
 use App\Models\ProdutoComponenteCusto;
 use App\Models\ProdutoInsumo;
@@ -17,8 +16,7 @@ class ProdutoCostingService
 {
     public function __construct(
         protected ProdutoPricingCalculator $calculator,
-    ) {
-    }
+    ) {}
 
     public function formData(Produto $produto, bool $hideGuidedComponents = true): array
     {
@@ -124,31 +122,6 @@ class ProdutoCostingService
     public function savePreparedProduct(Produto $produto, array $prepared): Produto
     {
         return DB::transaction(function () use ($produto, $prepared): Produto {
-            $insumos = collect($prepared['produtoInsumos'] ?? [])
-                ->filter(fn (mixed $item): bool => is_array($item) && filled($item['insumo_id'] ?? null));
-            $classificacaoPreparada = $prepared['classificacao'] ?? ProdutoClassificacao::Revenda;
-            $classificacao = $classificacaoPreparada instanceof ProdutoClassificacao
-                ? $classificacaoPreparada->value
-                : $classificacaoPreparada;
-
-            if ($insumos->isEmpty() && $classificacao === ProdutoClassificacao::Fabricado->value) {
-                throw ValidationException::withMessages([
-                    'produtoInsumos' => 'Produto fabricado exige uma composicao valida de insumos.',
-                ]);
-            }
-
-            foreach ($insumos as $index => $item) {
-                if ((float) ($item['quantidade'] ?? 0) <= 0) {
-                    throw ValidationException::withMessages([
-                        "produtoInsumos.{$index}.quantidade" => 'A quantidade da BOM deve ser maior que zero na unidade-base do insumo.',
-                    ]);
-                }
-            }
-
-            $prepared['classificacao'] = $insumos->isNotEmpty()
-                ? ProdutoClassificacao::Fabricado->value
-                : ProdutoClassificacao::Revenda->value;
-
             $produto->fill(Arr::except($prepared, [
                 'produtoInsumos',
                 'produtoComponentesCusto',

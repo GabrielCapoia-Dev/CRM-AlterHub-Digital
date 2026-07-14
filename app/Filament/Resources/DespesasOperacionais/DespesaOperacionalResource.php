@@ -2,18 +2,20 @@
 
 namespace App\Filament\Resources\DespesasOperacionais;
 
+use App\Filament\Clusters\AcompanhamentoCluster;
 use App\Filament\Resources\DespesasOperacionais\Pages\ManageDespesasOperacionais;
 use App\Models\DespesaOperacional;
 use App\Models\Produto;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -25,7 +27,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use UnitEnum;
 
 class DespesaOperacionalResource extends Resource
 {
@@ -39,11 +40,11 @@ class DespesaOperacionalResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Despesas operacionais';
 
-    public static ?string $slug = 'operacao/despesas';
+    public static ?string $slug = 'despesas';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Operacao';
+    protected static ?string $cluster = AcompanhamentoCluster::class;
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 4;
 
     public static function form(Schema $schema): Schema
     {
@@ -214,8 +215,14 @@ class DespesaOperacionalResource extends Resource
             ])
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--operation')
             ->recordActions([
-                static::configureEditAction(EditAction::make()->label('Editar')),
-                DeleteAction::make()->label('Excluir'),
+                ActionGroup::make([
+                    static::configureEditAction(EditAction::make()->label('Editar')),
+                    DeleteAction::make()->label('Excluir'),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent);
     }
 

@@ -9,12 +9,13 @@ use App\Services\Produtos\MovimentacaoEstoqueService;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -37,7 +38,7 @@ class InsumoMovimentacaoResource extends Resource
 {
     protected static ?string $model = InsumoMovimentacao::class;
 
-    protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
     protected static ?string $navigationLabel = 'Movimentacoes';
 
@@ -47,9 +48,14 @@ class InsumoMovimentacaoResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Movimentacoes de insumos';
 
-    protected static string | UnitEnum | null $navigationGroup = 'Estoque';
+    protected static string|UnitEnum|null $navigationGroup = 'Estoque';
 
     protected static ?int $navigationSort = 6;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -262,7 +268,7 @@ class InsumoMovimentacaoResource extends Resource
                                 $value = (float) $state;
                                 $prefix = $value > 0 ? '+' : '';
 
-                                return $prefix . static::formatQuantity($value);
+                                return $prefix.static::formatQuantity($value);
                             })
                             ->extraAttributes(['class' => 'crm-list-field crm-list-impact'], merge: true),
 
@@ -303,32 +309,40 @@ class InsumoMovimentacaoResource extends Resource
             ])
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--movement')
             ->recordActions([
-                ViewAction::make()
-                    ->label('Visualizar')
-                    ->slideOver(),
-                Action::make('estornar')
-                    ->label('Estornar')
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalDescription('O razao e imutavel. Sera criada uma movimentacao compensatoria vinculada a esta.')
-                    ->schema([
-                        Textarea::make('justificativa')
-                            ->label('Justificativa')
-                            ->required()
-                            ->minLength(10),
-                    ])
-                    ->visible(fn (InsumoMovimentacao $record): bool => ! $record->estornada_em && ! $record->estorno_de_id)
-                    ->authorize(fn (): bool => auth()->user()?->can('create', InsumoMovimentacao::class) ?? false)
-                    ->action(function (InsumoMovimentacao $record, array $data): void {
-                        app(MovimentacaoEstoqueService::class)->estornarInsumo(
-                            $record,
-                            auth()->user(),
-                            $data['justificativa'],
-                            "estorno:insumo:{$record->id}",
-                        );
-                        Notification::make()->title('Estorno registrado no razao')->success()->send();
-                    }),
+                ActionGroup::make([
+                    ViewAction::make()
+                        ->label('Visualizar')
+                        ->slideOver(),
+                    Action::make('estornar')
+                        ->label('Estornar')
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalDescription('O razao e imutavel. Sera criada uma movimentacao compensatoria vinculada a esta.')
+                        ->schema([
+                            Textarea::make('justificativa')
+                                ->label('Justificativa')
+                                ->required()
+                                ->minLength(10),
+                        ])
+                        ->visible(fn (InsumoMovimentacao $record): bool => ! $record->estornada_em
+                            && ! $record->estorno_de_id
+                            && app(MovimentacaoEstoqueService::class)->podeEstornarDiretamente($record))
+                        ->authorize(fn (): bool => auth()->user()?->can('create', InsumoMovimentacao::class) ?? false)
+                        ->action(function (InsumoMovimentacao $record, array $data): void {
+                            app(MovimentacaoEstoqueService::class)->estornarInsumo(
+                                $record,
+                                auth()->user(),
+                                $data['justificativa'],
+                                "estorno:insumo:{$record->id}",
+                            );
+                            Notification::make()->title('Estorno registrado no razao')->success()->send();
+                        }),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent);
     }
 
@@ -387,7 +401,7 @@ class InsumoMovimentacaoResource extends Resource
         }
 
         $origemMoeda = $insumo->origem === 'importado'
-            ? trim(($insumo->moeda_origem ?? '-') . ' ' . NumericFormat::decimal($insumo->custo_moeda_origem ?? 0))
+            ? trim(($insumo->moeda_origem ?? '-').' '.NumericFormat::decimal($insumo->custo_moeda_origem ?? 0))
             : static::formatCurrency((float) ($insumo->custo_referencia ?? 0));
         $quantidade = (float) ($get('quantidade') ?? 0);
         $tipo = $get('tipo') ?? 'entrada';
@@ -406,13 +420,13 @@ class InsumoMovimentacaoResource extends Resource
                 : 'Nao se aplica',
             'custo_efetivo' => static::formatCurrency($insumo->effectiveCostAmount()),
             'custo_final' => static::formatCurrency($custoFinalUnitario),
-            'quantidade' => trim(NumericFormat::decimal($quantidade) . ' ' . $unidade),
-            'quantidade_financeira' => trim(NumericFormat::decimal($quantidadeFinanceira) . ' ' . $unidade),
+            'quantidade' => trim(NumericFormat::decimal($quantidade).' '.$unidade),
+            'quantidade_financeira' => trim(NumericFormat::decimal($quantidadeFinanceira).' '.$unidade),
             'impacto_total' => static::formatCurrency($impactoTotal),
-            'impacto_formula' => NumericFormat::decimal($quantidadeFinanceira) . ' x ' . static::formatCurrency($custoFinalUnitario),
+            'impacto_formula' => NumericFormat::decimal($quantidadeFinanceira).' x '.static::formatCurrency($custoFinalUnitario),
             'estoque_atual' => $insumo->estoqueAtual() === null
                 ? 'Sem historico'
-                : trim(NumericFormat::decimal($insumo->estoqueAtual()) . ' ' . $unidade),
+                : trim(NumericFormat::decimal($insumo->estoqueAtual()).' '.$unidade),
             'fatores' => static::buildFinancialFactorLines($insumo),
         ];
     }

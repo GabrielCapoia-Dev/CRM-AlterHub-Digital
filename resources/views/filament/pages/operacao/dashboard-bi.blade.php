@@ -10,7 +10,7 @@
             <div class="crm-resource-hero__inner">
                 <div class="crm-resource-hero__content">
                     <p class="crm-resource-hero__eyebrow">Operacao</p>
-                    <h2 class="crm-resource-hero__title">Dashboard BI</h2>
+                    <h2 class="crm-resource-hero__title">Dashboard</h2>
                 </div>
 
                 <p class="crm-resource-hero__description">
@@ -80,7 +80,7 @@
 
         @if (! ($snapshot['ok'] ?? false))
             <section class="oa-panel oa-panel--alert">
-                {{ $snapshot['error'] ?? 'Nao foi possivel carregar o dashboard BI.' }}
+                {{ $snapshot['error'] ?? 'Nao foi possivel carregar o dashboard.' }}
             </section>
         @else
             <section class="oa-kpi-grid">

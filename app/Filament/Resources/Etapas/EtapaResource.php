@@ -6,12 +6,13 @@ use App\Enum\EtapaTipo;
 use App\Filament\Resources\Etapas\Pages\ManageEtapas;
 use App\Models\Etapa;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -29,7 +30,7 @@ class EtapaResource extends Resource
 {
     protected static ?string $model = Etapa::class;
 
-    protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedChartBar;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;
 
     protected static ?string $navigationLabel = 'Etapas';
 
@@ -41,9 +42,14 @@ class EtapaResource extends Resource
 
     public static ?string $slug = 'etapas';
 
-    protected static string | UnitEnum | null $navigationGroup = 'Comercial';
+    protected static string|UnitEnum|null $navigationGroup = 'Comercial';
 
     protected static ?int $navigationSort = 2;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -151,8 +157,14 @@ class EtapaResource extends Resource
             ->defaultSort('ordem')
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--registry')
             ->recordActions([
-                EditAction::make()->label('Editar'),
-                DeleteAction::make()->label('Excluir'),
+                ActionGroup::make([
+                    EditAction::make()->label('Editar'),
+                    DeleteAction::make()->label('Excluir'),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent)
             ->toolbarActions([
                 BulkActionGroup::make([

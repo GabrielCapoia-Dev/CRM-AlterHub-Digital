@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Enum\PermissoesEnum;
 use App\Models\Acesso\User;
 use App\Services\Acesso\RoleService;
 use App\Services\Acesso\UserService;
@@ -22,7 +23,7 @@ class UserForm
 {
     public static function configure(Schema $schema): Schema
     {
-        /** @var \App\Models\Acesso\User */
+        /** @var User */
         $user = Auth::user();
         $userService = app(UserService::class);
         $roleService = app(RoleService::class);
@@ -54,18 +55,18 @@ class UserForm
                     'max:30',
                     PasswordRule::min(8)->mixedCase()->numbers()->symbols(),
                 ])
-                ->dehydrateStateUsing(fn($state) => filled($state) ? Hash::make($state) : null)
-                ->dehydrated(fn($state) => filled($state))
-                ->required(fn(string $context): bool => $context === 'create')
+                ->dehydrateStateUsing(fn ($state) => filled($state) ? Hash::make($state) : null)
+                ->dehydrated(fn ($state) => filled($state))
+                ->required(fn (string $context): bool => $context === 'create')
                 ->validationMessages(['max' => 'A senha deve ter no máximo 30 caracteres.']),
 
             Select::make('role')
                 ->label('Nivel de acesso')
                 ->helperText('Necessário para delimitar as ações do usuário no sistema.')
-                ->relationship('roles', 'name', fn(Builder $query) => $userService->opcoesDeRoles($query, $user))
+                ->relationship('roles', 'name', fn (Builder $query) => $userService->opcoesDeRoles($query, $user))
                 ->preload()
                 ->required()
-                ->disabled(fn(?User $record, string $context) => $userService->desabilitarCampoRole($user, $record, $context)),
+                ->disabled(fn (?User $record, string $context) => $userService->desabilitarCampoRole($user, $record, $context)),
 
             Toggle::make('email_approved')
                 ->label('Verificação de acesso')
@@ -75,22 +76,31 @@ class UserForm
                 ->onIcon('heroicon-s-check')
                 ->offIcon('heroicon-s-x-mark')
                 ->default(true)
-                ->visible(fn(?User $record, string $context) => $userService->podeVerToggleAprovacaoEmail($user, $record, $context)),
+                ->visible(fn (?User $record, string $context) => $userService->podeVerToggleAprovacaoEmail($user, $record, $context)),
 
             Toggle::make('usar_permissoes_extras')
                 ->label('Permissões adicionais')
                 ->helperText('Ative para conceder permissões específicas além do nível de acesso.')
-                ->default(fn(?User $record) => $record?->getDirectPermissions()->isNotEmpty())
+                ->default(fn (?User $record) => $record?->getDirectPermissions()->isNotEmpty())
                 ->onColor('warning')
                 ->offColor('info')
                 ->onIcon('heroicon-s-lock-open')
                 ->offIcon('heroicon-s-lock-closed')
-                ->disabled(fn() => ! $roleService->ehSuperAdmin($user))
+                ->disabled(fn () => ! $roleService->ehSuperAdmin($user))
                 ->visible(function (?User $record) use ($roleService, $user) {
-                    if (! $roleService->ehSuperAdmin($user)) return false;
-                    if (! $record) return true;
-                    if ($record->id === $user->id) return false;
-                    if ($roleService->ehSuperAdmin($record)) return false;
+                    if (! $roleService->ehSuperAdmin($user)) {
+                        return false;
+                    }
+                    if (! $record) {
+                        return true;
+                    }
+                    if ($record->id === $user->id) {
+                        return false;
+                    }
+                    if ($roleService->ehSuperAdmin($record)) {
+                        return false;
+                    }
+
                     return true;
                 })
                 ->live(),
@@ -99,26 +109,35 @@ class UserForm
                 ->collapsible()
                 ->columnSpanFull()
                 ->description('Permissões herdadas do nível de acesso já vêm marcadas.')
-                ->visible(fn(Get $get) => $get('usar_permissoes_extras') === true)
+                ->visible(fn (Get $get) => $get('usar_permissoes_extras') === true)
                 ->schema(function (?User $record) use ($roleService, $user) {
-                    if (! $user || ! $roleService->ehSuperAdmin($user)) return [];
-                    if ($record && $record->id === $user->id) return [];
-                    if ($record && $roleService->ehSuperAdmin($record)) return [];
+                    if (! $user || ! $roleService->ehSuperAdmin($user)) {
+                        return [];
+                    }
+                    if ($record && $record->id === $user->id) {
+                        return [];
+                    }
+                    if ($record && $roleService->ehSuperAdmin($record)) {
+                        return [];
+                    }
 
-                    $todasPermissoes = Permission::orderBy('name')->get();
+                    $todasPermissoes = Permission::query()
+                        ->whereNotIn('name', PermissoesEnum::disabledValues())
+                        ->orderBy('name')
+                        ->get();
 
                     $permissoesDaRole = $record?->roles
-                        ->flatMap(fn($role) => $role->permissions)
+                        ->flatMap(fn ($role) => $role->permissions)
                         ->pluck('name')
                         ->toArray() ?? [];
 
                     $permissoesDiretas = $record?->getDirectPermissions()->pluck('name')->toArray() ?? [];
 
                     return $todasPermissoes
-                        ->groupBy(fn($perm) => explode(' ', $perm->name)[0])
+                        ->groupBy(fn ($perm) => explode(' ', $perm->name)[0])
                         ->map(function ($permissoes, $grupo) use ($permissoesDaRole, $permissoesDiretas) {
                             $permissoesDoGrupoNaRole = collect($permissoes)
-                                ->filter(fn($p) => in_array($p->name, $permissoesDaRole))
+                                ->filter(fn ($p) => in_array($p->name, $permissoesDaRole))
                                 ->pluck('name')
                                 ->toArray();
 
@@ -126,7 +145,7 @@ class UserForm
                                 ->label($grupo)
                                 ->options($permissoes->pluck('name', 'name')->toArray())
                                 ->columns(3)
-                                ->helperText(! empty($permissoesDoGrupoNaRole) ? '🔒 Herança da role: ' . implode(', ', $permissoesDoGrupoNaRole) : '')
+                                ->helperText(! empty($permissoesDoGrupoNaRole) ? '🔒 Herança da role: '.implode(', ', $permissoesDoGrupoNaRole) : '')
                                 ->afterStateHydrated(function (callable $set) use ($grupo, $permissoes, $permissoesDaRole, $permissoesDiretas) {
                                     $set("permissions_{$grupo}", collect($permissoesDaRole)
                                         ->merge($permissoesDiretas)

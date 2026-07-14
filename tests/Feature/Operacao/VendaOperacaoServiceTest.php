@@ -193,7 +193,29 @@ class VendaOperacaoServiceTest extends TestCase
         $this->assertSame(10.0, (float) $produto->fresh()->estoqueAtual());
     }
 
-    public function test_approve_pending_sale_reserves_stock_and_marks_confirmed(): void
+    public function test_insufficient_stock_creates_pending_sale_with_auditable_reason(): void
+    {
+        $cliente = $this->createCliente();
+        $produto = $this->createProdutoComEstoque('PROD-PEND-STOCK', 1, 5, 20, 10);
+
+        $pedido = app(VendaOperacaoService::class)->createPedido([
+            'cliente_id' => $cliente->id,
+            'data_venda' => now()->toDateString(),
+            'itens' => [[
+                'produto_id' => $produto->id,
+                'quantidade' => 2,
+                'preco_unitario' => 20,
+            ]],
+        ]);
+
+        $this->assertSame(VendaOperacaoPedido::STATUS_PENDENTE_APROVACAO, $pedido->status);
+        $this->assertArrayHasKey('estoque', $pedido->motivos_aprovacao);
+        $this->assertSame(1.0, (float) $pedido->motivos_aprovacao['estoque'][0]['deficit']);
+        $this->assertNull($pedido->vendasOperacao->first()->produto_movimentacao_id);
+        $this->assertSame(1.0, (float) $produto->fresh()->estoqueAtual());
+    }
+
+    public function test_approve_pending_sale_deducts_stock_and_marks_confirmed(): void
     {
         $cliente = $this->createCliente();
         $produto = $this->createProdutoComEstoque('PROD-APR-01', 10, 5, 20, 15);
@@ -216,17 +238,17 @@ class VendaOperacaoServiceTest extends TestCase
 
         $this->assertSame(VendaOperacaoPedido::STATUS_ATIVA, $approved->status);
         $this->assertSame($approver->id, $approved->aprovado_por);
-        $this->assertNull($linha->produto_movimentacao_id);
+        $this->assertNotNull($linha->produto_movimentacao_id);
         $this->assertSame($approver->id, $linha->desconto_aprovado_por);
-        $this->assertSame(10.0, (float) $produto->fresh()->estoqueAtual());
-        $this->assertSame(2.0, (float) $produto->fresh()->estoque_reservado);
+        $this->assertSame(8.0, (float) $produto->fresh()->estoqueAtual());
+        $this->assertSame(0.0, (float) $produto->fresh()->estoque_reservado);
 
         $historicos = $approved->historicos()->count();
         $repeated = app(VendaOperacaoService::class)->approve($approved, $approver);
 
         $this->assertSame($approved->id, $repeated->id);
-        $this->assertSame(2.0, (float) $produto->fresh()->estoque_reservado);
-        $this->assertSame(1, $linha->reserva()->count());
+        $this->assertSame(8.0, (float) $produto->fresh()->estoqueAtual());
+        $this->assertSame(0, $linha->reserva()->count());
         $this->assertSame($historicos, $repeated->historicos()->count());
     }
 

@@ -7,6 +7,7 @@ use App\Models\OportunidadeProduto;
 use App\Models\Produto;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
@@ -29,7 +30,7 @@ class OportunidadeProdutoResource extends Resource
 {
     protected static ?string $model = OportunidadeProduto::class;
 
-    protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedTag;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTag;
 
     protected static ?string $modelLabel = 'Produto da oportunidade';
 
@@ -208,8 +209,14 @@ class OportunidadeProdutoResource extends Resource
             ->defaultSort('updated_at', 'desc')
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm')
             ->recordActions([
-                EditAction::make()->label('Editar'),
-                DeleteAction::make()->label('Excluir'),
+                ActionGroup::make([
+                    EditAction::make()->label('Editar'),
+                    DeleteAction::make()->label('Excluir'),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent);
     }
 

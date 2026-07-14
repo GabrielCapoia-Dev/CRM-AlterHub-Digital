@@ -5,6 +5,7 @@ namespace App\Filament\Resources\OportunidadeMovimentacoes;
 use App\Filament\Resources\OportunidadeMovimentacoes\Pages\ManageOportunidadeMovimentacoes;
 use App\Models\OportunidadeMovimentacao;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
@@ -25,7 +26,7 @@ class OportunidadeMovimentacaoResource extends Resource
 {
     protected static ?string $model = OportunidadeMovimentacao::class;
 
-    protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
     protected static ?string $modelLabel = 'Movimentação da oportunidade';
 
@@ -168,9 +169,15 @@ class OportunidadeMovimentacaoResource extends Resource
             ->defaultSort('movido_em', 'desc')
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm')
             ->recordActions([
-                ViewAction::make()
-                    ->label('Visualizar')
-                    ->slideOver(),
+                ActionGroup::make([
+                    ViewAction::make()
+                        ->label('Visualizar')
+                        ->slideOver(),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent);
     }
 

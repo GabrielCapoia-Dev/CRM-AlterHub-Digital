@@ -6,6 +6,7 @@ use App\Models\Acesso\User;
 use App\Models\Produto;
 use App\Models\ProdutoMovimentacao;
 use App\Models\ProdutoReserva;
+use App\Models\Produtos\Insumo;
 use App\Models\VendaOperacao;
 use App\Models\VendaOperacaoPedido;
 use Illuminate\Support\Collection;
@@ -17,6 +18,172 @@ class EstoqueService
     public function __construct(
         protected MovimentacaoEstoqueService $movimentacaoService,
     ) {}
+
+    /**
+     * @return list<array{produto_id:int,produto:string,solicitado:float,disponivel:float,deficit:float}>
+     */
+    public function faltasVenda(VendaOperacaoPedido $pedido, bool $bloquear = true): array
+    {
+        return DB::transaction(function () use ($pedido, $bloquear): array {
+            $linhasQuery = VendaOperacao::query()
+                ->where('venda_operacao_pedido_id', $pedido->id)
+                ->whereNull('produto_movimentacao_id')
+                ->orderBy('produto_id')
+                ->orderBy('id');
+
+            if ($bloquear) {
+                $linhasQuery->lockForUpdate();
+            }
+
+            $linhas = $linhasQuery->get();
+            $necessidades = $linhas
+                ->groupBy('produto_id')
+                ->map(fn (Collection $items): float => round((float) $items->sum('quantidade'), 4));
+
+            if ($necessidades->isEmpty()) {
+                return [];
+            }
+
+            $produtosQuery = Produto::query()
+                ->whereKey($necessidades->keys()->all())
+                ->orderBy('id');
+
+            if ($bloquear) {
+                $produtosQuery->lockForUpdate();
+            }
+
+            $produtos = $produtosQuery->get()->keyBy('id');
+            $faltas = [];
+
+            foreach ($necessidades as $produtoId => $solicitado) {
+                $produto = $produtos->get((int) $produtoId);
+                $disponivel = $produto?->estoqueDisponivel() ?? 0.0;
+
+                if ($produto && $produto->status === 'ativo' && $produto->ativo && $solicitado <= $disponivel) {
+                    continue;
+                }
+
+                $faltas[] = [
+                    'produto_id' => (int) $produtoId,
+                    'produto' => $produto?->nome ?? 'Produto indisponível',
+                    'solicitado' => round($solicitado, 4),
+                    'disponivel' => round($disponivel, 4),
+                    'deficit' => round(max(0, $solicitado - $disponivel), 4),
+                ];
+            }
+
+            return $faltas;
+        });
+    }
+
+    public function efetivarVenda(
+        VendaOperacaoPedido $pedido,
+        User $actor,
+        string $idempotencyKey,
+    ): VendaOperacaoPedido {
+        return DB::transaction(function () use ($pedido, $actor, $idempotencyKey): VendaOperacaoPedido {
+            $pedido = VendaOperacaoPedido::query()->lockForUpdate()->findOrFail($pedido->id);
+            $faltas = $this->faltasVenda($pedido, bloquear: true);
+
+            if ($faltas !== []) {
+                throw ValidationException::withMessages([
+                    'estoque' => collect($faltas)
+                        ->map(fn (array $falta): string => sprintf(
+                            '%s: solicitado %s, disponível %s.',
+                            $falta['produto'],
+                            number_format($falta['solicitado'], 4, ',', '.'),
+                            number_format($falta['disponivel'], 4, ',', '.'),
+                        ))
+                        ->implode(' '),
+                ]);
+            }
+
+            $linhas = VendaOperacao::query()
+                ->where('venda_operacao_pedido_id', $pedido->id)
+                ->orderBy('produto_id')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($linhas->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'itens' => 'A venda precisa ter ao menos um item antes da confirmação.',
+                ]);
+            }
+
+            foreach ($linhas as $linha) {
+                if ($linha->produto_movimentacao_id) {
+                    continue;
+                }
+
+                $movimentacao = $this->movimentacaoService->createForProduto([
+                    'produto_id' => $linha->produto_id,
+                    'tipo' => 'saida',
+                    'quantidade' => (float) $linha->quantidade,
+                    'motivo' => 'Venda confirmada',
+                    'origem_tipo' => 'venda',
+                    'origem_id' => $linha->id,
+                    'idempotency_key' => "{$idempotencyKey}:item:{$linha->id}",
+                    'documento_referencia' => $pedido->codigo ?: "VENDA-{$pedido->id}",
+                    'origem_destino' => 'Venda operacional',
+                    'destino' => $linha->cliente_nome,
+                    'realizado_em' => now(),
+                ], $actor);
+
+                $linha->forceFill([
+                    'produto_movimentacao_id' => $movimentacao->id,
+                ])->save();
+            }
+
+            return $pedido->fresh(['vendasOperacao.produtoMovimentacao']);
+        });
+    }
+
+    public function estornarVenda(
+        VendaOperacaoPedido $pedido,
+        User $actor,
+        string $justificativa,
+        bool $desvincular = false,
+    ): int {
+        return DB::transaction(function () use ($pedido, $actor, $justificativa, $desvincular): int {
+            $linhas = VendaOperacao::query()
+                ->where('venda_operacao_pedido_id', $pedido->id)
+                ->whereNotNull('produto_movimentacao_id')
+                ->orderBy('produto_id')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $estornos = 0;
+
+            foreach ($linhas as $linha) {
+                $movimentacao = ProdutoMovimentacao::query()
+                    ->lockForUpdate()
+                    ->find($linha->produto_movimentacao_id);
+
+                if (! $movimentacao || $movimentacao->origem_tipo !== 'venda') {
+                    continue;
+                }
+
+                if (! $movimentacao->estornada_em && ! $movimentacao->estorno()->exists()) {
+                    $this->movimentacaoService->estornarProduto(
+                        $movimentacao,
+                        $actor,
+                        $justificativa,
+                        "estornar:venda:{$pedido->id}:item:{$linha->id}:mov:{$movimentacao->id}",
+                        permitirOrigemGerenciada: true,
+                    );
+                    $estornos++;
+                }
+
+                if ($desvincular) {
+                    $linha->forceFill(['produto_movimentacao_id' => null])->save();
+                }
+            }
+
+            return $estornos;
+        });
+    }
 
     public function reservarVenda(
         VendaOperacaoPedido $pedido,
@@ -305,7 +472,7 @@ class EstoqueService
             });
 
             $insumoDivergencias = [];
-            \App\Models\Produtos\Insumo::query()->orderBy('id')->chunkById(200, function ($insumos) use (&$insumoDivergencias, $corrigir): void {
+            Insumo::query()->orderBy('id')->chunkById(200, function ($insumos) use (&$insumoDivergencias, $corrigir): void {
                 foreach ($insumos as $insumo) {
                     $fisico = round((float) $insumo->insumoMovimentacoes()->sum('impacto_estoque'), 4);
                     $reservado = round((float) $insumo->ordemProducaoInsumos()->sum('quantidade_reservada'), 4);

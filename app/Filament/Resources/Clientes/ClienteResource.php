@@ -8,6 +8,7 @@ use App\Models\Clientes\Cliente;
 use App\Rules\UniqueNormalizedTaxIdentifierRule;
 use App\Support\Fiscal\TaxIdentifier;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -23,11 +24,12 @@ use Filament\Tables\Columns\Layout\Grid;
 use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
 
 class ClienteResource extends Resource
 {
@@ -41,7 +43,9 @@ class ClienteResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Clientes';
 
-    protected static ?int $navigationSort = 2;
+    protected static string|UnitEnum|null $navigationGroup = 'Operação';
+
+    protected static ?int $navigationSort = 1;
 
     public static function form(Schema $schema): Schema
     {
@@ -296,7 +300,7 @@ class ClienteResource extends Resource
 
                                     if ($normalized !== '') {
                                         $builder->orWhereRaw(
-                                            TaxIdentifier::comparableExpression('cnpj') . ' LIKE ?',
+                                            TaxIdentifier::comparableExpression('cnpj').' LIKE ?',
                                             ["%{$normalized}%"],
                                         );
                                     }
@@ -383,8 +387,14 @@ class ClienteResource extends Resource
             ], layout: FiltersLayout::AboveContent)
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--registry')
             ->recordActions([
-                EditAction::make()->label('Editar'),
-                DeleteAction::make()->label('Excluir'),
+                ActionGroup::make([
+                    EditAction::make()->label('Editar'),
+                    DeleteAction::make()->label('Excluir'),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent)
             ->toolbarActions([
                 BulkActionGroup::make([

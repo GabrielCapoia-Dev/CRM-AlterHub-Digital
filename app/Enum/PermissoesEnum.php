@@ -114,4 +114,37 @@ enum PermissoesEnum: string
     case CriarTransportadoras = 'Criar Transportadoras';
     case EditarTransportadoras = 'Editar Transportadoras';
     case ExcluirTransportadoras = 'Excluir Transportadoras';
+
+    /**
+     * Permissoes mantidas somente para compatibilidade com dados historicos.
+     *
+     * @return list<string>
+     */
+    public static function disabledValues(): array
+    {
+        return [
+            self::ListarVisaoConsolidadaOperacao->value,
+            self::ListarOrdensProducao->value,
+            self::CriarOrdensProducao->value,
+            self::EditarOrdensProducao->value,
+            self::ExcluirOrdensProducao->value,
+            self::ListarRegrasTributarias->value,
+            self::CriarRegrasTributarias->value,
+            self::EditarRegrasTributarias->value,
+            self::ExcluirRegrasTributarias->value,
+            self::ListarTransportadoras->value,
+            self::CriarTransportadoras->value,
+            self::EditarTransportadoras->value,
+            self::ExcluirTransportadoras->value,
+        ];
+    }
+
+    /** @return list<self> */
+    public static function activeCases(): array
+    {
+        return array_values(array_filter(
+            self::cases(),
+            fn (self $permission): bool => ! in_array($permission->value, self::disabledValues(), true),
+        ));
+    }
 }

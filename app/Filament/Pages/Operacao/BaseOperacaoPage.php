@@ -6,12 +6,10 @@ use App\Services\Operacao\OperacaoAnalyticsService;
 use App\Support\Ui\NumericFormat;
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
-use UnitEnum;
+use Illuminate\Support\Carbon;
 
 abstract class BaseOperacaoPage extends Page
 {
-    protected static string|UnitEnum|null $navigationGroup = 'Operacao';
-
     protected Width|string|null $maxWidth = Width::Full;
 
     public string $periodMode = 'mes';
@@ -140,7 +138,7 @@ abstract class BaseOperacaoPage extends Page
             return '—';
         }
 
-        return \Illuminate\Support\Carbon::parse($value)->format('d/m/Y');
+        return Carbon::parse($value)->format('d/m/Y');
     }
 
     public function barWidth(mixed $value, mixed $max): string

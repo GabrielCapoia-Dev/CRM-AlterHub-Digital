@@ -5,10 +5,10 @@ namespace App\Services\Operacao;
 use App\Enum\RemessaStatus;
 use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
+use App\Models\Oportunidade;
 use App\Models\Remessa;
 use App\Models\VendaHistorico;
 use App\Models\VendaOperacaoPedido;
-use App\Services\Fiscal\RegraTributariaService;
 use App\Services\Produtos\EstoqueService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -17,7 +17,6 @@ class VendaWorkflowService
 {
     public function __construct(
         protected EstoqueService $estoqueService,
-        protected RegraTributariaService $regraTributariaService,
     ) {}
 
     public function confirmar(
@@ -59,11 +58,34 @@ class VendaWorkflowService
             }
 
             $statusAnterior = $pedido->status;
-            $this->regraTributariaService->aplicarNaVenda($pedido);
             $this->atualizarTotais($pedido);
-            $this->estoqueService->reservarVenda(
+            $faltas = $this->estoqueService->faltasVenda($pedido, bloquear: true);
+            $chaveIdempotencia = $idempotencyKey ?: "confirmar:venda:{$pedido->id}:v{$pedido->versao}";
+
+            if ($faltas !== []) {
+                $motivos = $pedido->motivos_aprovacao ?? [];
+                $motivos['estoque'] = $faltas;
+
+                $pedido->forceFill([
+                    'status' => VendaStatus::PendenteAprovacao->value,
+                    'motivos_aprovacao' => $motivos,
+                ])->save();
+
+                $this->registrarPendenciaEstoqueUmaVez(
+                    $pedido,
+                    $actor,
+                    $statusAnterior,
+                    $chaveIdempotencia,
+                    $faltas,
+                );
+
+                return $pedido->fresh(['vendasOperacao.produtoMovimentacao', 'historicos']);
+            }
+
+            $this->estoqueService->efetivarVenda(
                 $pedido,
-                $idempotencyKey ?: "confirmar:venda:{$pedido->id}:v{$pedido->versao}",
+                $actor,
+                $chaveIdempotencia,
             );
 
             $pedido->forceFill([
@@ -78,10 +100,10 @@ class VendaWorkflowService
                 'confirmada',
                 $statusAnterior,
                 VendaStatus::Confirmada->value,
-                metadados: ['idempotency_key' => $idempotencyKey],
+                metadados: ['idempotency_key' => $chaveIdempotencia],
             );
 
-            return $pedido->fresh(['vendasOperacao.reserva', 'historicos']);
+            return $pedido->fresh(['vendasOperacao.produtoMovimentacao', 'historicos']);
         });
     }
 
@@ -119,9 +141,22 @@ class VendaWorkflowService
 
             $anterior = $pedido->status;
             $remessasCanceladas = $this->cancelarRemessasPendentes($pedido, $actor, $justificativa);
+            $oportunidadeLiberadaId = $anterior === VendaStatus::PendenteAprovacao->value
+                ? $this->desvincularOportunidadePendente($pedido)
+                : null;
+
+            $estornos = 0;
 
             if ($pedido->status === VendaStatus::Confirmada->value) {
-                $this->estoqueService->liberarReservasVenda($pedido);
+                $estornos = $this->estoqueService->estornarVenda(
+                    $pedido,
+                    $actor,
+                    $justificativa,
+                );
+
+                if ($estornos === 0) {
+                    $this->estoqueService->liberarReservasVenda($pedido);
+                }
             }
 
             $pedido->forceFill([
@@ -136,7 +171,11 @@ class VendaWorkflowService
                 $anterior,
                 VendaStatus::Cancelada->value,
                 $justificativa,
-                ['remessas_canceladas' => $remessasCanceladas],
+                [
+                    'remessas_canceladas' => $remessasCanceladas,
+                    'movimentacoes_estornadas' => $estornos,
+                    'oportunidade_liberada_id' => $oportunidadeLiberadaId,
+                ],
             );
 
             return $pedido->fresh(['historicos', 'vendasOperacao.reserva', 'remessas']);
@@ -179,8 +218,14 @@ class VendaWorkflowService
 
             $anterior = $pedido->status;
             $this->cancelarRemessasPendentes($pedido, $actor, $justificativa);
+            $estornos = $this->estoqueService->estornarVenda(
+                $pedido,
+                $actor,
+                $justificativa,
+                desvincular: true,
+            );
 
-            if ($pedido->status === VendaStatus::Confirmada->value) {
+            if ($pedido->status === VendaStatus::Confirmada->value && $estornos === 0) {
                 $this->estoqueService->liberarReservasVenda($pedido);
             }
 
@@ -193,6 +238,7 @@ class VendaWorkflowService
                 'aprovado_por' => null,
                 'aprovado_em' => null,
                 'motivo_recusa' => null,
+                'motivos_aprovacao' => null,
             ])->save();
 
             $this->registrarHistorico(
@@ -297,6 +343,80 @@ class VendaWorkflowService
 
             return $pedido;
         });
+    }
+
+    public function desvincularOportunidadePendente(VendaOperacaoPedido $pedido): ?int
+    {
+        return DB::transaction(function () use ($pedido): ?int {
+            $pedido = VendaOperacaoPedido::query()
+                ->lockForUpdate()
+                ->findOrFail($pedido->id);
+
+            if ($pedido->status !== VendaStatus::PendenteAprovacao->value || ! $pedido->oportunidade_id) {
+                return null;
+            }
+
+            $oportunidade = Oportunidade::query()
+                ->lockForUpdate()
+                ->find($pedido->oportunidade_id);
+
+            if (! $oportunidade
+                || $oportunidade->convertida_em
+                || (int) $oportunidade->venda_operacao_pedido_id !== (int) $pedido->id) {
+                return null;
+            }
+
+            $oportunidadeId = (int) $oportunidade->id;
+
+            $oportunidade->forceFill([
+                'venda_operacao_pedido_id' => null,
+            ])->save();
+
+            $pedido->forceFill([
+                'oportunidade_id' => null,
+            ])->save();
+
+            return $oportunidadeId;
+        });
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $faltas
+     */
+    protected function registrarPendenciaEstoqueUmaVez(
+        VendaOperacaoPedido $pedido,
+        User $actor,
+        string $statusAnterior,
+        string $idempotencyKey,
+        array $faltas,
+    ): void {
+        $jaRegistrado = VendaHistorico::query()
+            ->where('venda_operacao_pedido_id', $pedido->id)
+            ->where('evento', 'aguardando_aprovacao_estoque')
+            ->where('status_novo', VendaStatus::PendenteAprovacao->value)
+            ->get(['metadados'])
+            ->contains(
+                fn (VendaHistorico $historico): bool => data_get(
+                    $historico->metadados,
+                    'idempotency_key',
+                ) === $idempotencyKey
+            );
+
+        if ($jaRegistrado) {
+            return;
+        }
+
+        $this->registrarHistorico(
+            $pedido,
+            $actor,
+            'aguardando_aprovacao_estoque',
+            $statusAnterior,
+            VendaStatus::PendenteAprovacao->value,
+            metadados: [
+                'faltas' => $faltas,
+                'idempotency_key' => $idempotencyKey,
+            ],
+        );
     }
 
     public function registrarHistorico(

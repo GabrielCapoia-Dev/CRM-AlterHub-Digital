@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Oportunidades;
 
-use App\Filament\Support\Fields\TaxIdentifierField;
 use App\Filament\Resources\Oportunidades\Pages\CreateOportunidade;
 use App\Filament\Resources\Oportunidades\Pages\EditOportunidade;
 use App\Filament\Resources\Oportunidades\Pages\KanbanOportunidades;
@@ -12,6 +11,7 @@ use App\Filament\Resources\Oportunidades\RelationManagers\OportunidadeInteracoes
 use App\Filament\Resources\Oportunidades\RelationManagers\OportunidadeMovimentacoesRelationManager;
 use App\Filament\Resources\Oportunidades\RelationManagers\OportunidadeProdutosRelationManager;
 use App\Filament\Resources\Oportunidades\RelationManagers\OportunidadeTarefasRelationManager;
+use App\Filament\Support\Fields\TaxIdentifierField;
 use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Clientes\Cliente;
 use App\Models\Etapa;
@@ -22,6 +22,7 @@ use App\Services\CRM\OportunidadeWorkflowService;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -64,7 +65,7 @@ class OportunidadeResource extends Resource
 
     public static ?string $slug = 'crm-kanban';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Comercial';
+    protected static string|UnitEnum|null $navigationGroup = 'Operação';
 
     protected static ?int $navigationSort = 3;
 
@@ -248,38 +249,44 @@ class OportunidadeResource extends Resource
             ])
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm')
             ->recordActions([
-                ViewAction::make()->label('Visualizar'),
-                static::configureEditAction(EditAction::make()->label('Editar')),
-                Action::make('reopen')
-                    ->label('Reabrir')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('warning')
-                    ->visible(fn (Oportunidade $record): bool => auth()->user()?->can('reopen', $record) ?? false)
-                    ->schema([
-                        Select::make('etapa_id')
-                            ->label('Nova etapa')
-                            ->options(fn (): array => Etapa::query()
-                                ->where('tipo', 'aberta')
-                                ->orderBy('ordem')
-                                ->pluck('nome', 'id')
-                                ->all())
-                            ->required(),
-                        Textarea::make('justificativa')
-                            ->label('Justificativa')
-                            ->required()
-                            ->minLength(10),
-                    ])
-                    ->requiresConfirmation()
-                    ->action(function (Oportunidade $record, array $data): void {
-                        app(OportunidadeWorkflowService::class)->reabrir(
-                            $record,
-                            Etapa::query()->findOrFail($data['etapa_id']),
-                            auth()->user(),
-                            $data['justificativa'],
-                        );
-                        Notification::make()->title('Oportunidade reaberta')->success()->send();
-                    }),
-                DeleteAction::make()->label('Excluir'),
+                ActionGroup::make([
+                    ViewAction::make()->label('Visualizar'),
+                    static::configureEditAction(EditAction::make()->label('Editar')),
+                    Action::make('reopen')
+                        ->label('Reabrir')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('warning')
+                        ->visible(fn (Oportunidade $record): bool => auth()->user()?->can('reopen', $record) ?? false)
+                        ->schema([
+                            Select::make('etapa_id')
+                                ->label('Nova etapa')
+                                ->options(fn (): array => Etapa::query()
+                                    ->where('tipo', 'aberta')
+                                    ->orderBy('ordem')
+                                    ->pluck('nome', 'id')
+                                    ->all())
+                                ->required(),
+                            Textarea::make('justificativa')
+                                ->label('Justificativa')
+                                ->required()
+                                ->minLength(10),
+                        ])
+                        ->requiresConfirmation()
+                        ->action(function (Oportunidade $record, array $data): void {
+                            app(OportunidadeWorkflowService::class)->reabrir(
+                                $record,
+                                Etapa::query()->findOrFail($data['etapa_id']),
+                                auth()->user(),
+                                $data['justificativa'],
+                            );
+                            Notification::make()->title('Oportunidade reaberta')->success()->send();
+                        }),
+                    DeleteAction::make()->label('Excluir'),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent);
     }
 

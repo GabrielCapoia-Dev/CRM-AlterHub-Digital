@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Users\Tables;
 use App\Models\Acesso\User;
 use App\Services\Acesso\RoleService;
 use App\Services\Acesso\UserService;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -132,17 +133,23 @@ class UsersTable
     private static function recordActions(UserService $userService, RoleService $roleService, User $user): array
     {
         return [
-            EditAction::make(),
+            ActionGroup::make([
+                EditAction::make(),
 
-            DeleteAction::make()
-                ->before(function (User $record, DeleteAction $action) use ($userService, $user) {
-                    if (! $userService->podeDeletar($user, $record)) {
-                        $action->failure();
-                        $action->halt();
-                    }
-                })
-                ->disabled(fn (User $record) => ($record->id === 1) || (Auth::id() === $record->id))
-                ->visible(fn () => $roleService->ehSuperAdmin(Auth::user())),
+                DeleteAction::make()
+                    ->before(function (User $record, DeleteAction $action) use ($userService, $user) {
+                        if (! $userService->podeDeletar($user, $record)) {
+                            $action->failure();
+                            $action->halt();
+                        }
+                    })
+                    ->disabled(fn (User $record) => ($record->id === 1) || (Auth::id() === $record->id))
+                    ->visible(fn () => $roleService->ehSuperAdmin(Auth::user())),
+            ])
+                ->label('Ações')
+                ->icon('heroicon-o-ellipsis-vertical')
+                ->button()
+                ->color('gray'),
         ];
     }
 

@@ -48,10 +48,12 @@ class Oportunidade extends Model
 
     protected ?array $etapaTransition = null;
 
+    protected bool $finalizingSaleConversion = false;
+
     protected static function booted(): void
     {
         static::saving(function (self $oportunidade): void {
-            if ($oportunidade->exists && $oportunidade->wasCommerciallyFrozen()) {
+            if ($oportunidade->exists && $oportunidade->wasCommerciallyFrozen() && ! $oportunidade->finalizingSaleConversion) {
                 $camposComerciais = [
                     'titulo', 'cliente_id', 'etapa_id', 'user_id', 'temperatura',
                     'valor_estimado', 'motivo_fechamento', 'notas',
@@ -119,6 +121,31 @@ class Oportunidade extends Model
 
             $oportunidade->etapaTransition = null;
         });
+    }
+
+    public function markSaleAsConverted(VendaOperacaoPedido $pedido, ?Etapa $wonStage): void
+    {
+        if ($this->convertida_em && $this->venda_operacao_pedido_id === $pedido->id) {
+            return;
+        }
+
+        $payload = [
+            'venda_operacao_pedido_id' => $pedido->id,
+            'convertida_em' => now(),
+        ];
+
+        if ($wonStage) {
+            $payload['etapa_id'] = $wonStage->id;
+            $payload['motivo_fechamento'] = $wonStage->fechamento ? 'Venda confirmada' : null;
+        }
+
+        $this->finalizingSaleConversion = true;
+
+        try {
+            $this->forceFill($payload)->save();
+        } finally {
+            $this->finalizingSaleConversion = false;
+        }
     }
 
     public function cliente(): BelongsTo

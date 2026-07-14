@@ -214,6 +214,7 @@ class MovimentacaoEstoqueServiceTest extends TestCase
             'realizado_em' => now(),
         ], $user);
 
+        $this->assertTrue($service->podeEstornarDiretamente($entrada));
         $estorno = $service->estornarProduto($entrada, $user, 'Documento de entrada cancelado.', 'estorno-produto-01');
         $repetido = $service->estornarProduto($entrada->fresh(), $user, 'Documento de entrada cancelado.', 'estorno-produto-01');
 
@@ -224,6 +225,56 @@ class MovimentacaoEstoqueServiceTest extends TestCase
 
         $this->expectException(LogicException::class);
         $entrada->fresh()->delete();
+    }
+
+    public function test_domain_managed_movements_cannot_be_reversed_directly(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Auditor de dominio',
+            'email' => 'auditor.dominio@example.com',
+            'email_verified_at' => now(),
+            'email_approved' => true,
+            'password' => Hash::make('password'),
+        ]);
+        $produto = Produto::query()->create([
+            'codigo_interno' => 'PROD-DOMINIO-01',
+            'nome' => 'Produto com movimentos gerenciados',
+            'status' => 'ativo',
+            'ativo' => true,
+            'unidade_medida' => 'un',
+            'custo_base_formacao' => 10,
+        ]);
+        $service = app(MovimentacaoEstoqueService::class);
+        $origens = ['venda', 'remessa', 'remessa_legada', 'ordem_producao', 'devolucao'];
+
+        foreach ($origens as $index => $origem) {
+            $movimentacao = $service->createForProduto([
+                'produto_id' => $produto->id,
+                'tipo' => 'entrada',
+                'quantidade' => 1,
+                'origem_tipo' => $origem,
+                'origem_id' => $index + 1,
+                'idempotency_key' => "dominio:{$origem}:entrada",
+                'realizado_em' => now()->addSeconds($index),
+            ], $user);
+
+            $this->assertFalse($service->podeEstornarDiretamente($movimentacao));
+
+            try {
+                $service->estornarProduto(
+                    $movimentacao,
+                    $user,
+                    'Tentativa de estorno fora do fluxo de origem.',
+                    "dominio:{$origem}:estorno",
+                );
+                $this->fail("A origem {$origem} nao deveria aceitar estorno direto.");
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('movimentacao', $exception->errors());
+            }
+        }
+
+        $this->assertSame(5.0, (float) $produto->fresh()->estoque_fisico);
+        $this->assertDatabaseMissing('produto_movimentacoes', ['origem_tipo' => 'estorno']);
     }
 
     private function createFornecedor(): Fornecedor

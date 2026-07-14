@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Oportunidades\Pages;
 use App\Enum\PermissoesEnum;
 use App\Filament\Resources\Oportunidades\OportunidadeResource;
 use App\Filament\Resources\VendasOperacao\VendaOperacaoResource;
-use App\Rules\FlexibleTaxIdentifierRule;
 use App\Models\Acesso\User;
 use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Clientes\Cliente;
@@ -17,6 +16,7 @@ use App\Models\OportunidadeTarefa;
 use App\Models\Produto;
 use App\Models\Status\StatusCliente;
 use App\Models\VendaOperacao;
+use App\Rules\FlexibleTaxIdentifierRule;
 use App\Services\CRM\OportunidadeClienteService;
 use App\Services\CRM\OportunidadeVendaService;
 use Carbon\CarbonInterface;
@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 class KanbanOportunidades extends Page
 {
@@ -669,11 +670,19 @@ class KanbanOportunidades extends Page
 
         $this->closeSaleConfirmation();
 
-        Notification::make()
-            ->title('Venda confirmada')
-            ->body("A venda {$pedido->codigo} foi confirmada e o estoque foi reservado. A baixa ocorrera no despacho.")
-            ->success()
-            ->send();
+        if ($pedido->isPendenteAprovacao()) {
+            Notification::make()
+                ->title('Venda pendente de aprovação')
+                ->body("A venda {$pedido->codigo} foi criada, mas aguarda reposição de estoque e aprovação.")
+                ->warning()
+                ->send();
+        } else {
+            Notification::make()
+                ->title('Venda confirmada')
+                ->body("A venda {$pedido->codigo} foi confirmada e a saída de estoque foi registrada.")
+                ->success()
+                ->send();
+        }
 
         $this->redirect(VendaOperacaoResource::getUrl('index'), navigate: true);
     }
@@ -842,7 +851,7 @@ class KanbanOportunidades extends Page
     {
         try {
             return (bool) Auth::user()?->hasPermissionTo(PermissoesEnum::AprovarDesconto->value);
-        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+        } catch (PermissionDoesNotExist) {
             return false;
         }
     }
@@ -1206,7 +1215,7 @@ class KanbanOportunidades extends Page
         if (($this->opportunityForm['client_mode'] ?? OportunidadeClienteService::MODE_EXISTING) === OportunidadeClienteService::MODE_NEW) {
             $rules['opportunityForm.client_razao_social'][] = 'required';
             $rules['opportunityForm.client_cnpj'][] = 'required';
-            $rules['opportunityForm.client_cnpj'][] = new FlexibleTaxIdentifierRule();
+            $rules['opportunityForm.client_cnpj'][] = new FlexibleTaxIdentifierRule;
             $rules['opportunityForm.client_segmento_id'][] = 'required';
             $rules['opportunityForm.client_status_id'][] = 'required';
             $rules['opportunityForm.client_nome_completo'][] = 'required';

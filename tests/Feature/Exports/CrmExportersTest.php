@@ -161,7 +161,9 @@ class CrmExportersTest extends TestCase
         $query = VendaOperacaoExporter::modifyQuery(VendaOperacaoPedido::query());
 
         $this->assertContains($seller->getKey(), $query->getBindings());
-        $this->assertStringContainsString('"user_id" = ?', $query->toSql());
+
+        $sql = str_replace(['"', chr(96)], '', $query->toSql());
+        $this->assertStringContainsString('user_id = ?', $sql);
     }
 
     public function test_xlsx_writer_applies_widths_sheet_name_and_frozen_header(): void

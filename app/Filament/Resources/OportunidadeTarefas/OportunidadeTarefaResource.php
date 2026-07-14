@@ -5,6 +5,7 @@ namespace App\Filament\Resources\OportunidadeTarefas;
 use App\Filament\Resources\OportunidadeTarefas\Pages\ManageOportunidadeTarefas;
 use App\Models\OportunidadeTarefa;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
@@ -27,7 +28,7 @@ class OportunidadeTarefaResource extends Resource
 {
     protected static ?string $model = OportunidadeTarefa::class;
 
-    protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedCalendarDays;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
     protected static ?string $modelLabel = 'Tarefa da oportunidade';
 
@@ -164,8 +165,14 @@ class OportunidadeTarefaResource extends Resource
             ->defaultSort('data_prevista')
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm')
             ->recordActions([
-                EditAction::make()->label('Editar'),
-                DeleteAction::make()->label('Excluir'),
+                ActionGroup::make([
+                    EditAction::make()->label('Editar'),
+                    DeleteAction::make()->label('Excluir'),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent);
     }
 

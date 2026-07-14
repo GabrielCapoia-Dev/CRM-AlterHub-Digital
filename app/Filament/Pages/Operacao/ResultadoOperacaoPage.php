@@ -3,6 +3,7 @@
 namespace App\Filament\Pages\Operacao;
 
 use App\Enum\PermissoesEnum;
+use App\Filament\Clusters\AcompanhamentoCluster;
 use BackedEnum;
 use Filament\Support\Icons\Heroicon;
 
@@ -14,9 +15,11 @@ class ResultadoOperacaoPage extends BaseOperacaoPage
 
     protected static ?string $title = 'Resultado (DRE)';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?string $cluster = AcompanhamentoCluster::class;
 
-    protected static ?string $slug = 'operacao/resultado';
+    protected static ?int $navigationSort = 3;
+
+    protected static ?string $slug = 'dre';
 
     protected string $view = 'filament.pages.operacao.resultado-operacao';
 

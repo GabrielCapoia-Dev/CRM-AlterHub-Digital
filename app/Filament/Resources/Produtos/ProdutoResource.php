@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Produtos;
 
-use App\Enum\ProdutoClassificacao;
-use App\Enum\ProdutoOrigem;
 use App\Enum\RolesEnum;
 use App\Filament\Exports\Actions\CrmExportActions;
 use App\Filament\Resources\Produtos\Actions\ApplyBulkCostAction;
@@ -20,6 +18,7 @@ use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use DomainException;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -106,18 +105,6 @@ class ProdutoResource extends Resource
                                             ->label('Status')
                                             ->options(Produto::statusOptions())
                                             ->default('ativo')
-                                            ->required(),
-
-                                        Select::make('classificacao')
-                                            ->label('Classificacao')
-                                            ->options(ProdutoClassificacao::options())
-                                            ->default(ProdutoClassificacao::Revenda->value)
-                                            ->required(),
-
-                                        Select::make('origem')
-                                            ->label('Origem')
-                                            ->options(ProdutoOrigem::options())
-                                            ->default(ProdutoOrigem::Nacional->value)
                                             ->required(),
 
                                         TextInput::make('nome')
@@ -513,23 +500,6 @@ class ProdutoResource extends Resource
                             ->placeholder('Nao informado')
                             ->extraAttributes(['class' => 'crm-list-field crm-list-money'], merge: true),
 
-                        TextColumn::make('classificacao')
-                            ->label('Classificacao')
-                            ->description('Classificacao', position: 'above')
-                            ->badge()
-                            ->formatStateUsing(fn (ProdutoClassificacao|string $state): string => $state instanceof ProdutoClassificacao
-                                ? $state->label()
-                                : (ProdutoClassificacao::tryFrom($state)?->label() ?? $state))
-                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
-
-                        TextColumn::make('origem')
-                            ->label('Origem')
-                            ->description('Origem', position: 'above')
-                            ->badge()
-                            ->formatStateUsing(fn (ProdutoOrigem|string $state): string => $state instanceof ProdutoOrigem
-                                ? $state->label()
-                                : (ProdutoOrigem::tryFrom($state)?->label() ?? $state))
-                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
                     ])
                     ->extraAttributes(['class' => 'crm-list-meta']),
 
@@ -559,19 +529,18 @@ class ProdutoResource extends Resource
                     ->label('Status')
                     ->options(Produto::statusOptions()),
 
-                SelectFilter::make('classificacao')
-                    ->label('Classificacao')
-                    ->options(ProdutoClassificacao::options()),
-
-                SelectFilter::make('origem')
-                    ->label('Origem')
-                    ->options(ProdutoOrigem::options()),
             ])
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--catalog')
             ->recordActions([
-                static::configureEditAction(EditAction::make()->label('Editar')),
-                CrmExportActions::produtoDetalhe(),
-                DeleteAction::make()->label('Excluir'),
+                ActionGroup::make([
+                    static::configureEditAction(EditAction::make()->label('Editar')),
+                    CrmExportActions::produtoDetalhe(),
+                    DeleteAction::make()->label('Excluir'),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent)
             ->toolbarActions([
                 BulkActionGroup::make([

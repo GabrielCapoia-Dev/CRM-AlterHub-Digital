@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enum\RemessaStatus;
 use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
@@ -14,15 +15,25 @@ class VendaOperacaoPedido extends Model
 {
     /** @deprecated Use VendaStatus::Confirmada. */
     public const STATUS_ATIVA = VendaStatus::Confirmada->value;
+
     public const STATUS_RASCUNHO = VendaStatus::Rascunho->value;
+
     public const STATUS_PENDENTE_APROVACAO = VendaStatus::PendenteAprovacao->value;
+
     public const STATUS_CONFIRMADA = VendaStatus::Confirmada->value;
+
     public const STATUS_PARCIALMENTE_DESPACHADA = VendaStatus::ParcialmenteDespachada->value;
+
     public const STATUS_DESPACHADA = VendaStatus::Despachada->value;
+
     public const STATUS_CONCLUIDA = VendaStatus::Concluida->value;
+
     public const STATUS_RECUSADA = VendaStatus::Recusada->value;
+
     public const STATUS_CANCELADA = VendaStatus::Cancelada->value;
+
     public const STATUS_DEVOLVIDA_PARCIAL = VendaStatus::DevolvidaParcial->value;
+
     public const STATUS_DEVOLVIDA = VendaStatus::Devolvida->value;
 
     protected $table = 'venda_operacao_pedidos';
@@ -59,6 +70,7 @@ class VendaOperacaoPedido extends Model
         'valor_frete_cobrado',
         'observacao',
         'motivo_recusa',
+        'motivos_aprovacao',
     ];
 
     protected $casts = [
@@ -85,6 +97,7 @@ class VendaOperacaoPedido extends Model
         'lucro_apos_impostos_total' => 'decimal:2',
         'valor_frete_custo' => 'decimal:2',
         'valor_frete_cobrado' => 'decimal:2',
+        'motivos_aprovacao' => 'array',
     ];
 
     protected static function booted(): void
@@ -139,8 +152,8 @@ class VendaOperacaoPedido extends Model
     {
         return $this->remessas()
             ->whereIn('status', [
-                \App\Enum\RemessaStatus::Despachada->value,
-                \App\Enum\RemessaStatus::Entregue->value,
+                RemessaStatus::Despachada->value,
+                RemessaStatus::Entregue->value,
             ])
             ->exists();
     }

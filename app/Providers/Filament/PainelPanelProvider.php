@@ -2,8 +2,8 @@
 
 namespace App\Providers\Filament;
 
-use App\Models\Acesso\User;
-use App\Services\Acesso\UserService;
+use App\Filament\Pages\Operacao\DashboardBiPage;
+use App\Filament\Resources\Oportunidades\OportunidadeResource;
 use Caresome\FilamentAuthDesigner\AuthDesignerPlugin;
 use Caresome\FilamentAuthDesigner\Data\AuthPageConfig;
 use Caresome\FilamentAuthDesigner\Enums\MediaPosition;
@@ -13,13 +13,12 @@ use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\Support\Colors\Color;
 use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
+use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
@@ -42,7 +41,7 @@ class PainelPanelProvider extends PanelProvider
             ->colors([
                 // Primary → Navy Blue (#17368D) — cor principal do design system
                 'primary' => [
-                    50  => '234, 241, 253', // #EAF1FD
+                    50 => '234, 241, 253', // #EAF1FD
                     100 => '208, 224, 250', // #D0E0FA
                     200 => '168, 197, 245', // #A8C5F5
                     300 => '126, 168, 240', // #7EA8F0
@@ -56,7 +55,7 @@ class PainelPanelProvider extends PanelProvider
                 ],
                 // Gray → Neutral do design system
                 'gray' => [
-                    50  => '244, 245, 249', // #F4F5F9
+                    50 => '244, 245, 249', // #F4F5F9
                     100 => '232, 235, 242', // #E8EBF2
                     200 => '212, 216, 230', // #D4D8E6
                     300 => '180, 186, 206', // #B4BACE
@@ -70,7 +69,7 @@ class PainelPanelProvider extends PanelProvider
                 ],
                 // Danger → Error do design system (#E53E6B)
                 'danger' => [
-                    50  => '254, 242, 242',
+                    50 => '254, 242, 242',
                     100 => '254, 226, 226',
                     200 => '252, 186, 186',
                     300 => '248, 113, 113',
@@ -84,7 +83,7 @@ class PainelPanelProvider extends PanelProvider
                 ],
                 // Success → #00C97B
                 'success' => [
-                    50  => '236, 253, 245',
+                    50 => '236, 253, 245',
                     100 => '209, 250, 229',
                     200 => '167, 243, 208',
                     300 => '110, 231, 183',
@@ -98,7 +97,7 @@ class PainelPanelProvider extends PanelProvider
                 ],
                 // Warning → #F5A623
                 'warning' => [
-                    50  => '255, 251, 235',
+                    50 => '255, 251, 235',
                     100 => '254, 243, 199',
                     200 => '253, 230, 138',
                     300 => '252, 211, 77',
@@ -112,7 +111,7 @@ class PainelPanelProvider extends PanelProvider
                 ],
                 // Info → #3A6DD6 (primary-500)
                 'info' => [
-                    50  => '239, 246, 255',
+                    50 => '239, 246, 255',
                     100 => '219, 234, 254',
                     200 => '191, 219, 254',
                     300 => '147, 197, 253',
@@ -126,6 +125,15 @@ class PainelPanelProvider extends PanelProvider
                 ],
             ])
             ->font('Plus Jakarta Sans')
+            ->homeUrl(fn (): string => DashboardBiPage::canAccess()
+                ? DashboardBiPage::getUrl()
+                : OportunidadeResource::getUrl('index'))
+            ->navigationGroups([
+                'Operação',
+                'Acesso',
+                'Estoque',
+            ])
+            ->discoverClusters(in: app_path('Filament/Clusters'), for: 'App\\Filament\\Clusters')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([])
@@ -155,11 +163,11 @@ class PainelPanelProvider extends PanelProvider
             ->plugins([
                 AuthDesignerPlugin::make()
                     ->login(
-                        fn(AuthPageConfig $config) => $config
+                        fn (AuthPageConfig $config) => $config
                             ->media(asset('images/background.webp'))
                             ->mediaPosition(MediaPosition::Left)
                             ->mediaSize('70%')
-                    )
+                    ),
             ]);
     }
 }

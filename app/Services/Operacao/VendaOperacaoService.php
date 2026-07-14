@@ -2,15 +2,19 @@
 
 namespace App\Services\Operacao;
 
+use App\Enum\EtapaTipo;
 use App\Enum\PermissoesEnum;
 use App\Enum\RolesEnum;
 use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
+use App\Models\Etapa;
+use App\Models\Oportunidade;
 use App\Models\Produto;
 use App\Models\VendaOperacao;
 use App\Models\VendaOperacaoPedido;
 use App\Services\Acesso\RoleService;
+use App\Services\Produtos\EstoqueService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +24,7 @@ class VendaOperacaoService
     public function __construct(
         protected OperacaoAnalyticsService $analyticsService,
         protected VendaWorkflowService $workflowService,
+        protected EstoqueService $estoqueService,
     ) {}
 
     public function create(array $data, ?User $user = null, ?VendaOperacaoPedido $pedido = null, bool $deductStock = false): VendaOperacao
@@ -157,6 +162,16 @@ class VendaOperacaoService
                 $this->createLineFromPrepared($prepared, $vendedorUser ?? $user, $pedido, false);
             }
 
+            $faltas = $this->estoqueService->faltasVenda($pedido, bloquear: true);
+            $motivos = $this->buildApprovalReasons($requiresApproval, $faltas);
+
+            $pedido->forceFill([
+                'status' => $motivos
+                    ? VendaOperacaoPedido::STATUS_PENDENTE_APROVACAO
+                    : VendaOperacaoPedido::STATUS_RASCUNHO,
+                'motivos_aprovacao' => $motivos,
+            ])->save();
+
             return $this->refreshPedidoTotals($pedido)
                 ->fresh(['vendasOperacao.produto', 'vendasOperacao.produtoMovimentacao', 'cliente', 'user']);
         });
@@ -210,10 +225,14 @@ class VendaOperacaoService
                 $requiresApproval = $requiresApproval || $linha->desconto_requer_aprovacao;
             }
 
+            $faltas = $this->estoqueService->faltasVenda($pedido, bloquear: true);
+            $motivos = $this->buildApprovalReasons($requiresApproval, $faltas);
+
             $pedido->forceFill([
-                'status' => $requiresApproval
+                'status' => $motivos
                     ? VendaOperacaoPedido::STATUS_PENDENTE_APROVACAO
                     : VendaOperacaoPedido::STATUS_RASCUNHO,
+                'motivos_aprovacao' => $motivos,
             ])->save();
 
             $this->workflowService->registrarHistorico(
@@ -258,6 +277,14 @@ class VendaOperacaoService
                 ]);
             }
 
+            $faltas = $this->estoqueService->faltasVenda($pedido, bloquear: true);
+
+            if ($faltas !== []) {
+                throw ValidationException::withMessages([
+                    'estoque' => 'A venda continua sem saldo suficiente. Reponha o estoque antes de aprovar.',
+                ]);
+            }
+
             foreach ($pedido->vendasOperacao as $linha) {
                 $linha->forceFill([
                     'desconto_aprovado_por' => $linha->desconto_requer_aprovacao ? $approver->id : $linha->desconto_aprovado_por,
@@ -271,9 +298,21 @@ class VendaOperacaoService
                 'motivo_recusa' => null,
             ])->save();
 
-            return $this->workflowService
-                ->confirmar($pedido, $approver, "aprovar:venda:{$pedido->id}:v{$pedido->versao}")
-                ->fresh(['vendasOperacao.produto', 'vendasOperacao.produtoMovimentacao', 'aprovadoPor', 'cliente', 'user']);
+            $pedido = $this->workflowService->confirmar(
+                $pedido,
+                $approver,
+                "aprovar:venda:{$pedido->id}:v{$pedido->versao}",
+            );
+
+            $this->finalizeOpportunityAfterApproval($pedido);
+
+            return $pedido->fresh([
+                'vendasOperacao.produto',
+                'vendasOperacao.produtoMovimentacao',
+                'aprovadoPor',
+                'cliente',
+                'user',
+            ]);
         });
     }
 
@@ -290,6 +329,8 @@ class VendaOperacaoService
                 ]);
             }
 
+            $oportunidadeLiberadaId = $this->workflowService->desvincularOportunidadePendente($pedido);
+
             $pedido->forceFill([
                 'status' => VendaOperacaoPedido::STATUS_RECUSADA,
                 'aprovado_por' => $approver->id,
@@ -304,6 +345,9 @@ class VendaOperacaoService
                 VendaOperacaoPedido::STATUS_PENDENTE_APROVACAO,
                 VendaOperacaoPedido::STATUS_RECUSADA,
                 $this->normalizeString($motivo),
+                metadados: $oportunidadeLiberadaId
+                    ? ['oportunidade_liberada_id' => $oportunidadeLiberadaId]
+                    : [],
             );
 
             return $pedido->fresh(['vendasOperacao', 'aprovadoPor', 'cliente', 'user']);
@@ -673,6 +717,55 @@ class VendaOperacaoService
         }
 
         return $cliente;
+    }
+
+    protected function finalizeOpportunityAfterApproval(VendaOperacaoPedido $pedido): void
+    {
+        if (! $pedido->oportunidade_id || $pedido->status !== VendaStatus::Confirmada->value) {
+            return;
+        }
+
+        $oportunidade = Oportunidade::query()
+            ->lockForUpdate()
+            ->find($pedido->oportunidade_id);
+
+        if (! $oportunidade || $oportunidade->convertida_em) {
+            return;
+        }
+
+        $etapaGanha = Etapa::query()
+            ->where(function (Builder $query): void {
+                $query
+                    ->where('tipo', EtapaTipo::Ganha->value)
+                    ->orWhereIn('slug', ['ganho', 'win'])
+                    ->orWhereRaw('lower(nome) in (?, ?)', ['ganho', 'win']);
+            })
+            ->orderByDesc('fechamento')
+            ->orderBy('ordem')
+            ->first();
+
+        $oportunidade->markSaleAsConverted($pedido, $etapaGanha);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $faltas
+     * @return array<string, mixed>|null
+     */
+    protected function buildApprovalReasons(bool $desconto, array $faltas): ?array
+    {
+        $motivos = [];
+
+        if ($desconto) {
+            $motivos['desconto'] = [
+                'mensagem' => 'Há item vendido abaixo do preço mínimo.',
+            ];
+        }
+
+        if ($faltas !== []) {
+            $motivos['estoque'] = $faltas;
+        }
+
+        return $motivos === [] ? null : $motivos;
     }
 
     protected function normalizeString(mixed $value): ?string

@@ -2,139 +2,177 @@
 
 namespace Tests\Feature\Operacao;
 
-use App\Enum\RemessaStatus;
 use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
 use App\Models\Produto;
-use App\Models\RegraTributaria;
-use App\Models\Transportadora;
-use App\Services\Operacao\RemessaService;
+use App\Models\ProdutoMovimentacao;
+use App\Models\VendaOperacaoPedido;
 use App\Services\Operacao\VendaOperacaoService;
 use App\Services\Operacao\VendaWorkflowService;
 use App\Services\Produtos\MovimentacaoEstoqueService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class VendaWorkflowServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_partial_shipments_consume_only_their_reservations_and_finish_after_delivery(): void
+    public function test_confirmed_sale_deducts_stock_once_with_an_immutable_movement(): void
     {
-        [$pedido, $produto, $actor] = $this->createConfirmedSale(6);
-        $remessaService = app(RemessaService::class);
-        $linha = $pedido->vendasOperacao->first();
+        [$pedido, $produto, $actor] = $this->createDraftSale(4);
 
-        $this->assertSame(10.0, (float) $produto->fresh()->estoque_fisico);
-        $this->assertSame(6.0, (float) $produto->fresh()->estoque_reservado);
+        $confirmed = app(VendaWorkflowService::class)->confirmar(
+            $pedido,
+            $actor,
+            'confirmar-venda-direta',
+        );
 
-        $primeira = $remessaService->criar($pedido, [
-            ['venda_operacao_id' => $linha->id, 'quantidade' => 2],
-        ], $actor, ['modalidade_entrega' => 'retirada', 'idempotency_key' => 'remessa-parcial-1']);
-        $remessaService->iniciarSeparacao($primeira, $actor);
-        $remessaService->marcarPronta($primeira, $actor);
-        $remessaService->despachar($primeira, $actor, 'despacho-parcial-1');
-
-        $this->assertSame(VendaStatus::ParcialmenteDespachada->value, $pedido->fresh()->status);
-        $this->assertSame(8.0, (float) $produto->fresh()->estoque_fisico);
-        $this->assertSame(4.0, (float) $produto->fresh()->estoque_reservado);
-
-        $remessaService->entregar($primeira, $actor);
-        $segunda = $remessaService->criar($pedido->fresh(), [
-            ['venda_operacao_id' => $linha->id, 'quantidade' => 4],
-        ], $actor, ['modalidade_entrega' => 'retirada', 'idempotency_key' => 'remessa-parcial-2']);
-        $remessaService->iniciarSeparacao($segunda, $actor);
-        $remessaService->marcarPronta($segunda, $actor);
-        $remessaService->despachar($segunda, $actor, 'despacho-parcial-2');
-
-        $this->assertSame(VendaStatus::Despachada->value, $pedido->fresh()->status);
-        $this->assertSame(4.0, (float) $produto->fresh()->estoque_fisico);
+        $this->assertSame(VendaStatus::Confirmada->value, $confirmed->status);
+        $this->assertSame(6.0, (float) $produto->fresh()->estoque_fisico);
         $this->assertSame(0.0, (float) $produto->fresh()->estoque_reservado);
+        $this->assertNotNull($confirmed->vendasOperacao->first()->produto_movimentacao_id);
+        $this->assertSame(1, ProdutoMovimentacao::query()->where('origem_tipo', 'venda')->count());
 
-        $remessaService->entregar($segunda, $actor);
+        app(VendaWorkflowService::class)->confirmar(
+            $confirmed,
+            $actor,
+            'confirmar-venda-direta',
+        );
 
-        $this->assertSame(VendaStatus::Concluida->value, $pedido->fresh()->status);
-        $this->assertNotNull($pedido->fresh()->concluida_em);
+        $this->assertSame(6.0, (float) $produto->fresh()->estoque_fisico);
+        $this->assertSame(1, ProdutoMovimentacao::query()->where('origem_tipo', 'venda')->count());
     }
 
-    public function test_canceling_a_confirmed_sale_cancels_pending_shipments_and_releases_stock(): void
+    public function test_sale_becomes_pending_when_stock_changes_before_confirmation(): void
     {
-        [$pedido, $produto, $actor] = $this->createConfirmedSale(4);
-        $transportadora = Transportadora::query()->create([
-            'razao_social' => 'Transportadora teste',
-            'ativo' => true,
-        ]);
-        $linha = $pedido->vendasOperacao->first();
-        $remessa = app(RemessaService::class)->criar($pedido, [
-            ['venda_operacao_id' => $linha->id, 'quantidade' => 4],
-        ], $actor, [
-            'modalidade_entrega' => 'transportadora',
-            'transportadora_id' => $transportadora->id,
-            'valor_frete_custo' => 10,
-            'valor_frete_cobrado' => 15,
-            'idempotency_key' => 'remessa-cancelamento',
-        ]);
+        [$pedido, $produto, $actor] = $this->createDraftSale(6);
 
-        $this->assertSame(15.0, (float) $pedido->fresh()->valor_frete_cobrado);
+        app(MovimentacaoEstoqueService::class)->createForProduto([
+            'produto_id' => $produto->id,
+            'tipo' => 'saida',
+            'quantidade' => 6,
+            'motivo' => 'Consumo concorrente',
+            'realizado_em' => now(),
+        ], $actor);
 
-        app(VendaWorkflowService::class)->cancelar($pedido, $actor, 'Cliente desistiu antes da expedicao.');
+        $pending = app(VendaWorkflowService::class)->confirmar(
+            $pedido,
+            $actor,
+            'confirmar-sem-saldo',
+        );
+
+        $this->assertSame(VendaStatus::PendenteAprovacao->value, $pending->status);
+        $this->assertArrayHasKey('estoque', $pending->motivos_aprovacao);
+        $this->assertSame(6.0, (float) $pending->motivos_aprovacao['estoque'][0]['solicitado']);
+        $this->assertSame(4.0, (float) $produto->fresh()->estoque_fisico);
+        $this->assertSame(0, ProdutoMovimentacao::query()->where('origem_tipo', 'venda')->count());
+    }
+
+    public function test_stock_shortage_history_is_idempotent_for_the_same_confirmation_attempt(): void
+    {
+        [$pedido, , $actor] = $this->createDraftSale(6);
+
+        app(MovimentacaoEstoqueService::class)->createForProduto([
+            'produto_id' => $pedido->vendasOperacao->firstOrFail()->produto_id,
+            'tipo' => 'saida',
+            'quantidade' => 6,
+            'motivo' => 'Consumo concorrente',
+            'realizado_em' => now(),
+        ], $actor);
+
+        $workflow = app(VendaWorkflowService::class);
+        $pending = $workflow->confirmar($pedido, $actor, 'confirmar-sem-saldo-idempotente');
+
+        $workflow->confirmar(
+            $pending->fresh(),
+            $actor,
+            'confirmar-sem-saldo-idempotente',
+        );
+
+        $historicos = $pending->historicos()
+            ->where('evento', 'aguardando_aprovacao_estoque');
+
+        $this->assertSame(1, (clone $historicos)->count());
+
+        $workflow->confirmar(
+            $pending->fresh(),
+            $actor,
+            'confirmar-sem-saldo-nova-tentativa',
+        );
+
+        $this->assertSame(2, $historicos->count());
+    }
+
+    public function test_canceling_confirmed_sale_creates_a_compensating_entry_once(): void
+    {
+        [$pedido, $produto, $actor] = $this->createDraftSale(4);
+        $pedido = app(VendaWorkflowService::class)->confirmar($pedido, $actor, 'confirmar-cancelamento');
+
+        app(VendaWorkflowService::class)->cancelar(
+            $pedido,
+            $actor,
+            'Cliente desistiu da compra confirmada.',
+        );
 
         $this->assertSame(VendaStatus::Cancelada->value, $pedido->fresh()->status);
-        $this->assertSame(RemessaStatus::Cancelada, $remessa->fresh()->status);
         $this->assertSame(10.0, (float) $produto->fresh()->estoque_fisico);
-        $this->assertSame(0.0, (float) $produto->fresh()->estoque_reservado);
-        $this->assertSame(0.0, (float) $pedido->fresh()->valor_frete_custo);
-        $this->assertSame(0.0, (float) $pedido->fresh()->valor_frete_cobrado);
+        $this->assertSame(1, ProdutoMovimentacao::query()->where('origem_tipo', 'estorno')->count());
+        $this->assertNotNull(
+            ProdutoMovimentacao::query()->where('origem_tipo', 'venda')->firstOrFail()->estornada_em
+        );
+
+        app(VendaWorkflowService::class)->cancelar(
+            $pedido->fresh(),
+            $actor,
+            'Cliente desistiu da compra confirmada.',
+        );
+
+        $this->assertSame(10.0, (float) $produto->fresh()->estoque_fisico);
+        $this->assertSame(1, ProdutoMovimentacao::query()->where('origem_tipo', 'estorno')->count());
     }
 
-    public function test_return_is_idempotent_and_prevents_delivery_after_stock_has_come_back(): void
+    public function test_reopened_sale_can_be_confirmed_again_without_losing_audit_history(): void
     {
-        [$pedido, $produto, $actor] = $this->createConfirmedSale(4);
-        $linha = $pedido->vendasOperacao->first();
-        $service = app(RemessaService::class);
-        $remessa = $service->criar($pedido, [
-            ['venda_operacao_id' => $linha->id, 'quantidade' => 4],
-        ], $actor, ['modalidade_entrega' => 'retirada', 'idempotency_key' => 'remessa-devolucao']);
-        $service->iniciarSeparacao($remessa, $actor);
-        $service->marcarPronta($remessa, $actor);
-        $remessa = $service->despachar($remessa, $actor, 'despacho-devolucao');
-        $item = $remessa->itens->first();
+        [$pedido, $produto, $actor] = $this->createDraftSale(2);
+        $pedido = app(VendaWorkflowService::class)->confirmar($pedido, $actor, 'confirmar-reabertura');
 
-        $primeira = $service->devolver($pedido->fresh(), [
-            ['remessa_item_id' => $item->id, 'quantidade' => 2],
-        ], $actor, 'Cliente devolveu parte do pedido.', 'devolucao-idempotente');
-        $repetida = $service->devolver($pedido->fresh(), [
-            ['remessa_item_id' => $item->id, 'quantidade' => 2],
-        ], $actor, 'Cliente devolveu parte do pedido.', 'devolucao-idempotente');
+        $reopened = app(VendaWorkflowService::class)->reabrir(
+            $pedido,
+            $actor,
+            'Correção comercial solicitada pelo gestor.',
+        );
 
-        $this->assertSame($primeira->id, $repetida->id);
-        $this->assertSame(VendaStatus::DevolvidaParcial->value, $pedido->fresh()->status);
+        $this->assertSame(VendaStatus::Rascunho->value, $reopened->status);
+        $this->assertNull($reopened->vendasOperacao->first()->produto_movimentacao_id);
+        $this->assertSame(10.0, (float) $produto->fresh()->estoque_fisico);
+
+        app(VendaWorkflowService::class)->confirmar($reopened, $actor, 'reconfirmar-reabertura');
+
         $this->assertSame(8.0, (float) $produto->fresh()->estoque_fisico);
-        $this->assertSame(1, $primeira->itens()->count());
-
-        $this->expectException(ValidationException::class);
-        $service->entregar($remessa, $actor);
+        $this->assertSame(2, ProdutoMovimentacao::query()->where('origem_tipo', 'venda')->count());
+        $this->assertSame(1, ProdutoMovimentacao::query()->where('origem_tipo', 'estorno')->count());
     }
 
     public function test_movement_metadata_cannot_be_edited_after_creation(): void
     {
-        [, $produto, $actor] = $this->createConfirmedSale(1);
-        $movimentacao = $produto->produtoMovimentacoes()->first();
-        $movimentacao->observacao = 'Tentativa de alterar o razao';
+        [$pedido, , $actor] = $this->createDraftSale(1);
+        app(VendaWorkflowService::class)->confirmar($pedido, $actor, 'confirmar-imutavel');
+
+        $movimentacao = ProdutoMovimentacao::query()->where('origem_tipo', 'venda')->firstOrFail();
+        $movimentacao->observacao = 'Tentativa de alterar o razão';
 
         $this->expectException(\LogicException::class);
         $movimentacao->save();
     }
 
-    /** @return array{0:\App\Models\VendaOperacaoPedido,1:Produto,2:User} */
-    private function createConfirmedSale(float $quantidade): array
+    /** @return array{0:VendaOperacaoPedido,1:Produto,2:User} */
+    private function createDraftSale(float $quantidade): array
     {
         $actor = User::query()->create([
             'uuid' => (string) Str::uuid(),
-            'name' => 'Operador logistico',
+            'name' => 'Operador de vendas',
             'email' => Str::lower(Str::random(10)).'@example.com',
             'password' => bcrypt('password'),
             'email_verified_at' => now(),
@@ -143,14 +181,6 @@ class VendaWorkflowServiceTest extends TestCase
         $cliente = Cliente::query()->create([
             'razao_social' => 'Cliente do workflow',
             'uf' => 'SP',
-        ]);
-        RegraTributaria::query()->create([
-            'nome' => 'Regra geral SP',
-            'uf_destino' => 'SP',
-            'versao' => 1,
-            'vigencia_inicio' => now()->subYear()->toDateString(),
-            'aliquota_icms' => 12,
-            'ativo' => true,
         ]);
         $produto = Produto::query()->create([
             'codigo_interno' => 'PROD-WORKFLOW-'.Str::upper(Str::random(5)),
@@ -169,6 +199,7 @@ class VendaWorkflowServiceTest extends TestCase
             'valor_unitario' => 5,
             'realizado_em' => now(),
         ], $actor);
+
         $pedido = app(VendaOperacaoService::class)->createPedido([
             'cliente_id' => $cliente->id,
             'data_venda' => now()->toDateString(),
@@ -178,11 +209,6 @@ class VendaWorkflowServiceTest extends TestCase
                 'preco_unitario' => 20,
             ]],
         ], $actor);
-        $pedido = app(VendaWorkflowService::class)->confirmar(
-            $pedido,
-            $actor,
-            'confirmar-teste-'.$pedido->id,
-        );
 
         return [$pedido, $produto, $actor];
     }

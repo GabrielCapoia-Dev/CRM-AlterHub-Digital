@@ -20,6 +20,16 @@ class VisaoConsolidadaPage extends BaseOperacaoPage
 
     protected string $view = 'filament.pages.operacao.visao-consolidada';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
+    public function mount(): void
+    {
+        $this->redirect(DashboardBiPage::getUrl());
+    }
+
     public static function canAccess(): bool
     {
         return auth()->user()?->hasPermissionTo(PermissoesEnum::ListarVisaoConsolidadaOperacao->value) ?? false;

@@ -19,6 +19,7 @@ use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use DomainException;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -64,7 +65,7 @@ class InsumoResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Estoque';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {
@@ -177,7 +178,7 @@ class InsumoResource extends Resource
 
                                 $unit = $record->tipoUnidadeMedida?->sigla ?: $record->tipoUnidadeMedida?->nome;
 
-                                return trim(static::formatDecimal((float) $state, 0) . ' ' . $unit);
+                                return trim(static::formatDecimal((float) $state, 0).' '.$unit);
                             })
                             ->extraAttributes(['class' => 'crm-list-field crm-list-number'], merge: true),
 
@@ -264,8 +265,14 @@ class InsumoResource extends Resource
             ])
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--catalog')
             ->recordActions([
-                static::configureEditAction(EditAction::make()->label('Editar')),
-                DeleteAction::make()->label('Excluir'),
+                ActionGroup::make([
+                    static::configureEditAction(EditAction::make()->label('Editar')),
+                    DeleteAction::make()->label('Excluir'),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->button()
+                    ->color('gray'),
             ], position: RecordActionsPosition::AfterContent)
             ->toolbarActions([
                 BulkActionGroup::make([

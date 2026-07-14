@@ -2,6 +2,7 @@
 
 namespace App\Services\CRM;
 
+use App\Enum\EtapaTipo;
 use App\Models\Acesso\User;
 use App\Models\Etapa;
 use App\Models\Oportunidade;
@@ -75,8 +76,10 @@ class OportunidadeVendaService
             ]);
             $pedido->assignCodigo();
 
+            $linksById = $oportunidade->oportunidadeProdutos->keyBy('id');
+
             foreach ($preview['items'] as $item) {
-                $this->vendaOperacaoService->create([
+                $linha = $this->vendaOperacaoService->create([
                     'produto_id' => $item['produto_id'],
                     'data_venda' => $pedido->data_venda?->toDateString() ?? now()->toDateString(),
                     'quantidade' => $item['quantidade'],
@@ -87,6 +90,17 @@ class OportunidadeVendaService
                     'vendedor_nome' => $pedido->vendedor_nome_snapshot,
                     'observacao' => "Venda gerada pela oportunidade {$oportunidade->titulo}.",
                 ], $actor, $pedido, false);
+
+                $link = $linksById->get($item['oportunidade_produto_id']);
+
+                if ($linha->desconto_requer_aprovacao
+                    && $link?->desconto_aprovado_por
+                    && $link?->desconto_aprovado_em) {
+                    $linha->forceFill([
+                        'desconto_aprovado_por' => $link->desconto_aprovado_por,
+                        'desconto_aprovado_em' => $link->desconto_aprovado_em,
+                    ])->save();
+                }
             }
 
             $this->vendaOperacaoService->refreshPedidoTotals($pedido);
@@ -95,7 +109,13 @@ class OportunidadeVendaService
                 $actor,
                 "converter:oportunidade:{$oportunidade->id}",
             );
-            $this->markOpportunityAsConverted($oportunidade, $pedido);
+            if ($pedido->status === VendaOperacaoPedido::STATUS_CONFIRMADA) {
+                $this->markOpportunityAsConverted($oportunidade, $pedido);
+            } else {
+                $oportunidade->forceFill([
+                    'venda_operacao_pedido_id' => $pedido->id,
+                ])->save();
+            }
 
             return $pedido->fresh([
                 'oportunidade',
@@ -154,9 +174,6 @@ class OportunidadeVendaService
                         $rowErrors[] = 'Produto inativo ou indisponivel.';
                     }
 
-                    if ($quantidadeNecessaria > $estoqueAtual) {
-                        $rowErrors[] = 'Estoque insuficiente para a quantidade total deste produto.';
-                    }
                 }
 
                 if ($quantidade <= 0) {
@@ -278,18 +295,7 @@ class OportunidadeVendaService
     {
         $wonStage = $this->resolveWonStage();
 
-        $payload = [
-            'venda_operacao_pedido_id' => $pedido->id,
-            'convertida_em' => now(),
-        ];
-
-        if ($wonStage) {
-            $payload['etapa_id'] = $wonStage->id;
-            $payload['motivo_fechamento'] = $wonStage->fechamento ? 'Venda confirmada' : null;
-        }
-
-        $oportunidade->fill($payload);
-        $oportunidade->save();
+        $oportunidade->markSaleAsConverted($pedido, $wonStage);
     }
 
     protected function resolveWonStage(): ?Etapa
@@ -297,7 +303,7 @@ class OportunidadeVendaService
         return Etapa::query()
             ->where(function ($query): void {
                 $query
-                    ->where('tipo', \App\Enum\EtapaTipo::Ganha->value)
+                    ->where('tipo', EtapaTipo::Ganha->value)
                     ->orWhereIn('slug', ['ganho', 'win'])
                     ->orWhereRaw('lower(nome) in (?, ?)', ['ganho', 'win']);
             })
