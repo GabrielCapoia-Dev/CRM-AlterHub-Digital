@@ -786,7 +786,8 @@ class VendaOperacaoResource extends Resource
                     ->label('Motivos da aprovação')
                     ->description('Motivos da aprovação', position: 'above')
                     ->state(fn (VendaOperacaoPedido $record): string => implode(' ', static::approvalReasonLines($record)))
-                    ->visible(fn (VendaOperacaoPedido $record): bool => static::approvalReasonLines($record) !== [])
+                    ->visible(fn (?VendaOperacaoPedido $record): bool => $record === null
+                        || static::approvalReasonLines($record) !== [])
                     ->wrap()
                     ->extraAttributes(['class' => 'crm-list-field crm-list-footer'], merge: true),
 
