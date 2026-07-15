@@ -503,6 +503,40 @@
     background: rgba(255, 255, 255, 0.96);
 }
 
+.oa-decision-modal {
+    max-width: min(42rem, calc(100vw - 2rem));
+}
+
+.oa-decision-modal .fi-modal-description,
+.oa-export-modal .fi-modal-description {
+    max-width: 68ch;
+    line-height: 1.55;
+}
+
+.oa-decision-modal .fi-modal-footer-actions,
+.oa-export-modal .fi-modal-footer-actions {
+    width: 100%;
+    gap: 0.75rem;
+}
+
+.oa-decision-modal .fi-modal-footer-actions .fi-btn,
+.oa-export-modal .fi-modal-footer-actions .fi-btn {
+    min-width: 8rem;
+    white-space: nowrap;
+}
+
+.oa-export-modal {
+    max-width: min(64rem, calc(100vw - 2rem));
+}
+
+@media (max-width: 640px) {
+    .oa-decision-modal .fi-modal-footer-actions .fi-btn,
+    .oa-export-modal .fi-modal-footer-actions .fi-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 /* Modal de nova/copiar venda — layout mais limpo e denso */
 .oa-sales-modal {
     max-width: min(56rem, calc(100vw - 2rem));
@@ -556,8 +590,11 @@
 }
 
 .oa-sales-modal .fi-modal-footer {
-    gap: 0.65rem;
     padding: 1rem 1.5rem;
+}
+
+.oa-sales-modal .fi-modal-footer-actions {
+    gap: 0.65rem;
 }
 
 .oa-sales-modal .fi-modal-footer .fi-btn {

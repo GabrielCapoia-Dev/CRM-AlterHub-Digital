@@ -16,6 +16,8 @@ use App\Models\VendaOperacaoPedido;
 use App\Services\Operacao\VendaOperacaoService;
 use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Actions\Exports\Models\Export;
+use Filament\Support\Enums\Alignment;
+use Filament\Support\Enums\Width;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
@@ -83,6 +85,50 @@ class CrmExportersTest extends TestCase
         $this->assertSame(5000, $maximum->getChunkSize());
         $this->assertSame('exports', $exporter->getJobQueue());
         $this->assertSame('database', $exporter->getJobConnection());
+    }
+
+    public function test_export_action_modals_are_responsive_and_fully_translated(): void
+    {
+        app()->setLocale('pt_BR');
+
+        $actions = [
+            CrmExportActions::produtos(),
+            CrmExportActions::produtoDetalhe(),
+            CrmExportActions::estoqueAtual(),
+            CrmExportActions::produtoMovimentacoes(),
+            CrmExportActions::insumoMovimentacoes(),
+            CrmExportActions::vendas(),
+        ];
+
+        foreach ($actions as $action) {
+            $this->assertSame(2, $action->getColumnMappingColumns());
+            $this->assertSame(Width::FiveExtraLarge, $action->getModalWidth());
+            $this->assertSame(Alignment::Start, $action->getModalAlignment());
+            $this->assertSame(Alignment::End, $action->getModalFooterActionsAlignment());
+            $this->assertSame('Iniciar exportação', $action->getModalSubmitActionLabel());
+            $this->assertSame('Cancelar', $action->getModalCancelActionLabel());
+            $this->assertSame(
+                'oa-record-modal oa-export-modal',
+                $action->getExtraModalWindowAttributes()['class'] ?? null,
+            );
+        }
+
+        $this->assertSame(
+            'Selecionar todas',
+            __('filament-actions::export.modal.form.columns.actions.select_all.label'),
+        );
+        $this->assertSame(
+            'Desmarcar todas',
+            __('filament-actions::export.modal.form.columns.actions.deselect_all.label'),
+        );
+        $this->assertSame(
+            'Nenhuma coluna selecionada',
+            __('filament-actions::export.notifications.no_columns.title'),
+        );
+        $this->assertSame(
+            'Selecione pelo menos uma coluna para iniciar a exportação.',
+            __('filament-actions::export.notifications.no_columns.body'),
+        );
     }
 
     public function test_export_action_authorization_follows_the_model_policy(): void

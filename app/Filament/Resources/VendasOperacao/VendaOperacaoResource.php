@@ -35,6 +35,8 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Alignment;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Layout\Grid;
 use Filament\Tables\Columns\Layout\Split;
@@ -856,8 +858,14 @@ class VendaOperacaoResource extends Resource
                         ->schema(static::getSaleFormComponents())
                         ->fillForm(fn (VendaOperacaoPedido $record): array => app(VendaOperacaoService::class)->buildEditPayload($record))
                         ->action(function (VendaOperacaoPedido $record, array $data): void {
-                            app(VendaOperacaoService::class)->updatePedido($record, $data, auth()->user());
-                            Notification::make()->title('Venda atualizada')->success()->send();
+                            try {
+                                app(VendaOperacaoService::class)->updatePedido($record, $data, auth()->user());
+                                Notification::make()->title('Venda atualizada')->success()->send();
+                            } catch (ValidationException $exception) {
+                                static::sendValidationFailure('Não foi possível atualizar a venda', $exception);
+
+                                throw $exception;
+                            }
                         }),
 
                     Action::make('products')
@@ -892,13 +900,9 @@ class VendaOperacaoResource extends Resource
                         ->action(function (array $data): void {
                             try {
                                 $pedido = app(VendaOperacaoService::class)->createPedido($data, auth()->user());
-                                static::notifySaleCreated($pedido);
+                                static::saleCreatedNotification($pedido)->send();
                             } catch (ValidationException $exception) {
-                                Notification::make()
-                                    ->title('Nao foi possivel copiar a venda')
-                                    ->body(collect($exception->errors())->flatten()->implode(' '))
-                                    ->danger()
-                                    ->send();
+                                static::sendValidationFailure('Não foi possível copiar a venda', $exception);
 
                                 throw $exception;
                             }
@@ -911,29 +915,41 @@ class VendaOperacaoResource extends Resource
                         ->requiresConfirmation()
                         ->modalHeading('Confirmar venda e baixar estoque')
                         ->modalDescription('A confirmação registra a saída de estoque imediatamente. Se não houver saldo, a venda ficará pendente de aprovação.')
+                        ->modalWidth(Width::TwoExtraLarge)
+                        ->modalAlignment(Alignment::Start)
+                        ->modalFooterActionsAlignment(Alignment::End)
+                        ->modalSubmitActionLabel('Confirmar venda')
+                        ->modalCancelActionLabel('Voltar')
+                        ->extraModalWindowAttributes([
+                            'class' => 'oa-record-modal oa-decision-modal',
+                        ])
                         ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('confirm', $record) ?? false)
                         ->action(function (VendaOperacaoPedido $record): void {
-                            $pedido = app(VendaWorkflowService::class)->confirmar(
-                                $record,
-                                auth()->user(),
-                                "confirmar:venda:{$record->id}:v{$record->versao}",
-                            );
+                            try {
+                                $pedido = app(VendaWorkflowService::class)->confirmar(
+                                    $record,
+                                    auth()->user(),
+                                    "confirmar:venda:{$record->id}:v{$record->versao}",
+                                );
 
-                            if ($pedido->isPendenteAprovacao()) {
+                                if ($pedido->isPendenteAprovacao()) {
+                                    Notification::make()
+                                        ->title('Venda pendente de aprovação')
+                                        ->body('O estoque disponível é insuficiente. Reponha o saldo antes da aprovação.')
+                                        ->warning()
+                                        ->send();
+
+                                    return;
+                                }
+
                                 Notification::make()
-                                    ->title('Venda pendente de aprovação')
-                                    ->body('O estoque disponível é insuficiente. Reponha o saldo antes da aprovação.')
-                                    ->warning()
+                                    ->title('Venda confirmada')
+                                    ->body('A saída de estoque foi registrada no razão.')
+                                    ->success()
                                     ->send();
-
-                                return;
+                            } catch (ValidationException $exception) {
+                                static::sendValidationFailure('Não foi possível confirmar a venda', $exception);
                             }
-
-                            Notification::make()
-                                ->title('Venda confirmada')
-                                ->body('A saída de estoque foi registrada no razão.')
-                                ->success()
-                                ->send();
                         }),
 
                     Action::make('cancel')
@@ -945,9 +961,23 @@ class VendaOperacaoResource extends Resource
                             Textarea::make('justificativa')->label('Justificativa')->required()->minLength(10),
                         ])
                         ->requiresConfirmation()
+                        ->modalHeading('Cancelar venda')
+                        ->modalDescription('Informe a justificativa. Quando aplicável, o estoque será compensado automaticamente.')
+                        ->modalWidth(Width::TwoExtraLarge)
+                        ->modalAlignment(Alignment::Start)
+                        ->modalFooterActionsAlignment(Alignment::End)
+                        ->modalSubmitActionLabel('Cancelar venda')
+                        ->modalCancelActionLabel('Voltar')
+                        ->extraModalWindowAttributes([
+                            'class' => 'oa-record-modal oa-decision-modal',
+                        ])
                         ->action(function (VendaOperacaoPedido $record, array $data): void {
-                            app(VendaWorkflowService::class)->cancelar($record, auth()->user(), $data['justificativa']);
-                            Notification::make()->title('Venda cancelada e estoque compensado')->success()->send();
+                            try {
+                                app(VendaWorkflowService::class)->cancelar($record, auth()->user(), $data['justificativa']);
+                                Notification::make()->title('Venda cancelada e estoque compensado')->success()->send();
+                            } catch (ValidationException $exception) {
+                                static::sendValidationFailure('Não foi possível cancelar a venda', $exception);
+                            }
                         }),
 
                     Action::make('reopen')
@@ -959,9 +989,23 @@ class VendaOperacaoResource extends Resource
                             Textarea::make('justificativa')->label('Justificativa')->required()->minLength(10),
                         ])
                         ->requiresConfirmation()
+                        ->modalHeading('Reabrir venda')
+                        ->modalDescription('Informe a justificativa para devolver a venda ao estado de rascunho.')
+                        ->modalWidth(Width::TwoExtraLarge)
+                        ->modalAlignment(Alignment::Start)
+                        ->modalFooterActionsAlignment(Alignment::End)
+                        ->modalSubmitActionLabel('Reabrir venda')
+                        ->modalCancelActionLabel('Voltar')
+                        ->extraModalWindowAttributes([
+                            'class' => 'oa-record-modal oa-decision-modal',
+                        ])
                         ->action(function (VendaOperacaoPedido $record, array $data): void {
-                            app(VendaWorkflowService::class)->reabrir($record, auth()->user(), $data['justificativa']);
-                            Notification::make()->title('Venda reaberta como rascunho')->success()->send();
+                            try {
+                                app(VendaWorkflowService::class)->reabrir($record, auth()->user(), $data['justificativa']);
+                                Notification::make()->title('Venda reaberta como rascunho')->success()->send();
+                            } catch (ValidationException $exception) {
+                                static::sendValidationFailure('Não foi possível reabrir a venda', $exception);
+                            }
                         }),
 
                     Action::make('approveDiscount')
@@ -971,6 +1015,14 @@ class VendaOperacaoResource extends Resource
                         ->requiresConfirmation()
                         ->modalHeading('Aprovar venda pendente')
                         ->modalDescription(fn (VendaOperacaoPedido $record): HtmlString => static::renderApprovalReasons($record))
+                        ->modalWidth(Width::TwoExtraLarge)
+                        ->modalAlignment(Alignment::Start)
+                        ->modalFooterActionsAlignment(Alignment::End)
+                        ->modalSubmitActionLabel('Aprovar venda')
+                        ->modalCancelActionLabel('Cancelar')
+                        ->extraModalWindowAttributes([
+                            'class' => 'oa-record-modal oa-decision-modal',
+                        ])
                         ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('approveDiscount', $record) ?? false)
                         ->action(function (VendaOperacaoPedido $record): void {
                             try {
@@ -982,11 +1034,7 @@ class VendaOperacaoResource extends Resource
                                     ->success()
                                     ->send();
                             } catch (ValidationException $exception) {
-                                Notification::make()
-                                    ->title('Nao foi possivel aprovar')
-                                    ->body(collect($exception->errors())->flatten()->implode(' '))
-                                    ->danger()
-                                    ->send();
+                                static::sendValidationFailure('Não foi possível aprovar a venda', $exception);
                             }
                         }),
 
@@ -1016,11 +1064,7 @@ class VendaOperacaoResource extends Resource
                                     ->warning()
                                     ->send();
                             } catch (ValidationException $exception) {
-                                Notification::make()
-                                    ->title('Nao foi possivel recusar')
-                                    ->body(collect($exception->errors())->flatten()->implode(' '))
-                                    ->danger()
-                                    ->send();
+                                static::sendValidationFailure('Não foi possível recusar a venda', $exception);
                             }
                         }),
                 ])
@@ -1062,30 +1106,34 @@ class VendaOperacaoResource extends Resource
                     ],
                 ],
             ])
-            ->using(function (array $data): VendaOperacaoPedido {
-                $pedido = app(VendaOperacaoService::class)->createPedido($data, auth()->user());
-                static::notifySaleCreated($pedido);
-
-                return $pedido;
-            });
+            ->using(fn (array $data): VendaOperacaoPedido => app(VendaOperacaoService::class)
+                ->createPedido($data, auth()->user()))
+            ->successNotification(
+                fn (VendaOperacaoPedido $record): Notification => static::saleCreatedNotification($record),
+            );
     }
 
-    protected static function notifySaleCreated(VendaOperacaoPedido $pedido): void
+    protected static function saleCreatedNotification(VendaOperacaoPedido $pedido): Notification
     {
         if ($pedido->isPendenteAprovacao()) {
-            Notification::make()
+            return Notification::make()
                 ->title('Venda enviada para aprovacao')
                 ->body('Há desconto comercial ou estoque insuficiente. A venda ficará aguardando aprovação.')
-                ->warning()
-                ->send();
-
-            return;
+                ->warning();
         }
 
-        Notification::make()
+        return Notification::make()
             ->title('Rascunho de venda criado')
             ->body('Revise os dados e confirme a venda para registrar a saída de estoque.')
-            ->success()
+            ->success();
+    }
+
+    protected static function sendValidationFailure(string $title, ValidationException $exception): void
+    {
+        Notification::make()
+            ->title($title)
+            ->body(collect($exception->errors())->flatten()->implode(' '))
+            ->danger()
             ->send();
     }
 }

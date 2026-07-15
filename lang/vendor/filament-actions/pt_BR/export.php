@@ -14,6 +14,18 @@ return [
 
                 'label' => 'Colunas',
 
+                'actions' => [
+
+                    'select_all' => [
+                        'label' => 'Selecionar todas',
+                    ],
+
+                    'deselect_all' => [
+                        'label' => 'Desmarcar todas',
+                    ],
+
+                ],
+
                 'form' => [
 
                     'is_enabled' => [
@@ -68,6 +80,11 @@ return [
         'started' => [
             'title' => 'Exportação iniciada',
             'body' => 'A exportação foi iniciada e 1 linha será processada em segundo plano.|A exportação foi iniciada e :count linhas serão processadas em segundo plano.',
+        ],
+
+        'no_columns' => [
+            'title' => 'Nenhuma coluna selecionada',
+            'body' => 'Selecione pelo menos uma coluna para iniciar a exportação.',
         ],
 
     ],

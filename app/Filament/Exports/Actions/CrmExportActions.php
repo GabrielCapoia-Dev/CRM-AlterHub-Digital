@@ -14,6 +14,8 @@ use App\Models\VendaOperacaoPedido;
 use Filament\Actions\ExportAction;
 use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Actions\Exports\Exporter;
+use Filament\Support\Enums\Alignment;
+use Filament\Support\Enums\Width;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -127,6 +129,14 @@ final class CrmExportActions
             ->exporter($exporter)
             ->formats([ExportFormat::Xlsx])
             ->chunkSize(self::resolveChunkSize($configurationKey, $chunkSize))
+            ->columnMappingColumns(2)
+            ->modalWidth(Width::FiveExtraLarge)
+            ->modalAlignment(Alignment::Start)
+            ->modalFooterActionsAlignment(Alignment::End)
+            ->modalDescription('Selecione as colunas e, se necessário, ajuste os rótulos que serão usados no arquivo.')
+            ->modalSubmitActionLabel('Iniciar exportação')
+            ->modalCancelActionLabel('Cancelar')
+            ->extraModalWindowAttributes(['class' => 'oa-record-modal oa-export-modal'])
             ->authorize('viewAny', $model);
     }
 

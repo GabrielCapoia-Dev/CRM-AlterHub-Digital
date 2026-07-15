@@ -696,11 +696,10 @@ html.dark {
     border-top: 1px solid var(--ub-neutral-100);
     background: var(--ub-neutral-50);
     padding: 1rem 1.5rem;
-    display: flex;
-    flex-wrap: wrap;
+}
+
+.fi-modal-footer .fi-modal-footer-actions {
     gap: 0.625rem;
-    justify-content: flex-end;
-    align-items: center;
 }
 
 .fi-modal-footer .fi-btn {
