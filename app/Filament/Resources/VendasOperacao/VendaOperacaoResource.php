@@ -63,14 +63,9 @@ class VendaOperacaoResource extends Resource
 
     public static ?string $slug = 'operacao/vendas';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Operacao';
+    protected static string|UnitEnum|null $navigationGroup = 'Operação';
 
-    protected static ?int $navigationSort = 2;
-
-    public static function shouldRegisterNavigation(): bool
-    {
-        return false;
-    }
+    protected static ?int $navigationSort = 4;
 
     public static function getEloquentQuery(): Builder
     {

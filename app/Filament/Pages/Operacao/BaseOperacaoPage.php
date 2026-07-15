@@ -47,6 +47,14 @@ abstract class BaseOperacaoPage extends Page
         return '';
     }
 
+    /**
+     * @return array<string>
+     */
+    public function getBreadcrumbs(): array
+    {
+        return [];
+    }
+
     public function filters(): array
     {
         return [
