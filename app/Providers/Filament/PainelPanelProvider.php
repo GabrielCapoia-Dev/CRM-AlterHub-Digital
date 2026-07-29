@@ -35,6 +35,7 @@ class PainelPanelProvider extends PanelProvider
             ->login()
             ->profile()
             ->databaseNotifications()
+            ->globalSearch(false)
             ->spa()
             ->darkMode(false)
             ->sidebarCollapsibleOnDesktop()
@@ -159,6 +160,10 @@ class PainelPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 fn (): View => view('filament.partials.crm-list-table-styles')
+            )
+            ->renderHook(
+                PanelsRenderHook::GLOBAL_SEARCH_AFTER,
+                fn (): View => view('filament.partials.document-settings-button')
             )
             ->plugins([
                 AuthDesignerPlugin::make()

@@ -615,6 +615,187 @@
     gap: 0.45rem;
 }
 
+/* Separação de mercadoria — modal compacto, legível e orientado à tarefa */
+.oa-separation-modal.fi-modal-window {
+    max-width: min(64rem, calc(100vw - 2rem));
+    max-height: min(48rem, calc(100dvh - 2rem)) !important;
+    border: 1px solid rgba(23, 54, 141, 0.24);
+    border-radius: 1.1rem;
+    box-shadow: 0 24px 64px rgba(10, 26, 74, 0.22);
+}
+
+.oa-separation-modal .fi-modal-header {
+    padding: 1rem 1.25rem 0.9rem;
+    border-bottom: 1px solid #d4d8e6;
+    background: linear-gradient(180deg, #f8faff 0%, #f4f7fd 100%);
+}
+
+.oa-separation-modal .fi-modal-heading {
+    color: #0f1729;
+    font-size: 1.08rem;
+    font-weight: 750;
+    letter-spacing: -0.01em;
+}
+
+.oa-separation-modal .fi-modal-description {
+    max-width: 72ch;
+    margin-top: 0.3rem;
+    color: #47516e;
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.oa-separation-modal .fi-modal-content {
+    gap: 0.9rem;
+    padding: 1rem 1.25rem 1.15rem;
+    background: #f7f8fb;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+}
+
+.oa-separation-modal .fi-modal-footer {
+    padding: 0.8rem 1.25rem;
+    border-top: 1px solid #d4d8e6;
+    background: #ffffff;
+}
+
+.oa-separation-modal .fi-modal-footer-actions {
+    gap: 0.6rem;
+}
+
+.oa-separation-modal .fi-modal-footer .fi-btn {
+    min-height: 2.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.65rem;
+}
+
+.oa-separation-volume-grid {
+    padding: 0.85rem 0.95rem;
+    border: 1px solid #d4d8e6;
+    border-radius: 0.8rem;
+    background: #ffffff;
+}
+
+.oa-separation-modal .fi-fo-field-label-content,
+.oa-separation-modal .fi-in-entry-label {
+    color: #2d3756;
+    font-weight: 650;
+}
+
+.oa-separation-modal .fi-fo-field-wrp-helper-text {
+    color: #6b7694;
+    font-size: 0.78rem;
+}
+
+.oa-separation-modal .fi-input-wrp {
+    border-color: #b4bace;
+    background: #ffffff;
+}
+
+.oa-separation-modal .fi-input-wrp:focus-within {
+    border-color: #2a58c0;
+    box-shadow: 0 0 0 3px rgba(42, 88, 192, 0.12);
+}
+
+.oa-separation-products > .fi-fo-repeater-items {
+    gap: 0.8rem;
+}
+
+.oa-separation-products > .fi-fo-repeater-items > .fi-fo-repeater-item {
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #b4bace;
+    border-radius: 0.85rem;
+    background: #ffffff;
+    box-shadow: 0 3px 12px rgba(15, 23, 41, 0.06);
+}
+
+.oa-separation-products > .fi-fo-repeater-items > .fi-fo-repeater-item > .fi-fo-repeater-item-header {
+    padding: 0.68rem 0.85rem;
+    border-bottom: 1px solid #a8c5f5;
+    background: #eaf1fd;
+}
+
+.oa-separation-products .fi-fo-repeater-item-header-label {
+    color: #0a1a4a;
+    font-weight: 700;
+}
+
+.oa-separation-products > .fi-fo-repeater-items > .fi-fo-repeater-item > .fi-fo-repeater-item-content {
+    padding: 0.85rem;
+}
+
+.oa-separation-summary .fi-in-text-item {
+    color: #11192c;
+    font-weight: 650;
+}
+
+.oa-separation-summary--warning .fi-in-text-item {
+    color: #92400e;
+}
+
+.oa-separation-lots > .fi-fo-repeater-items {
+    gap: 0.65rem;
+}
+
+.oa-separation-lots > .fi-fo-repeater-items > .fi-fo-repeater-item {
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #d4d8e6;
+    border-radius: 0.75rem;
+    background: #fbfcff;
+    box-shadow: none;
+}
+
+.oa-separation-lots > .fi-fo-repeater-items > .fi-fo-repeater-item > .fi-fo-repeater-item-header {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid #d4d8e6;
+    background: #f0f2f7;
+}
+
+.oa-separation-lots > .fi-fo-repeater-items > .fi-fo-repeater-item > .fi-fo-repeater-item-content {
+    padding: 0.75rem;
+}
+
+.oa-separation-optional.fi-section {
+    border: 1px solid #d4d8e6;
+    border-radius: 0.7rem;
+    background: #ffffff;
+    box-shadow: none;
+}
+
+.oa-separation-optional .fi-section-header {
+    padding: 0.65rem 0.75rem;
+    background: #f8f9fc;
+}
+
+.oa-separation-optional .fi-section-header-heading {
+    color: #2d3756;
+    font-size: 0.84rem;
+}
+
+.oa-separation-optional .fi-section-header-description {
+    color: #6b7694;
+    font-size: 0.75rem;
+}
+
+@media (max-width: 640px) {
+    .oa-separation-modal.fi-modal-window {
+        max-width: calc(100vw - 1rem);
+        max-height: calc(100dvh - 1rem) !important;
+    }
+
+    .oa-separation-modal .fi-modal-header,
+    .oa-separation-modal .fi-modal-content,
+    .oa-separation-modal .fi-modal-footer {
+        padding-inline: 0.875rem;
+    }
+
+    .oa-separation-volume-grid {
+        padding: 0.75rem;
+    }
+}
+
 /* Página de vendas: respiro entre header e botão Nova venda */
 .fi-page:has(.crm-resource-page) .fi-header-actions,
 .fi-page:has(.crm-resource-page) .fi-page-header-actions {

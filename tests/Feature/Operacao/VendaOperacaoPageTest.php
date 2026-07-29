@@ -86,6 +86,19 @@ class VendaOperacaoPageTest extends TestCase
             'oa-record-modal oa-decision-modal',
             $action->getExtraModalWindowAttributes()['class'] ?? null,
         );
+
+        $separationAction = $component->instance()->getTable()->getAction('separacao');
+
+        $this->assertNotNull($separationAction);
+        $this->assertSame('Separação e lotes', $separationAction->getLabel());
+        $this->assertSame(Width::FiveExtraLarge, $separationAction->getModalWidth());
+        $this->assertSame(Alignment::End, $separationAction->getModalFooterActionsAlignment());
+        $this->assertSame('Salvar separação', $separationAction->getModalSubmitActionLabel());
+        $this->assertSame('Cancelar', $separationAction->getModalCancelActionLabel());
+        $this->assertSame(
+            'oa-record-modal oa-separation-modal',
+            $separationAction->getExtraModalWindowAttributes()['class'] ?? null,
+        );
     }
 
     public function test_sale_creation_queues_only_one_contextual_notification(): void

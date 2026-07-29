@@ -36,6 +36,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Grid as SchemaGrid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -938,81 +939,149 @@ class VendaOperacaoResource extends Resource
                         ])),
 
                     Action::make('separacao')
-                        ->label('Lotes, peso e volumes')
+                        ->label('Separação e lotes')
                         ->icon('heroicon-o-clipboard-document-check')
                         ->color('gray')
                         ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('manageLots', $record) ?? false)
-                        ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Separacao do pedido '.$record->codigo)
-                        ->modalDescription('Informe volumes e os lotes efetivamente separados. O peso e copiado do cadastro do produto e fica preservado no item.')
-                        ->modalWidth('7xl')
+                        ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Separação do pedido '.$record->codigo)
+                        ->modalDescription('Informe os volumes e os lotes separados. O peso cadastrado no produto será preservado no item.')
+                        ->modalWidth(Width::FiveExtraLarge)
+                        ->modalSubmitActionLabel('Salvar separação')
+                        ->modalCancelActionLabel('Cancelar')
+                        ->modalFooterActionsAlignment(Alignment::End)
+                        ->stickyModalHeader()
+                        ->stickyModalFooter()
+                        ->extraModalWindowAttributes([
+                            'class' => 'oa-record-modal oa-separation-modal',
+                        ])
                         ->schema([
-                            TextInput::make('quantidade_volumes')
-                                ->label('Quantidade total de volumes')
-                                ->integer()
-                                ->minValue(1)
-                                ->required(),
+                            SchemaGrid::make(12)
+                                ->extraAttributes(['class' => 'oa-separation-volume-grid'])
+                                ->schema([
+                                    TextInput::make('quantidade_volumes')
+                                        ->label('Quantidade de volumes')
+                                        ->helperText('Total de volumes físicos desta carga.')
+                                        ->integer()
+                                        ->minValue(1)
+                                        ->required()
+                                        ->columnSpan([
+                                            'default' => 12,
+                                            'md' => 4,
+                                        ]),
+                                ]),
 
                             Repeater::make('itens')
-                                ->label('Produtos e lotes')
+                                ->label('Produtos')
                                 ->addable(false)
                                 ->deletable(false)
                                 ->reorderable(false)
                                 ->collapsible()
+                                ->columns(12)
+                                ->extraAttributes(['class' => 'oa-separation-products'])
                                 ->itemLabel(fn (array $state): string => (string) ($state['produto_nome'] ?? 'Produto'))
                                 ->schema([
                                     Hidden::make('venda_operacao_id'),
                                     Hidden::make('produto_nome'),
                                     Placeholder::make('produto_resumo')
-                                        ->label('Produto')
+                                        ->label('Quantidade confirmada')
                                         ->content(fn (Get $get): string => sprintf(
-                                            '%s - Quantidade confirmada: %s %s',
-                                            $get('produto_nome') ?: 'Produto',
+                                            '%s %s',
                                             NumericFormat::decimal((float) ($get('quantidade_confirmada') ?? 0)),
                                             $get('unidade') ?: 'UN',
-                                        )),
+                                        ))
+                                        ->extraAttributes(['class' => 'oa-separation-summary'])
+                                        ->columnSpan([
+                                            'default' => 12,
+                                            'md' => 7,
+                                        ]),
                                     Hidden::make('quantidade_confirmada'),
                                     Hidden::make('unidade'),
                                     Placeholder::make('peso_resumo')
-                                        ->label('Peso unitario')
+                                        ->label('Peso unitário')
                                         ->content(fn (Get $get): string => (float) ($get('peso_unitario_kg') ?? 0) > 0
                                             ? number_format((float) $get('peso_unitario_kg'), 4, ',', '.').' kg'
-                                            : 'Pendente - cadastre o peso no produto antes do romaneio.'),
+                                            : 'Pendente — cadastre o peso antes do romaneio.')
+                                        ->extraAttributes(fn (Get $get): array => [
+                                            'class' => (float) ($get('peso_unitario_kg') ?? 0) > 0
+                                                ? 'oa-separation-summary'
+                                                : 'oa-separation-summary oa-separation-summary--warning',
+                                        ])
+                                        ->columnSpan([
+                                            'default' => 12,
+                                            'md' => 5,
+                                        ]),
                                     Hidden::make('peso_unitario_kg'),
 
                                     Repeater::make('lotes')
                                         ->label('Lotes separados')
                                         ->addActionLabel('Adicionar lote')
                                         ->reorderable(false)
+                                        ->collapsible()
                                         ->columns(12)
+                                        ->columnSpanFull()
+                                        ->extraAttributes(['class' => 'oa-separation-lots'])
+                                        ->itemLabel(fn (array $state): string => filled($state['numero_lote'] ?? null)
+                                            ? 'Lote '.$state['numero_lote']
+                                            : 'Novo lote')
                                         ->schema([
                                             TextInput::make('numero_lote')
                                                 ->label('Lote')
                                                 ->required()
                                                 ->maxLength(100)
-                                                ->columnSpan(3),
+                                                ->columnSpan([
+                                                    'default' => 12,
+                                                    'md' => 5,
+                                                ]),
                                             TextInput::make('quantidade')
                                                 ->label('Quantidade')
                                                 ->numeric()
                                                 ->rule('decimal:0,4')
                                                 ->minValue(0.0001)
                                                 ->required()
-                                                ->columnSpan(2),
-                                            TextInput::make('ano_fabricacao')
-                                                ->label('Ano de fabricacao')
-                                                ->integer()
-                                                ->minValue(1900)
-                                                ->maxValue((int) now()->format('Y') + 1)
-                                                ->columnSpan(2),
-                                            DatePicker::make('data_fabricacao')
-                                                ->label('Fabricacao')
-                                                ->columnSpan(2),
+                                                ->columnSpan([
+                                                    'default' => 12,
+                                                    'md' => 3,
+                                                ]),
                                             DatePicker::make('data_validade')
                                                 ->label('Validade')
-                                                ->columnSpan(2),
-                                            Textarea::make('observacao')
-                                                ->label('Observacao')
-                                                ->rows(2)
-                                                ->columnSpanFull(),
+                                                ->columnSpan([
+                                                    'default' => 12,
+                                                    'md' => 4,
+                                                ]),
+                                            Section::make('Fabricação e observação')
+                                                ->description('Campos opcionais')
+                                                ->compact()
+                                                ->collapsible()
+                                                ->collapsed(fn (Get $get): bool => blank($get('ano_fabricacao'))
+                                                    && blank($get('data_fabricacao'))
+                                                    && blank($get('observacao')))
+                                                ->columns(12)
+                                                ->columnSpanFull()
+                                                ->extraAttributes(['class' => 'oa-separation-optional'])
+                                                ->schema([
+                                                    TextInput::make('ano_fabricacao')
+                                                        ->label('Ano de fabricação')
+                                                        ->integer()
+                                                        ->minValue(1900)
+                                                        ->maxValue((int) now()->format('Y') + 1)
+                                                        ->columnSpan([
+                                                            'default' => 12,
+                                                            'md' => 3,
+                                                        ]),
+                                                    DatePicker::make('data_fabricacao')
+                                                        ->label('Data de fabricação')
+                                                        ->columnSpan([
+                                                            'default' => 12,
+                                                            'md' => 4,
+                                                        ]),
+                                                    Textarea::make('observacao')
+                                                        ->label('Observação')
+                                                        ->rows(2)
+                                                        ->columnSpan([
+                                                            'default' => 12,
+                                                            'md' => 5,
+                                                        ]),
+                                                ]),
                                         ]),
                                 ]),
                         ])
@@ -1370,6 +1439,7 @@ class VendaOperacaoResource extends Resource
                     ->label('Ações')
                     ->icon('heroicon-o-ellipsis-vertical')
                     ->button()
+                    ->dropdownWidth(Width::Small)
                     ->color('gray'),
             ], position: RecordActionsPosition::AfterContent);
     }

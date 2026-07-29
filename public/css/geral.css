@@ -88,6 +88,16 @@ html.dark {
     border-radius: 8px;
 }
 
+.fi-topbar .fi-topbar-document-settings-btn {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.fi-topbar .fi-topbar-document-settings-btn:hover,
+.fi-topbar .fi-topbar-document-settings-btn:focus-visible {
+    color: var(--ub-white);
+    background: rgba(255, 255, 255, 0.11);
+}
+
 .fi-sidebar-item.fi-active>.fi-sidebar-item-btn>.fi-icon {
     color: var(--ub-primary-50) !important;
 }

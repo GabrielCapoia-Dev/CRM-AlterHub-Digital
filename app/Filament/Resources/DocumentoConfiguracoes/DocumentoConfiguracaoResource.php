@@ -25,6 +25,8 @@ class DocumentoConfiguracaoResource extends Resource
 {
     protected static ?string $model = DocumentoConfiguracao::class;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
     protected static ?string $navigationLabel = 'Documentos da empresa';
