@@ -560,6 +560,14 @@ class VendaOperacaoResource extends Resource
         return $linhas;
     }
 
+    protected static function renderApprovalReasonsSummary(VendaOperacaoPedido $pedido): HtmlString
+    {
+        return new HtmlString(view(
+            'filament.resources.vendas-operacao.partials.motivos-aprovacao',
+            ['pedido' => $pedido],
+        )->render());
+    }
+
     protected static function renderApprovalReasons(VendaOperacaoPedido $pedido): HtmlString
     {
         $linhas = static::approvalReasonLines($pedido);
@@ -859,11 +867,11 @@ class VendaOperacaoResource extends Resource
                 TextColumn::make('motivos_aprovacao')
                     ->label('Motivos da aprovação')
                     ->description('Motivos da aprovação', position: 'above')
-                    ->state(fn (VendaOperacaoPedido $record): string => implode(' ', static::approvalReasonLines($record)))
+                    ->state(fn (VendaOperacaoPedido $record): HtmlString => static::renderApprovalReasonsSummary($record))
                     ->visible(fn (?VendaOperacaoPedido $record): bool => $record === null
                         || static::approvalReasonLines($record) !== [])
-                    ->wrap()
-                    ->extraAttributes(['class' => 'crm-list-field crm-list-footer'], merge: true),
+                    ->html()
+                    ->extraAttributes(['class' => 'crm-list-field crm-list-footer crm-list-approval'], merge: true),
 
                 TextColumn::make('vendedor_nome_snapshot')
                     ->label('Vendedor')

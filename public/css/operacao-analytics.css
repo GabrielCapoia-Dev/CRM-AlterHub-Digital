@@ -525,6 +525,184 @@
     white-space: nowrap;
 }
 
+/* Motivos da aprovação — leitura rápida dentro do card da venda */
+.crm-list-approval .fi-ta-text-item,
+.oa-approval-reasons {
+    display: block;
+    width: 100%;
+}
+
+.oa-approval-reasons {
+    display: grid;
+    gap: 0.5rem;
+    color: #172033;
+}
+
+.oa-approval-reasons__commercial {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid #f1d18d;
+    border-radius: 0.65rem;
+    background: #fff9eb;
+}
+
+.oa-approval-reasons__commercial-icon,
+.oa-approval-reasons__summary-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.oa-approval-reasons__commercial-icon {
+    background: #ffebba;
+    color: #965600;
+}
+
+.oa-approval-reasons__commercial div {
+    display: grid;
+    gap: 0.05rem;
+    min-width: 0;
+}
+
+.oa-approval-reasons__commercial span:not(.oa-approval-reasons__commercial-icon) {
+    color: #8a5b11;
+    font-size: 0.65rem;
+    font-weight: 750;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+}
+
+.oa-approval-reasons__commercial strong {
+    color: #69400a;
+    font-size: 0.76rem;
+    line-height: 1.35;
+}
+
+.oa-approval-reasons__summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #8f2525;
+    font-size: 0.76rem;
+}
+
+.oa-approval-reasons__summary-icon {
+    width: 1.3rem;
+    height: 1.3rem;
+    background: #fee7e7;
+    color: #b42318;
+    font-size: 0.67rem;
+}
+
+.oa-approval-reasons__list {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.oa-approval-reasons__item {
+    display: grid;
+    grid-template-columns: minmax(12rem, 1fr) minmax(18rem, 0.9fr);
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid #e2c9c9;
+    border-left: 3px solid #d65a5a;
+    border-radius: 0.6rem;
+    background: linear-gradient(90deg, #fff8f8 0%, #ffffff 46%);
+    box-shadow: 0 2px 8px rgba(103, 34, 34, 0.045);
+}
+
+.oa-approval-reasons__product {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.oa-approval-reasons__product-marker {
+    flex: 0 0 auto;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: #d34848;
+    box-shadow: 0 0 0 3px #fee7e7;
+}
+
+.oa-approval-reasons__product strong {
+    min-width: 0;
+    color: #263047;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.oa-approval-reasons__metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.35rem;
+    margin: 0;
+}
+
+.oa-approval-reasons__metric {
+    min-width: 0;
+    padding: 0.35rem 0.45rem;
+    border-radius: 0.45rem;
+    background: #f4f6fa;
+}
+
+.oa-approval-reasons__metric dt {
+    color: #727b90;
+    font-size: 0.58rem;
+    font-weight: 750;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+}
+
+.oa-approval-reasons__metric dd {
+    margin: 0.08rem 0 0;
+    color: #202a40;
+    font-size: 0.73rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 750;
+}
+
+.oa-approval-reasons__metric--requested {
+    background: #eef4ff;
+}
+
+.oa-approval-reasons__metric--requested dt,
+.oa-approval-reasons__metric--requested dd {
+    color: #315a9d;
+}
+
+.oa-approval-reasons__metric--available {
+    background: #fff8e7;
+}
+
+.oa-approval-reasons__metric--available dt,
+.oa-approval-reasons__metric--available dd {
+    color: #895816;
+}
+
+.oa-approval-reasons__metric--deficit {
+    background: #feecec;
+}
+
+.oa-approval-reasons__metric--deficit dt,
+.oa-approval-reasons__metric--deficit dd {
+    color: #b42318;
+}
+
 .oa-approval-modal.fi-modal-window {
     max-width: min(48rem, calc(100vw - 2rem));
 }
@@ -766,6 +944,19 @@
 }
 
 @media (max-width: 640px) {
+    .oa-approval-reasons__item {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .oa-approval-reasons__metrics {
+        gap: 0.25rem;
+    }
+
+    .oa-approval-reasons__metric {
+        padding: 0.35rem;
+    }
+
     .oa-approval-modal.fi-modal-window {
         max-width: calc(100vw - 1rem);
     }

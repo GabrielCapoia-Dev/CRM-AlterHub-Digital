@@ -54,7 +54,12 @@ class VendaOperacaoPageTest extends TestCase
         $this->actingAs($user)
             ->get(VendaOperacaoResource::getUrl())
             ->assertOk()
-            ->assertSeeText('Produto teste');
+            ->assertSeeText('Produto teste')
+            ->assertSeeText('produto com estoque insuficiente')
+            ->assertSeeText('Solicitado')
+            ->assertSeeText('Disponível')
+            ->assertSeeText('Déficit')
+            ->assertSee('oa-approval-reasons__metrics', escape: false);
     }
 
     public function test_sales_decision_modal_uses_safe_width_and_footer_alignment(): void
