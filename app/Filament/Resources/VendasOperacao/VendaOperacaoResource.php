@@ -936,15 +936,16 @@ class VendaOperacaoResource extends Resource
                         ->url(fn (VendaOperacaoPedido $record): string => route('documentos.pedidos.pdf', [
                             'pedido' => $record,
                             'download' => 1,
-                        ])),
+                        ]))
+                        ->extraAttributes(['download' => true]),
 
                     Action::make('separacao')
-                        ->label('Separação e lotes')
+                        ->label('Separação, lotes e fotos')
                         ->icon('heroicon-o-clipboard-document-check')
                         ->color('gray')
                         ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('manageLots', $record) ?? false)
                         ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Separação do pedido '.$record->codigo)
-                        ->modalDescription('Informe os volumes e os lotes separados. O peso cadastrado no produto será preservado no item.')
+                        ->modalDescription('Informe os volumes, os lotes e as fotos de cada produto separado. O peso cadastrado no produto será preservado no item.')
                         ->modalWidth(Width::FiveExtraLarge)
                         ->modalSubmitActionLabel('Salvar separação')
                         ->modalCancelActionLabel('Cancelar')
@@ -1083,6 +1084,30 @@ class VendaOperacaoResource extends Resource
                                                         ]),
                                                 ]),
                                         ]),
+
+                                    Section::make('Fotos do produto separado')
+                                        ->description('Adicione aqui as fotos deste produto junto com os dados do lote.')
+                                        ->compact()
+                                        ->columns(12)
+                                        ->columnSpanFull()
+                                        ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('addPhotos', $record) ?? false)
+                                        ->schema([
+                                            FileUpload::make('arquivos')
+                                                ->label('Fotos')
+                                                ->multiple()
+                                                ->storeFiles(false)
+                                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                                ->maxSize(10240)
+                                                ->maxFiles(20)
+                                                ->image()
+                                                ->helperText('JPEG, PNG ou WebP, até 10 MB por arquivo.')
+                                                ->columnSpanFull(),
+                                            Textarea::make('descricao_fotos')
+                                                ->label('Descrição das fotos (opcional)')
+                                                ->rows(2)
+                                                ->maxLength(2000)
+                                                ->columnSpanFull(),
+                                        ]),
                                 ]),
                         ])
                         ->fillForm(function (VendaOperacaoPedido $record): array {
@@ -1096,6 +1121,8 @@ class VendaOperacaoResource extends Resource
                                     'quantidade_confirmada' => (float) $item->quantidade,
                                     'unidade' => $item->unidade_snapshot,
                                     'peso_unitario_kg' => (float) ($item->peso_unitario_kg_snapshot ?: $item->produto?->peso_unitario_kg),
+                                    'arquivos' => [],
+                                    'descricao_fotos' => null,
                                     'lotes' => $item->lotes->map(fn ($lote): array => [
                                         'numero_lote' => $lote->numero_lote,
                                         'quantidade' => (float) $lote->quantidade,
@@ -1120,61 +1147,30 @@ class VendaOperacaoResource extends Resource
                                 }
                             });
 
-                            Notification::make()
-                                ->title('Separacao atualizada')
-                                ->body('Volumes, pesos disponiveis, lotes e validades foram registrados.')
-                                ->success()
-                                ->send();
-                        }),
+                            foreach ($data['itens'] ?? [] as $itemData) {
+                                $arquivos = (array) ($itemData['arquivos'] ?? []);
 
-                    Action::make('adicionarFotos')
-                        ->label('Adicionar fotos da mercadoria')
-                        ->icon('heroicon-o-camera')
-                        ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('addPhotos', $record) ?? false)
-                        ->modalHeading('Adicionar fotos da mercadoria separada')
-                        ->modalWidth('4xl')
-                        ->schema([
-                            FileUpload::make('arquivos')
-                                ->label('Fotos')
-                                ->multiple()
-                                ->storeFiles(false)
-                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                ->maxSize(10240)
-                                ->maxFiles(20)
-                                ->image()
-                                ->required(),
-                            Select::make('venda_operacao_id')
-                                ->label('Produto relacionado (opcional)')
-                                ->options(fn (VendaOperacaoPedido $record): array => $record->vendasOperacao()
-                                    ->orderBy('id')
-                                    ->pluck('produto_nome_snapshot', 'id')
-                                    ->all())
-                                ->searchable(),
-                            Textarea::make('descricao')
-                                ->label('Descricao ou observacao')
-                                ->rows(3)
-                                ->maxLength(2000),
-                        ])
-                        ->action(function (VendaOperacaoPedido $record, array $data): void {
-                            Gate::authorize('addPhotos', $record);
-                            $item = filled($data['venda_operacao_id'] ?? null)
-                                ? $record->vendasOperacao()->findOrFail($data['venda_operacao_id'])
-                                : null;
-                            $adicionadas = 0;
+                                if ($arquivos === []) {
+                                    continue;
+                                }
 
-                            foreach ((array) ($data['arquivos'] ?? []) as $arquivo) {
-                                app(VendaFotoService::class)->adicionar(
-                                    $record,
-                                    $arquivo,
-                                    auth()->user(),
-                                    $item,
-                                    $data['descricao'] ?? null,
-                                );
-                                $adicionadas++;
+                                Gate::authorize('addPhotos', $record);
+                                $item = $record->vendasOperacao()->findOrFail($itemData['venda_operacao_id']);
+
+                                foreach ($arquivos as $arquivo) {
+                                    app(VendaFotoService::class)->adicionar(
+                                        $record,
+                                        $arquivo,
+                                        auth()->user(),
+                                        $item,
+                                        $itemData['descricao_fotos'] ?? null,
+                                    );
+                                }
                             }
 
                             Notification::make()
-                                ->title($adicionadas.' foto(s) adicionada(s)')
+                                ->title('Separacao atualizada')
+                                ->body('Volumes, pesos disponíveis, lotes, validades e fotos foram registrados.')
                                 ->success()
                                 ->send();
                         }),

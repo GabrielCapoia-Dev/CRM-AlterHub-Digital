@@ -87,6 +87,35 @@ class DocumentosPdfServicesTest extends TestCase
         $this->assertDatabaseCount('venda_historicos', 0);
     }
 
+    public function test_pedido_pdf_download_is_streamed_with_binary_pdf_headers(): void
+    {
+        $this->configurarEmpresa();
+        [$pedido, , $user] = $this->criarPedidoConfirmado();
+        $this->concederPermissoes($user, [
+            PermissoesEnum::ListarVendasOperacao,
+            PermissoesEnum::GerarPdfPedido,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('documentos.pedidos.pdf', [
+                'pedido' => $pedido,
+                'download' => 1,
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertStreamed()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Content-Transfer-Encoding', 'binary')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+
+        $this->assertStringStartsWith(
+            'attachment;',
+            (string) $response->headers->get('Content-Disposition'),
+        );
+        $this->assertStringStartsWith('%PDF-', $response->streamedContent());
+    }
+
     public function test_pedido_pdf_renders_lots_and_photos_audits_reprint_and_never_touches_stock(): void
     {
         $this->configurarEmpresa();
