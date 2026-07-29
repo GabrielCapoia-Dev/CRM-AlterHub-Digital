@@ -1316,14 +1316,20 @@ class VendaOperacaoResource extends Resource
                         ->color('success')
                         ->requiresConfirmation()
                         ->modalHeading('Aprovar venda pendente')
-                        ->modalDescription(fn (VendaOperacaoPedido $record): HtmlString => static::renderApprovalReasons($record))
-                        ->modalWidth(Width::TwoExtraLarge)
+                        ->modalDescription('Revise os alertas de estoque e preço antes de confirmar.')
+                        ->modalContent(fn (VendaOperacaoPedido $record): View => view(
+                            'filament.resources.vendas-operacao.modals.aprovacao-venda',
+                            ['pedido' => $record],
+                        ))
+                        ->modalIcon('heroicon-o-shield-check')
+                        ->modalIconColor('warning')
+                        ->modalWidth(Width::ThreeExtraLarge)
                         ->modalAlignment(Alignment::Start)
                         ->modalFooterActionsAlignment(Alignment::End)
                         ->modalSubmitActionLabel('Aprovar venda')
                         ->modalCancelActionLabel('Cancelar')
                         ->extraModalWindowAttributes([
-                            'class' => 'oa-record-modal oa-decision-modal',
+                            'class' => 'oa-record-modal oa-decision-modal oa-approval-modal',
                         ])
                         ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('approveDiscount', $record) ?? false)
                         ->action(function (VendaOperacaoPedido $record): void {

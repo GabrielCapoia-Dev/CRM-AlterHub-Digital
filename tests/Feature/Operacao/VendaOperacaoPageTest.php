@@ -11,6 +11,7 @@ use Filament\Actions\CreateAction;
 use Filament\Facades\Filament;
 use Filament\Support\Enums\Alignment;
 use Filament\Support\Enums\Width;
+use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
@@ -77,15 +78,38 @@ class VendaOperacaoPageTest extends TestCase
         $action = $component->instance()->getTable()->getAction('approveDiscount');
 
         $this->assertNotNull($action);
-        $this->assertSame(Width::TwoExtraLarge, $action->getModalWidth());
+        $this->assertSame(Width::ThreeExtraLarge, $action->getModalWidth());
         $this->assertSame(Alignment::Start, $action->getModalAlignment());
         $this->assertSame(Alignment::End, $action->getModalFooterActionsAlignment());
         $this->assertSame('Aprovar venda', $action->getModalSubmitActionLabel());
         $this->assertSame('Cancelar', $action->getModalCancelActionLabel());
         $this->assertSame(
-            'oa-record-modal oa-decision-modal',
+            'oa-record-modal oa-decision-modal oa-approval-modal',
             $action->getExtraModalWindowAttributes()['class'] ?? null,
         );
+
+        $pending = VendaOperacaoPedido::query()->create([
+            'user_id' => $user->id,
+            'status' => VendaOperacaoPedido::STATUS_PENDENTE_APROVACAO,
+            'data_venda' => now()->toDateString(),
+            'vendedor_nome_snapshot' => $user->name,
+            'motivos_aprovacao' => [
+                'estoque' => [[
+                    'produto' => 'Produto crítico',
+                    'produto_id' => 321,
+                    'solicitado' => 8,
+                    'disponivel' => 3,
+                    'deficit' => 5,
+                ]],
+            ],
+        ]);
+        $modalContent = $action->record($pending)->getModalContent();
+
+        $this->assertInstanceOf(View::class, $modalContent);
+        $renderedModal = $modalContent->render();
+        $this->assertStringContainsString('Produto crítico', $renderedModal);
+        $this->assertStringContainsString('Produtos com quantidade insuficiente', $renderedModal);
+        $this->assertStringContainsString('Déficit', $renderedModal);
 
         $separationAction = $component->instance()->getTable()->getAction('separacao');
 
