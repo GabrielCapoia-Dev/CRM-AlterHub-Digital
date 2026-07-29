@@ -36,7 +36,7 @@ class RomaneioServiceTest extends TestCase
         Storage::fake('local');
     }
 
-    public function test_query_exige_pedido_confirmado_movimentado_com_peso_volumes_e_sem_estorno(): void
+    public function test_query_exige_pedido_confirmado_movimentado_com_peso_e_sem_estorno(): void
     {
         $actor = $this->createActor([PermissoesEnum::GerarRomaneio]);
         $pedido = $this->createEligiblePedido($actor);
@@ -58,7 +58,7 @@ class RomaneioServiceTest extends TestCase
         $this->assertTrue((clone $service->elegiveisQuery($actor))->whereKey($pedido->id)->exists());
 
         $pedido->forceFill(['quantidade_volumes' => null])->save();
-        $this->assertFalse((clone $service->elegiveisQuery($actor))->whereKey($pedido->id)->exists());
+        $this->assertTrue((clone $service->elegiveisQuery($actor))->whereKey($pedido->id)->exists());
     }
 
     public function test_criar_persiste_snapshots_lotes_totais_e_nao_movimenta_estoque(): void
@@ -80,8 +80,14 @@ class RomaneioServiceTest extends TestCase
         $produto = $item->produto()->firstOrFail();
         $estoqueAntes = (float) $produto->estoque_fisico;
         $movimentacoesAntes = ProdutoMovimentacao::query()->count();
+        $pedido->forceFill(['quantidade_volumes' => null])->save();
 
-        $romaneio = app(RomaneioService::class)->criar([$pedido->id], $actor, 'Carga da rota norte');
+        $romaneio = app(RomaneioService::class)->criar(
+            [$pedido->id],
+            $actor,
+            'Carga da rota norte',
+            [$pedido->id => 3],
+        );
 
         $this->assertSame(Romaneio::STATUS_ATIVO, $romaneio->status);
         $this->assertSame('ROM-'.str_pad((string) $romaneio->id, 6, '0', STR_PAD_LEFT), $romaneio->codigo);
@@ -90,6 +96,7 @@ class RomaneioServiceTest extends TestCase
         $this->assertSame(1, $romaneio->total_itens);
         $this->assertSame(2.0, (float) $romaneio->quantidade_total);
         $this->assertSame(3, $romaneio->quantidade_volumes_total);
+        $this->assertNull($pedido->fresh()->quantidade_volumes);
         $this->assertSame(3.0, (float) $romaneio->peso_total_kg);
         $this->assertSame(40.0, (float) $romaneio->valor_total);
         $this->assertStringStartsWith('data:image/png;base64,', $romaneio->empresa_snapshot['logo_data_uri']);
@@ -99,6 +106,7 @@ class RomaneioServiceTest extends TestCase
         $itemSnapshot = $pedidoSnapshot->itens->firstOrFail();
         $this->assertSame($pedido->id, $pedidoSnapshot->pedido_ativo_id);
         $this->assertSame($pedido->cliente_nome_snapshot, $pedidoSnapshot->cliente_nome_snapshot);
+        $this->assertSame(3, $pedidoSnapshot->quantidade_volumes);
         $this->assertSame('LOTE-2026-A', $itemSnapshot->lotes_snapshot[0]['numero_lote']);
         $this->assertSame('2027-07-01', $itemSnapshot->lotes_snapshot[0]['data_validade']);
         $this->assertSame('criado', $romaneio->historicos->firstOrFail()->evento);

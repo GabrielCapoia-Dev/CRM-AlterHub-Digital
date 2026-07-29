@@ -95,6 +95,10 @@ class VendaOperacaoPageTest extends TestCase
         $this->assertSame(Alignment::End, $separationAction->getModalFooterActionsAlignment());
         $this->assertSame('Salvar separação', $separationAction->getModalSubmitActionLabel());
         $this->assertSame('Cancelar', $separationAction->getModalCancelActionLabel());
+        $this->assertStringContainsString(
+            'quantidade de volumes será registrada somente no romaneio',
+            (string) $separationAction->getModalDescription(),
+        );
         $this->assertSame(
             'oa-record-modal oa-separation-modal',
             $separationAction->getExtraModalWindowAttributes()['class'] ?? null,

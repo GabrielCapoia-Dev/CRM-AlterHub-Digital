@@ -31,7 +31,6 @@ class RomaneioService
         return $this->vendas->queryPorPerfil($actor)
             ->where('status', VendaStatus::Confirmada->value)
             ->whereNotNull('data_venda')
-            ->where('quantidade_volumes', '>', 0)
             ->whereRaw("TRIM(COALESCE(codigo, '')) <> ''")
             ->whereRaw("TRIM(COALESCE(cliente_nome_snapshot, '')) <> ''")
             ->whereRaw("TRIM(COALESCE(vendedor_nome_snapshot, '')) <> ''")
@@ -66,6 +65,7 @@ class RomaneioService
         array $pedidoIds,
         User $actor,
         ?string $observacao = null,
+        array $volumesPorPedido = [],
     ): Romaneio {
         Gate::forUser($actor)->authorize('create', Romaneio::class);
 
@@ -82,6 +82,13 @@ class RomaneioService
                 'pedido_ids' => 'Selecione ao menos um pedido elegivel para o romaneio.',
             ]);
         }
+
+        $volumesInformadosNoRomaneio = $volumesPorPedido !== [];
+        $volumesPorPedido = collect($volumesPorPedido)
+            ->mapWithKeys(fn (mixed $quantidade, mixed $pedidoId): array => [
+                (int) $pedidoId => (int) $quantidade,
+            ])
+            ->all();
 
         $observacao = $this->nullableString($observacao);
 
@@ -104,6 +111,8 @@ class RomaneioService
                 $actor,
                 $observacao,
                 $empresaSnapshot,
+                $volumesPorPedido,
+                $volumesInformadosNoRomaneio,
             ): Romaneio {
                 $pedidos = $this->vendas->queryPorPerfil($actor)
                     ->whereIn('id', $ids)
@@ -165,15 +174,21 @@ class RomaneioService
                     ->get()
                     ->groupBy('venda_operacao_id');
                 $itensPorPedido = $itens->groupBy('venda_operacao_pedido_id');
+                $quantidadesVolumes = [];
 
                 foreach ($pedidos as $pedido) {
+                    $quantidadeVolumes = $volumesInformadosNoRomaneio
+                        ? (int) ($volumesPorPedido[$pedido->id] ?? 0)
+                        : (int) $pedido->quantidade_volumes;
                     $this->assertPedidoElegivel(
                         $pedido,
                         $itensPorPedido->get($pedido->id, collect()),
                         $movimentacoes,
                         $estornos,
                         $vinculosAtivos->has($pedido->id),
+                        $quantidadeVolumes,
                     );
+                    $quantidadesVolumes[$pedido->id] = $quantidadeVolumes;
                 }
 
                 $romaneio = Romaneio::query()->create([
@@ -227,7 +242,7 @@ class RomaneioService
                         'observacao_snapshot' => $pedido->observacao,
                         'total_itens' => $snapshotItens->count(),
                         'quantidade_total' => $quantidadePedido,
-                        'quantidade_volumes' => (int) $pedido->quantidade_volumes,
+                        'quantidade_volumes' => $quantidadesVolumes[$pedido->id],
                         'peso_total_kg' => $pesoPedido,
                         'valor_total' => $valorPedido,
                     ]);
@@ -242,7 +257,7 @@ class RomaneioService
                     $totais['total_pedidos']++;
                     $totais['total_itens'] += $snapshotItens->count();
                     $totais['quantidade_total'] += $quantidadePedido;
-                    $totais['quantidade_volumes_total'] += (int) $pedido->quantidade_volumes;
+                    $totais['quantidade_volumes_total'] += $quantidadesVolumes[$pedido->id];
                     $totais['peso_total_kg'] += $pesoPedido;
                     $totais['valor_total'] += $valorPedido;
                     $chaveCliente = $pedido->cliente_id
@@ -375,6 +390,7 @@ class RomaneioService
         Collection $movimentacoes,
         Collection $estornos,
         bool $possuiVinculoAtivo,
+        int $quantidadeVolumes,
     ): void {
         $pendencias = [];
 
@@ -394,7 +410,7 @@ class RomaneioService
             $pendencias[] = 'o vendedor nao esta identificado';
         }
 
-        if ((int) $pedido->quantidade_volumes <= 0) {
+        if ($quantidadeVolumes <= 0) {
             $pendencias[] = 'a quantidade de volumes nao foi informada';
         }
 

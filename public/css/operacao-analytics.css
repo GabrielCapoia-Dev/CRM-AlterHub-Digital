@@ -537,6 +537,147 @@
     }
 }
 
+/* Separação por produto — grade compacta inspirada em planilha */
+.oa-separation-products > .fi-fo-repeater-items {
+    gap: 1rem;
+}
+
+.oa-separation-products > .fi-fo-repeater-items > .fi-fo-repeater-item {
+    border-color: #9aa6bf;
+    border-radius: 0.55rem;
+}
+
+.oa-separation-products > .fi-fo-repeater-items > .fi-fo-repeater-item > .fi-fo-repeater-item-header {
+    padding: 0.65rem 0.8rem;
+    border-bottom-color: #71809f;
+    background: #eef3fb;
+}
+
+.oa-separation-products .fi-fo-repeater-item-header-label {
+    color: #101828;
+    font-size: 0.93rem;
+    font-weight: 750;
+}
+
+.oa-separation-products > .fi-fo-repeater-items > .fi-fo-repeater-item > .fi-fo-repeater-item-content {
+    padding: 0.65rem 0.75rem 0.75rem;
+}
+
+.oa-separation-lots.fi-fo-table-repeater {
+    overflow-x: auto;
+    border: 1px solid #8d99b0;
+    border-radius: 0.35rem;
+    background: #fff;
+}
+
+.oa-separation-lots table {
+    min-width: 61rem;
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.oa-separation-lots thead th {
+    padding: 0.45rem 0.5rem;
+    border-right: 1px solid #9ba6ba;
+    border-bottom: 1px solid #77849c;
+    background: #f1f4f8;
+    color: #172033;
+    font-size: 0.74rem;
+    font-weight: 750;
+    letter-spacing: 0.01em;
+    text-align: left;
+}
+
+.oa-separation-lots tbody td {
+    padding: 0.38rem;
+    border-right: 1px solid #c1c8d5;
+    border-bottom: 1px solid #c1c8d5;
+    vertical-align: top;
+    background: #fff;
+}
+
+.oa-separation-lots thead th:last-child,
+.oa-separation-lots tbody td:last-child {
+    border-right: 0;
+}
+
+.oa-separation-lots tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.oa-separation-lots .fi-input-wrp {
+    min-height: 2.25rem;
+    border-radius: 0.32rem;
+    box-shadow: none;
+}
+
+.oa-separation-lots .fi-input {
+    min-height: 2.2rem;
+    padding-block: 0.35rem;
+    font-size: 0.78rem;
+}
+
+.oa-separation-lots .filepond--root {
+    min-width: 10rem;
+    margin-bottom: 0;
+    font-size: 0.72rem;
+}
+
+.oa-separation-lots .filepond--drop-label {
+    min-height: 2.25rem;
+    color: #26467e;
+}
+
+.oa-separation-lots .fi-fo-table-repeater-actions {
+    gap: 0.15rem;
+}
+
+.oa-separation-lots .fi-fo-table-repeater-add {
+    padding: 0;
+    border-top: 1px solid #8ca9d6;
+    background: #dce9fb;
+}
+
+.oa-separation-lots .fi-fo-table-repeater-add .fi-btn {
+    width: 100%;
+    min-height: 2rem;
+    justify-content: center;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #183f82;
+    font-size: 0.78rem;
+    font-weight: 700;
+    box-shadow: none;
+}
+
+.oa-separation-lots .fi-fo-table-repeater-add .fi-btn:hover {
+    background: #c8dcf8;
+}
+
+.oa-romaneio-volumes-table.fi-fo-table-repeater {
+    overflow: hidden;
+    border: 1px solid #b6bfd0;
+    border-radius: 0.55rem;
+}
+
+.oa-romaneio-volumes-table thead th {
+    background: #eef3fb;
+    color: #172033;
+    font-weight: 700;
+}
+
+.oa-romaneio-volumes-table tbody td {
+    vertical-align: middle;
+}
+
+@media (max-width: 760px) {
+    .oa-separation-lots.fi-fo-table-repeater {
+        overflow-x: auto;
+    }
+}
+
 /* Modal de nova/copiar venda — layout mais limpo e denso */
 .oa-sales-modal {
     max-width: min(56rem, calc(100vw - 2rem));

@@ -11,12 +11,17 @@ use App\Support\Ui\NumericFormat;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRecords;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Validation\ValidationException;
 
 class ManageRomaneios extends ManageRecords
@@ -32,7 +37,7 @@ class ManageRomaneios extends ManageRecords
                 ->color('primary')
                 ->visible(fn (): bool => auth()->user()?->can('create', Romaneio::class) ?? false)
                 ->modalHeading('Selecionar pedidos para o romaneio')
-                ->modalDescription('Somente pedidos confirmados, movimentados, com peso e volumes completos e ainda sem romaneio ativo sao exibidos.')
+                ->modalDescription('Selecione os pedidos e informe aqui a quantidade de volumes de cada um. Os volumes são registrados somente no romaneio.')
                 ->modalWidth('6xl')
                 ->modalSubmitActionLabel('Gerar romaneio com os pedidos selecionados')
                 ->schema([
@@ -63,8 +68,34 @@ class ManageRomaneios extends ManageRecords
                         ->minItems(1)
                         ->columns(1)
                         ->live()
+                        ->afterStateUpdated(fn (Set $set, Get $get, mixed $state) => static::syncPedidosVolumes($set, $get, $state))
                         ->helperText('Use a busca para localizar pelo numero do pedido ou nome do cliente.')
                         ->columnSpanFull(),
+
+                    Repeater::make('pedidos_volumes')
+                        ->label('Volumes por pedido')
+                        ->addable(false)
+                        ->deletable(false)
+                        ->reorderable(false)
+                        ->defaultItems(0)
+                        ->table([
+                            TableColumn::make('Pedido'),
+                            TableColumn::make('Quantidade de volumes')->markAsRequired()->width('14rem'),
+                        ])
+                        ->schema([
+                            Hidden::make('pedido_id'),
+                            Placeholder::make('pedido_resumo')
+                                ->hiddenLabel()
+                                ->content(fn (Get $get): string => (string) $get('pedido_resumo')),
+                            TextInput::make('quantidade_volumes')
+                                ->hiddenLabel()
+                                ->integer()
+                                ->minValue(1)
+                                ->required(),
+                        ])
+                        ->visible(fn (Get $get): bool => count((array) $get('pedido_ids')) > 0)
+                        ->columnSpanFull()
+                        ->extraAttributes(['class' => 'oa-romaneio-volumes-table']),
 
                     Placeholder::make('quantidade_selecionada')
                         ->label('Confirmacao')
@@ -86,6 +117,11 @@ class ManageRomaneios extends ManageRecords
                             array_map('intval', $data['pedido_ids'] ?? []),
                             auth()->user(),
                             $data['observacao'] ?? null,
+                            collect($data['pedidos_volumes'] ?? [])
+                                ->mapWithKeys(fn (array $pedido): array => [
+                                    (int) ($pedido['pedido_id'] ?? 0) => (int) ($pedido['quantidade_volumes'] ?? 0),
+                                ])
+                                ->all(),
                         );
 
                         Notification::make()
@@ -141,15 +177,51 @@ class ManageRomaneios extends ManageRecords
             ->get()
             ->mapWithKeys(fn (VendaOperacaoPedido $pedido): array => [
                 $pedido->id => sprintf(
-                    '%s - %s | %s | %s | %s kg | %d volume(s)',
+                    '%s - %s | %s | %s | %s kg',
                     $pedido->codigo,
                     $pedido->cliente_nome_snapshot ?: 'Cliente nao identificado',
                     $pedido->data_venda?->format('d/m/Y') ?? '-',
                     NumericFormat::money((float) $pedido->receita_bruta_total),
                     number_format($pedido->pesoTotalKg(), 4, ',', '.'),
-                    (int) $pedido->quantidade_volumes,
                 ),
             ])
             ->all();
+    }
+
+    protected static function syncPedidosVolumes(Set $set, Get $get, mixed $state): void
+    {
+        $ids = collect((array) $state)
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+        $atuais = collect((array) $get('pedidos_volumes'))
+            ->keyBy(fn (array $pedido): int => (int) ($pedido['pedido_id'] ?? 0));
+
+        if ($ids->isEmpty()) {
+            $set('pedidos_volumes', []);
+
+            return;
+        }
+
+        $pedidos = VendaOperacaoPedido::query()
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
+        $set('pedidos_volumes', $ids
+            ->map(function (int $id) use ($atuais, $pedidos): array {
+                $pedido = $pedidos->get($id);
+                $atual = $atuais->get($id, []);
+
+                return [
+                    'pedido_id' => $id,
+                    'pedido_resumo' => $pedido
+                        ? sprintf('%s — %s', $pedido->codigo, $pedido->cliente_nome_snapshot ?: 'Cliente não identificado')
+                        : 'Pedido #'.$id,
+                    'quantidade_volumes' => $atual['quantidade_volumes'] ?? null,
+                ];
+            })
+            ->all());
     }
 }

@@ -30,13 +30,13 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn as RepeaterTableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Component;
-use Filament\Schemas\Components\Grid as SchemaGrid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -170,14 +170,6 @@ class VendaOperacaoResource extends Resource
                         ->maxLength(255)
                         ->placeholder('Ex.: boleto 30/45')
                         ->columnSpan(6),
-
-                    TextInput::make('quantidade_volumes')
-                        ->label('Quantidade de volumes')
-                        ->integer()
-                        ->minValue(1)
-                        ->placeholder('Informar ate a separacao')
-                        ->helperText('Obrigatorio somente antes de gerar o romaneio.')
-                        ->columnSpan(3),
 
                     Textarea::make('condicoes_comerciais')
                         ->label('Condicoes comerciais')
@@ -945,7 +937,7 @@ class VendaOperacaoResource extends Resource
                         ->color('gray')
                         ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('manageLots', $record) ?? false)
                         ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Separação do pedido '.$record->codigo)
-                        ->modalDescription('Informe os volumes, os lotes e as fotos de cada produto separado. O peso cadastrado no produto será preservado no item.')
+                        ->modalDescription('Informe os lotes e as fotos na mesma linha de cada produto. A quantidade de volumes será registrada somente no romaneio.')
                         ->modalWidth(Width::FiveExtraLarge)
                         ->modalSubmitActionLabel('Salvar separação')
                         ->modalCancelActionLabel('Cancelar')
@@ -956,27 +948,11 @@ class VendaOperacaoResource extends Resource
                             'class' => 'oa-record-modal oa-separation-modal',
                         ])
                         ->schema([
-                            SchemaGrid::make(12)
-                                ->extraAttributes(['class' => 'oa-separation-volume-grid'])
-                                ->schema([
-                                    TextInput::make('quantidade_volumes')
-                                        ->label('Quantidade de volumes')
-                                        ->helperText('Total de volumes físicos desta carga.')
-                                        ->integer()
-                                        ->minValue(1)
-                                        ->required()
-                                        ->columnSpan([
-                                            'default' => 12,
-                                            'md' => 4,
-                                        ]),
-                                ]),
-
                             Repeater::make('itens')
                                 ->label('Produtos')
                                 ->addable(false)
                                 ->deletable(false)
                                 ->reorderable(false)
-                                ->collapsible()
                                 ->columns(12)
                                 ->extraAttributes(['class' => 'oa-separation-products'])
                                 ->itemLabel(fn (array $state): string => (string) ($state['produto_nome'] ?? 'Produto'))
@@ -1014,99 +990,51 @@ class VendaOperacaoResource extends Resource
                                     Hidden::make('peso_unitario_kg'),
 
                                     Repeater::make('lotes')
-                                        ->label('Lotes separados')
+                                        ->label('Lotes e fotos')
                                         ->addActionLabel('Adicionar lote')
+                                        ->compact()
                                         ->reorderable(false)
-                                        ->collapsible()
-                                        ->columns(12)
                                         ->columnSpanFull()
                                         ->extraAttributes(['class' => 'oa-separation-lots'])
-                                        ->itemLabel(fn (array $state): string => filled($state['numero_lote'] ?? null)
-                                            ? 'Lote '.$state['numero_lote']
-                                            : 'Novo lote')
+                                        ->table([
+                                            RepeaterTableColumn::make('Lote')->markAsRequired()->width('17%'),
+                                            RepeaterTableColumn::make('Quantidade')->markAsRequired()->width('12%'),
+                                            RepeaterTableColumn::make('Validade')->width('15%'),
+                                            RepeaterTableColumn::make('Data de fabricação')->width('16%'),
+                                            RepeaterTableColumn::make('Imagem')->width('22%'),
+                                            RepeaterTableColumn::make('Observação')->width('18%'),
+                                        ])
                                         ->schema([
                                             TextInput::make('numero_lote')
-                                                ->label('Lote')
+                                                ->hiddenLabel()
                                                 ->required()
-                                                ->maxLength(100)
-                                                ->columnSpan([
-                                                    'default' => 12,
-                                                    'md' => 5,
-                                                ]),
+                                                ->maxLength(100),
                                             TextInput::make('quantidade')
-                                                ->label('Quantidade')
+                                                ->hiddenLabel()
                                                 ->numeric()
                                                 ->rule('decimal:0,4')
                                                 ->minValue(0.0001)
-                                                ->required()
-                                                ->columnSpan([
-                                                    'default' => 12,
-                                                    'md' => 3,
-                                                ]),
+                                                ->required(),
                                             DatePicker::make('data_validade')
-                                                ->label('Validade')
-                                                ->columnSpan([
-                                                    'default' => 12,
-                                                    'md' => 4,
-                                                ]),
-                                            Section::make('Fabricação e observação')
-                                                ->description('Campos opcionais')
-                                                ->compact()
-                                                ->collapsible()
-                                                ->collapsed(fn (Get $get): bool => blank($get('ano_fabricacao'))
-                                                    && blank($get('data_fabricacao'))
-                                                    && blank($get('observacao')))
-                                                ->columns(12)
-                                                ->columnSpanFull()
-                                                ->extraAttributes(['class' => 'oa-separation-optional'])
-                                                ->schema([
-                                                    TextInput::make('ano_fabricacao')
-                                                        ->label('Ano de fabricação')
-                                                        ->integer()
-                                                        ->minValue(1900)
-                                                        ->maxValue((int) now()->format('Y') + 1)
-                                                        ->columnSpan([
-                                                            'default' => 12,
-                                                            'md' => 3,
-                                                        ]),
-                                                    DatePicker::make('data_fabricacao')
-                                                        ->label('Data de fabricação')
-                                                        ->columnSpan([
-                                                            'default' => 12,
-                                                            'md' => 4,
-                                                        ]),
-                                                    Textarea::make('observacao')
-                                                        ->label('Observação')
-                                                        ->rows(2)
-                                                        ->columnSpan([
-                                                            'default' => 12,
-                                                            'md' => 5,
-                                                        ]),
-                                                ]),
-                                        ]),
-
-                                    Section::make('Fotos do produto separado')
-                                        ->description('Adicione aqui as fotos deste produto junto com os dados do lote.')
-                                        ->compact()
-                                        ->columns(12)
-                                        ->columnSpanFull()
-                                        ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('addPhotos', $record) ?? false)
-                                        ->schema([
+                                                ->hiddenLabel(),
+                                            DatePicker::make('data_fabricacao')
+                                                ->hiddenLabel(),
+                                            Hidden::make('ano_fabricacao'),
                                             FileUpload::make('arquivos')
-                                                ->label('Fotos')
+                                                ->hiddenLabel()
                                                 ->multiple()
                                                 ->storeFiles(false)
                                                 ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                                                 ->maxSize(10240)
-                                                ->maxFiles(20)
+                                                ->maxFiles(5)
                                                 ->image()
-                                                ->helperText('JPEG, PNG ou WebP, até 10 MB por arquivo.')
-                                                ->columnSpanFull(),
-                                            Textarea::make('descricao_fotos')
-                                                ->label('Descrição das fotos (opcional)')
-                                                ->rows(2)
+                                                ->panelLayout('compact')
+                                                ->imagePreviewHeight('56')
+                                                ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('addPhotos', $record) ?? false),
+                                            TextInput::make('observacao')
+                                                ->hiddenLabel()
                                                 ->maxLength(2000)
-                                                ->columnSpanFull(),
+                                                ->placeholder('Opcional'),
                                         ]),
                                 ]),
                         ])
@@ -1114,22 +1042,20 @@ class VendaOperacaoResource extends Resource
                             $record->load(['vendasOperacao.produto', 'vendasOperacao.lotes']);
 
                             return [
-                                'quantidade_volumes' => $record->quantidade_volumes,
                                 'itens' => $record->vendasOperacao->map(fn (VendaOperacao $item): array => [
                                     'venda_operacao_id' => $item->id,
                                     'produto_nome' => $item->produto_nome_snapshot ?: $item->produto?->nome,
                                     'quantidade_confirmada' => (float) $item->quantidade,
                                     'unidade' => $item->unidade_snapshot,
                                     'peso_unitario_kg' => (float) ($item->peso_unitario_kg_snapshot ?: $item->produto?->peso_unitario_kg),
-                                    'arquivos' => [],
-                                    'descricao_fotos' => null,
-                                    'lotes' => $item->lotes->map(fn ($lote): array => [
-                                        'numero_lote' => $lote->numero_lote,
-                                        'quantidade' => (float) $lote->quantidade,
-                                        'ano_fabricacao' => $lote->ano_fabricacao,
-                                        'data_fabricacao' => $lote->data_fabricacao?->toDateString(),
-                                        'data_validade' => $lote->data_validade?->toDateString(),
-                                        'observacao' => $lote->observacao,
+                                    'lotes' => ($item->lotes->isEmpty() ? collect([null]) : $item->lotes)->map(fn ($lote): array => [
+                                        'arquivos' => [],
+                                        'numero_lote' => $lote?->numero_lote,
+                                        'quantidade' => $lote ? (float) $lote->quantidade : null,
+                                        'ano_fabricacao' => $lote?->ano_fabricacao,
+                                        'data_fabricacao' => $lote?->data_fabricacao?->toDateString(),
+                                        'data_validade' => $lote?->data_validade?->toDateString(),
+                                        'observacao' => $lote?->observacao,
                                     ])->all(),
                                 ])->all(),
                             ];
@@ -1139,8 +1065,6 @@ class VendaOperacaoResource extends Resource
                             $service = app(VendaSeparacaoService::class);
 
                             DB::transaction(function () use ($record, $data, $service): void {
-                                $service->informarVolumes($record, (int) $data['quantidade_volumes'], auth()->user());
-
                                 foreach ($data['itens'] ?? [] as $itemData) {
                                     $item = $record->vendasOperacao()->findOrFail($itemData['venda_operacao_id']);
                                     $service->registrarLotes($item, array_values($itemData['lotes'] ?? []), auth()->user());
@@ -1148,29 +1072,25 @@ class VendaOperacaoResource extends Resource
                             });
 
                             foreach ($data['itens'] ?? [] as $itemData) {
-                                $arquivos = (array) ($itemData['arquivos'] ?? []);
-
-                                if ($arquivos === []) {
-                                    continue;
-                                }
-
-                                Gate::authorize('addPhotos', $record);
                                 $item = $record->vendasOperacao()->findOrFail($itemData['venda_operacao_id']);
 
-                                foreach ($arquivos as $arquivo) {
-                                    app(VendaFotoService::class)->adicionar(
-                                        $record,
-                                        $arquivo,
-                                        auth()->user(),
-                                        $item,
-                                        $itemData['descricao_fotos'] ?? null,
-                                    );
+                                foreach ($itemData['lotes'] ?? [] as $loteData) {
+                                    foreach ((array) ($loteData['arquivos'] ?? []) as $arquivo) {
+                                        Gate::authorize('addPhotos', $record);
+                                        app(VendaFotoService::class)->adicionar(
+                                            $record,
+                                            $arquivo,
+                                            auth()->user(),
+                                            $item,
+                                            $loteData['observacao'] ?? null,
+                                        );
+                                    }
                                 }
                             }
 
                             Notification::make()
                                 ->title('Separacao atualizada')
-                                ->body('Volumes, pesos disponíveis, lotes, validades e fotos foram registrados.')
+                                ->body('Lotes, validades, observações e fotos foram registrados.')
                                 ->success()
                                 ->send();
                         }),
