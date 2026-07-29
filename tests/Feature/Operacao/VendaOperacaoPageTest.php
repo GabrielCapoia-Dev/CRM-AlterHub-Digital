@@ -137,4 +137,15 @@ class VendaOperacaoPageTest extends TestCase
         $this->assertCount(1, $notifications);
         $this->assertSame('Rascunho de venda criado', $notifications[0]['title']);
     }
+
+    public function test_separation_table_reserves_space_for_row_actions_without_overflowing_the_modal(): void
+    {
+        $css = file_get_contents(public_path('css/operacao-analytics.css'));
+
+        $this->assertIsString($css);
+        $this->assertStringContainsString('min-width: 46rem;', $css);
+        $this->assertStringContainsString('.oa-separation-lots .fi-fo-table-repeater-empty-header-cell', $css);
+        $this->assertStringContainsString('min-width: 2.75rem;', $css);
+        $this->assertStringNotContainsString(".oa-separation-lots table {\n    min-width: 61rem;", $css);
+    }
 }

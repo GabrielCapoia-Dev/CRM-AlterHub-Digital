@@ -571,10 +571,15 @@
 }
 
 .oa-separation-lots table {
-    min-width: 61rem;
+    min-width: 46rem;
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
+}
+
+.oa-separation-lots .fi-fo-table-repeater-empty-header-cell {
+    width: 7%;
+    min-width: 2.75rem;
 }
 
 .oa-separation-lots thead th {
@@ -619,7 +624,8 @@
 }
 
 .oa-separation-lots .filepond--root {
-    min-width: 10rem;
+    min-width: 0;
+    width: 100%;
     margin-bottom: 0;
     font-size: 0.72rem;
 }
@@ -631,6 +637,13 @@
 
 .oa-separation-lots .fi-fo-table-repeater-actions {
     gap: 0.15rem;
+    justify-content: center;
+}
+
+.oa-separation-lots tbody td:last-child {
+    width: 7%;
+    min-width: 2.75rem;
+    padding-inline: 0.25rem;
 }
 
 .oa-separation-lots .fi-fo-table-repeater-add {

@@ -997,11 +997,11 @@ class VendaOperacaoResource extends Resource
                                         ->columnSpanFull()
                                         ->extraAttributes(['class' => 'oa-separation-lots'])
                                         ->table([
-                                            RepeaterTableColumn::make('Lote')->markAsRequired()->width('17%'),
-                                            RepeaterTableColumn::make('Quantidade')->markAsRequired()->width('12%'),
-                                            RepeaterTableColumn::make('Validade')->width('15%'),
-                                            RepeaterTableColumn::make('Data de fabricação')->width('16%'),
-                                            RepeaterTableColumn::make('Imagem')->width('22%'),
+                                            RepeaterTableColumn::make('Lote')->markAsRequired()->width('15%'),
+                                            RepeaterTableColumn::make('Quantidade')->markAsRequired()->width('11%'),
+                                            RepeaterTableColumn::make('Validade')->width('14%'),
+                                            RepeaterTableColumn::make('Data de fabricação')->width('15%'),
+                                            RepeaterTableColumn::make('Imagem')->width('20%'),
                                             RepeaterTableColumn::make('Observação')->width('18%'),
                                         ])
                                         ->schema([
