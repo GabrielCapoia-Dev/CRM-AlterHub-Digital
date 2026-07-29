@@ -20,6 +20,7 @@ use App\Services\Documentos\VendaFotoService;
 use App\Services\Documentos\VendaSeparacaoService;
 use App\Services\Operacao\VendaOperacaoService;
 use App\Services\Operacao\VendaWorkflowService;
+use App\Support\Ui\LivewireTemporaryUploadResolver;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -1092,7 +1093,7 @@ class VendaOperacaoResource extends Resource
                                 $item = $record->vendasOperacao()->findOrFail($itemData['venda_operacao_id']);
 
                                 foreach ($itemData['lotes'] ?? [] as $loteData) {
-                                    foreach ((array) ($loteData['arquivos'] ?? []) as $arquivo) {
+                                    foreach (LivewireTemporaryUploadResolver::resolve($loteData['arquivos'] ?? []) as $arquivo) {
                                         Gate::authorize('addPhotos', $record);
                                         app(VendaFotoService::class)->adicionar(
                                             $record,
