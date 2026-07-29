@@ -58,6 +58,10 @@ class TrustedProxyUploadTest extends TestCase
         );
 
         $this->assertStringContainsString(
+            'fastcgi_param HTTP_X_FORWARDED_HOST $host;',
+            $nginxTemplate,
+        );
+        $this->assertStringContainsString(
             'fastcgi_param HTTPS on;',
             $nginxTemplate,
         );
