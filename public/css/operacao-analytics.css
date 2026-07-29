@@ -669,6 +669,17 @@
     background: #c8dcf8;
 }
 
+.oa-separation-order-note {
+    padding: 0.75rem 0.8rem;
+    border: 1px solid #b7c1d3;
+    border-radius: 0.55rem;
+    background: #f8faff;
+}
+
+.oa-separation-order-note textarea {
+    min-height: 4.5rem;
+}
+
 .oa-romaneio-volumes-table.fi-fo-table-repeater {
     overflow: hidden;
     border: 1px solid #b6bfd0;

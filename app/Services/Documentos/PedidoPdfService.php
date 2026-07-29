@@ -192,7 +192,6 @@ class PedidoPdfService
                 ? $this->formatarData($lote->data_fabricacao)
                 : ($lote->ano_fabricacao ? (string) $lote->ano_fabricacao : null),
             'validade' => $this->formatarData($lote->data_validade),
-            'observacao' => $this->nullableString($lote->observacao),
         ])->values()->all();
 
         return [

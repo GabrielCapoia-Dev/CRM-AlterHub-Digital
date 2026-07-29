@@ -16,6 +16,7 @@ use App\Models\VendaOperacaoPedido;
 use App\Models\VendaPedidoFoto;
 use App\Services\Documentos\PedidoPdfService;
 use App\Services\Documentos\RomaneioPdfService;
+use App\Services\Documentos\VendaSeparacaoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -114,6 +115,45 @@ class DocumentosPdfServicesTest extends TestCase
             (string) $response->headers->get('Content-Disposition'),
         );
         $this->assertStringStartsWith('%PDF-', $response->streamedContent());
+    }
+
+    public function test_separation_persists_one_final_observation_on_the_order(): void
+    {
+        [$pedido, , $user] = $this->criarPedidoConfirmado();
+        $this->concederPermissoes($user, [
+            PermissoesEnum::ListarVendasOperacao,
+            PermissoesEnum::CadastrarLotesValidades,
+        ]);
+
+        $atualizado = app(VendaSeparacaoService::class)->atualizarObservacaoPedido(
+            $pedido,
+            'Conferir toda a separação antes do carregamento.',
+            $user,
+        );
+
+        $this->assertSame(
+            'Conferir toda a separação antes do carregamento.',
+            $atualizado->observacao,
+        );
+        $this->assertDatabaseHas('venda_historicos', [
+            'venda_operacao_pedido_id' => $pedido->id,
+            'evento' => 'observacao_separacao_atualizada',
+        ]);
+
+        app(VendaSeparacaoService::class)->atualizarObservacaoPedido(
+            $atualizado,
+            'Conferir toda a separação antes do carregamento.',
+            $user,
+        );
+
+        $this->assertSame(
+            1,
+            $pedido->historicos()->where('evento', 'observacao_separacao_atualizada')->count(),
+        );
+
+        $pedidoTemplate = file_get_contents(resource_path('views/documentos/pedido.blade.php'));
+        $this->assertIsString($pedidoTemplate);
+        $this->assertStringNotContainsString('>Observação</th>', $pedidoTemplate);
     }
 
     public function test_pedido_pdf_renders_lots_and_photos_audits_reprint_and_never_touches_stock(): void

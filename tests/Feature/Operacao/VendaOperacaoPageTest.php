@@ -146,6 +146,7 @@ class VendaOperacaoPageTest extends TestCase
         $this->assertStringContainsString('min-width: 46rem;', $css);
         $this->assertStringContainsString('.oa-separation-lots .fi-fo-table-repeater-empty-header-cell', $css);
         $this->assertStringContainsString('min-width: 2.75rem;', $css);
+        $this->assertStringContainsString('.oa-separation-order-note', $css);
         $this->assertStringNotContainsString(".oa-separation-lots table {\n    min-width: 61rem;", $css);
     }
 }

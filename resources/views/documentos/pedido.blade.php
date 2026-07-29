@@ -160,12 +160,11 @@
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th style="width: 28%">Produto</th>
-                            <th style="width: 15%">Lote</th>
-                            <th class="text-right" style="width: 12%">Qtd.</th>
-                            <th style="width: 14%">Fabricação</th>
-                            <th style="width: 14%">Validade</th>
-                            <th style="width: 17%">Observação</th>
+                            <th style="width: 33%">Produto</th>
+                            <th style="width: 18%">Lote</th>
+                            <th class="text-right" style="width: 13%">Qtd.</th>
+                            <th style="width: 18%">Fabricação</th>
+                            <th style="width: 18%">Validade</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -176,7 +175,6 @@
                                 <td class="text-right nowrap">{{ $lote['quantidade'] }}</td>
                                 <td class="nowrap">{{ $lote['fabricacao'] ?: '-' }}</td>
                                 <td class="nowrap">{{ $lote['validade'] ?: '-' }}</td>
-                                <td>{{ $lote['observacao'] ?: '-' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

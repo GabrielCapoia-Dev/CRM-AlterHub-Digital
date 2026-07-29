@@ -997,12 +997,11 @@ class VendaOperacaoResource extends Resource
                                         ->columnSpanFull()
                                         ->extraAttributes(['class' => 'oa-separation-lots'])
                                         ->table([
-                                            RepeaterTableColumn::make('Lote')->markAsRequired()->width('15%'),
-                                            RepeaterTableColumn::make('Quantidade')->markAsRequired()->width('11%'),
-                                            RepeaterTableColumn::make('Validade')->width('14%'),
-                                            RepeaterTableColumn::make('Data de fabricação')->width('15%'),
-                                            RepeaterTableColumn::make('Imagem')->width('20%'),
-                                            RepeaterTableColumn::make('Observação')->width('18%'),
+                                            RepeaterTableColumn::make('Lote')->markAsRequired()->width('20%'),
+                                            RepeaterTableColumn::make('Quantidade')->markAsRequired()->width('14%'),
+                                            RepeaterTableColumn::make('Validade')->width('18%'),
+                                            RepeaterTableColumn::make('Data de fabricação')->width('19%'),
+                                            RepeaterTableColumn::make('Imagem')->width('22%'),
                                         ])
                                         ->schema([
                                             TextInput::make('numero_lote')
@@ -1031,17 +1030,30 @@ class VendaOperacaoResource extends Resource
                                                 ->panelLayout('compact')
                                                 ->imagePreviewHeight('56')
                                                 ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('addPhotos', $record) ?? false),
-                                            TextInput::make('observacao')
-                                                ->hiddenLabel()
-                                                ->maxLength(2000)
-                                                ->placeholder('Opcional'),
                                         ]),
                                 ]),
+
+                            Textarea::make('observacao')
+                                ->label('Observação final do pedido')
+                                ->helperText('Uma única observação geral para toda a separação.')
+                                ->rows(2)
+                                ->maxLength(2000)
+                                ->columnSpanFull()
+                                ->extraAttributes(['class' => 'oa-separation-order-note']),
                         ])
                         ->fillForm(function (VendaOperacaoPedido $record): array {
                             $record->load(['vendasOperacao.produto', 'vendasOperacao.lotes']);
 
+                            $observacaoExistente = $record->observacao
+                                ?: $record->vendasOperacao
+                                    ->flatMap(fn (VendaOperacao $item) => $item->lotes)
+                                    ->pluck('observacao')
+                                    ->filter()
+                                    ->unique()
+                                    ->implode(' | ');
+
                             return [
+                                'observacao' => $observacaoExistente ?: null,
                                 'itens' => $record->vendasOperacao->map(fn (VendaOperacao $item): array => [
                                     'venda_operacao_id' => $item->id,
                                     'produto_nome' => $item->produto_nome_snapshot ?: $item->produto?->nome,
@@ -1055,7 +1067,6 @@ class VendaOperacaoResource extends Resource
                                         'ano_fabricacao' => $lote?->ano_fabricacao,
                                         'data_fabricacao' => $lote?->data_fabricacao?->toDateString(),
                                         'data_validade' => $lote?->data_validade?->toDateString(),
-                                        'observacao' => $lote?->observacao,
                                     ])->all(),
                                 ])->all(),
                             ];
@@ -1065,6 +1076,12 @@ class VendaOperacaoResource extends Resource
                             $service = app(VendaSeparacaoService::class);
 
                             DB::transaction(function () use ($record, $data, $service): void {
+                                $service->atualizarObservacaoPedido(
+                                    $record,
+                                    $data['observacao'] ?? null,
+                                    auth()->user(),
+                                );
+
                                 foreach ($data['itens'] ?? [] as $itemData) {
                                     $item = $record->vendasOperacao()->findOrFail($itemData['venda_operacao_id']);
                                     $service->registrarLotes($item, array_values($itemData['lotes'] ?? []), auth()->user());
@@ -1082,7 +1099,7 @@ class VendaOperacaoResource extends Resource
                                             $arquivo,
                                             auth()->user(),
                                             $item,
-                                            $loteData['observacao'] ?? null,
+                                            null,
                                         );
                                     }
                                 }
@@ -1090,7 +1107,7 @@ class VendaOperacaoResource extends Resource
 
                             Notification::make()
                                 ->title('Separacao atualizada')
-                                ->body('Lotes, validades, observações e fotos foram registrados.')
+                                ->body('Lotes, validades, fotos e a observação final foram registrados.')
                                 ->success()
                                 ->send();
                         }),

@@ -130,6 +130,51 @@ class VendaSeparacaoService
         return $this->registrarLotes($item, $lotes, $actor);
     }
 
+    public function atualizarObservacaoPedido(
+        VendaOperacaoPedido $pedido,
+        ?string $observacao,
+        User $actor,
+    ): VendaOperacaoPedido {
+        Gate::forUser($actor)->authorize('manageLots', $pedido);
+        $observacao = $this->nullableString($observacao);
+
+        if ($observacao !== null && mb_strlen($observacao) > 2000) {
+            throw ValidationException::withMessages([
+                'observacao' => 'A observacao deve possuir no maximo 2.000 caracteres.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($pedido, $observacao, $actor): VendaOperacaoPedido {
+            $pedido = VendaOperacaoPedido::query()
+                ->lockForUpdate()
+                ->findOrFail($pedido->id);
+
+            $this->assertPedidoSeparavel($pedido);
+            $this->assertSemRomaneioAtivo($pedido);
+            $anterior = $this->nullableString($pedido->observacao);
+
+            if ($anterior === $observacao) {
+                return $pedido->fresh(['historicos']);
+            }
+
+            $pedido->forceFill(['observacao' => $observacao])->save();
+
+            $this->workflowService->registrarHistorico(
+                $pedido,
+                $actor,
+                'observacao_separacao_atualizada',
+                $pedido->status,
+                $pedido->status,
+                metadados: [
+                    'observacao_anterior' => $anterior,
+                    'observacao' => $observacao,
+                ],
+            );
+
+            return $pedido->fresh(['historicos']);
+        });
+    }
+
     public function informarVolumes(
         VendaOperacaoPedido $pedido,
         int $quantidadeVolumes,
