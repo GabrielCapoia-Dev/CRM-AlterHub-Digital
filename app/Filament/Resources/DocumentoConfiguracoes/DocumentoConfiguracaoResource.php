@@ -53,6 +53,7 @@ class DocumentoConfiguracaoResource extends Resource
             Section::make('Identidade institucional')
                 ->description('Informacoes obrigatorias compartilhadas por pedidos e romaneios.')
                 ->columns(2)
+                ->columnSpanFull()
                 ->schema([
                     FileUpload::make('logo_path')
                         ->label('Logotipo padrao')
