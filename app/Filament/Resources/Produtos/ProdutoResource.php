@@ -162,6 +162,16 @@ class ProdutoResource extends Resource
                                             ->placeholder('0,00')
                                             ->helperText('Usado como referencia de reposicao na listagem e nas movimentacoes.'),
 
+                                        TextInput::make('peso_unitario_kg')
+                                            ->label('Peso unitario')
+                                            ->numeric()
+                                            ->rule('decimal:0,4')
+                                            ->formatStateUsing(fn ($state): ?string => NumericFormat::input($state, 4))
+                                            ->minValue(0.0001)
+                                            ->suffix('kg')
+                                            ->placeholder('0,0000')
+                                            ->helperText('Obrigatorio para incluir o produto em um romaneio de carga.'),
+
                                         Textarea::make('descricao')
                                             ->label('Descricao')
                                             ->rows(4)

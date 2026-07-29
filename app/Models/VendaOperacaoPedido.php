@@ -8,7 +8,9 @@ use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 class VendaOperacaoPedido extends Model
@@ -58,6 +60,13 @@ class VendaOperacaoPedido extends Model
         'mes_referencia',
         'cliente_nome_snapshot',
         'cliente_documento_snapshot',
+        'quantidade_volumes',
+        'cliente_telefone_snapshot',
+        'cliente_email_snapshot',
+        'cliente_endereco_snapshot',
+        'entrega_endereco_snapshot',
+        'condicao_pagamento_snapshot',
+        'condicoes_comerciais',
         'vendedor_nome_snapshot',
         'itens_count',
         'quantidade_total',
@@ -88,6 +97,9 @@ class VendaOperacaoPedido extends Model
         'versao' => 'integer',
         'ano_referencia' => 'integer',
         'mes_referencia' => 'integer',
+        'quantidade_volumes' => 'integer',
+        'cliente_endereco_snapshot' => 'array',
+        'entrega_endereco_snapshot' => 'array',
         'itens_count' => 'integer',
         'quantidade_total' => 'decimal:4',
         'receita_bruta_total' => 'decimal:2',
@@ -213,5 +225,44 @@ class VendaOperacaoPedido extends Model
     public function historicos(): HasMany
     {
         return $this->hasMany(VendaHistorico::class, 'venda_operacao_pedido_id')->orderByDesc('id');
+    }
+
+    public function fotos(): HasMany
+    {
+        return $this->hasMany(VendaPedidoFoto::class, 'venda_operacao_pedido_id')
+            ->orderBy('id');
+    }
+
+    public function romaneioPedidos(): HasMany
+    {
+        return $this->hasMany(
+            RomaneioPedido::class,
+            'venda_operacao_pedido_id',
+        )->orderBy('id');
+    }
+
+    public function romaneioPedidoAtivo(): HasOne
+    {
+        return $this->hasOne(RomaneioPedido::class, 'pedido_ativo_id');
+    }
+
+    public function romaneios(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Romaneio::class,
+            'romaneio_pedidos',
+            'venda_operacao_pedido_id',
+            'romaneio_id',
+        )->withTimestamps();
+    }
+
+    public function pesoTotalKg(): float
+    {
+        $itens = $this->relationLoaded('vendasOperacao')
+            ? $this->vendasOperacao
+            : $this->vendasOperacao()->get();
+
+        return round((float) $itens
+            ->sum(fn (VendaOperacao $item): float => (float) $item->quantidade * (float) $item->peso_unitario_kg_snapshot), 4);
     }
 }

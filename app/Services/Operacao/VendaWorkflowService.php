@@ -7,6 +7,7 @@ use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
 use App\Models\Oportunidade;
 use App\Models\Remessa;
+use App\Models\RomaneioPedido;
 use App\Models\VendaHistorico;
 use App\Models\VendaOperacaoPedido;
 use App\Services\Produtos\EstoqueService;
@@ -114,6 +115,7 @@ class VendaWorkflowService
     ): VendaOperacaoPedido {
         return DB::transaction(function () use ($pedido, $actor, $justificativa): VendaOperacaoPedido {
             $pedido = VendaOperacaoPedido::query()->lockForUpdate()->findOrFail($pedido->id);
+            $this->assertSemRomaneioAtivo($pedido);
 
             if ($pedido->status === VendaStatus::Cancelada->value) {
                 $this->cancelarRemessasPendentes($pedido, $actor, $justificativa);
@@ -189,6 +191,7 @@ class VendaWorkflowService
     ): VendaOperacaoPedido {
         return DB::transaction(function () use ($pedido, $actor, $justificativa): VendaOperacaoPedido {
             $pedido = VendaOperacaoPedido::query()->lockForUpdate()->findOrFail($pedido->id);
+            $this->assertSemRomaneioAtivo($pedido);
 
             if ($pedido->status === VendaStatus::Rascunho->value) {
                 return $pedido;
@@ -215,6 +218,8 @@ class VendaWorkflowService
                     'justificativa' => 'Informe a justificativa da reabertura.',
                 ]);
             }
+
+            $this->assertSemDependenciasDocumentais($pedido);
 
             $anterior = $pedido->status;
             $this->cancelarRemessasPendentes($pedido, $actor, $justificativa);
@@ -492,5 +497,40 @@ class VendaWorkflowService
         }
 
         return $remessas->count();
+    }
+
+    protected function assertSemRomaneioAtivo(VendaOperacaoPedido $pedido): void
+    {
+        $vinculoAtivo = RomaneioPedido::query()
+            ->where('pedido_ativo_id', $pedido->id)
+            ->lockForUpdate()
+            ->first(['id']);
+
+        if ($vinculoAtivo) {
+            throw ValidationException::withMessages([
+                'status' => 'Cancele o romaneio ativo deste pedido antes de cancelar ou reabrir a venda.',
+            ]);
+        }
+    }
+
+    protected function assertSemDependenciasDocumentais(VendaOperacaoPedido $pedido): void
+    {
+        $possuiRomaneio = RomaneioPedido::query()
+            ->where('venda_operacao_pedido_id', $pedido->id)
+            ->lockForUpdate()
+            ->first(['id']) !== null;
+        $possuiFotos = $pedido->fotos()
+            ->lockForUpdate()
+            ->first(['id']) !== null;
+        $possuiLotes = $pedido->vendasOperacao()
+            ->whereHas('lotes')
+            ->lockForUpdate()
+            ->first(['id']) !== null;
+
+        if ($possuiRomaneio || $possuiFotos || $possuiLotes) {
+            throw ValidationException::withMessages([
+                'status' => 'A venda possui lotes, fotos ou historico de romaneio e nao pode ser reaberta sem perder a rastreabilidade.',
+            ]);
+        }
     }
 }

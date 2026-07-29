@@ -91,6 +91,21 @@ enum PermissoesEnum: string
     case EditarVendasOperacao = 'Editar Vendas de Operacao';
     case ExcluirVendasOperacao = 'Excluir Vendas de Operacao';
 
+    // Documentos comerciais e separacao
+    case AcessarConfiguracoesDocumentos = 'Acessar Configuracoes de Documentos';
+    case EditarConfiguracoesDocumentos = 'Editar Configuracoes de Documentos';
+    case GerarPdfPedido = 'Gerar PDF de Pedido';
+    case VisualizarAnexosPedido = 'Visualizar Anexos de Pedido';
+    case AdicionarFotosPedido = 'Adicionar Fotos de Pedido';
+    case RemoverFotosPedido = 'Remover Fotos de Pedido';
+    case CadastrarLotesValidades = 'Cadastrar Lotes e Validades';
+
+    // Romaneios de carga
+    case GerarRomaneio = 'Gerar Romaneio';
+    case ListarRomaneios = 'Listar Romaneios';
+    case ReimprimirRomaneio = 'Reimprimir Romaneio';
+    case CancelarRomaneio = 'Cancelar Romaneio';
+
     // Operacao - Analitico
     case ListarVisaoConsolidadaOperacao = 'Listar Visao Consolidada da Operacao';
     case ListarResultadoOperacao = 'Listar Resultado da Operacao';

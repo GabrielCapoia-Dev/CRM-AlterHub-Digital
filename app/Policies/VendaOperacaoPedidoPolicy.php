@@ -103,6 +103,44 @@ class VendaOperacaoPedidoPolicy
             && $user->hasPermissionTo(PermissoesEnum::EditarVendasOperacao->value);
     }
 
+    public function generatePdf(User $user, VendaOperacaoPedido $pedido): bool
+    {
+        return $this->view($user, $pedido)
+            && $user->hasPermissionTo(PermissoesEnum::GerarPdfPedido->value)
+            && $this->hasDocumentableStatus($pedido);
+    }
+
+    public function viewAttachments(User $user, VendaOperacaoPedido $pedido): bool
+    {
+        return $this->view($user, $pedido)
+            && $user->hasPermissionTo(PermissoesEnum::VisualizarAnexosPedido->value);
+    }
+
+    public function addPhotos(User $user, VendaOperacaoPedido $pedido): bool
+    {
+        return $this->view($user, $pedido)
+            && $user->hasPermissionTo(PermissoesEnum::AdicionarFotosPedido->value)
+            && in_array($pedido->status, [
+                VendaOperacaoPedido::STATUS_CONFIRMADA,
+                VendaOperacaoPedido::STATUS_PARCIALMENTE_DESPACHADA,
+                VendaOperacaoPedido::STATUS_DESPACHADA,
+                VendaOperacaoPedido::STATUS_CONCLUIDA,
+            ], true);
+    }
+
+    public function removePhotos(User $user, VendaOperacaoPedido $pedido): bool
+    {
+        return $this->view($user, $pedido)
+            && $user->hasPermissionTo(PermissoesEnum::RemoverFotosPedido->value);
+    }
+
+    public function manageLots(User $user, VendaOperacaoPedido $pedido): bool
+    {
+        return $this->view($user, $pedido)
+            && $user->hasPermissionTo(PermissoesEnum::CadastrarLotesValidades->value)
+            && $pedido->status === VendaOperacaoPedido::STATUS_CONFIRMADA;
+    }
+
     protected function withinScope(User $user, VendaOperacaoPedido $pedido): bool
     {
         if (app(VendaOperacaoService::class)->podeVerTodasVendas($user)) {
@@ -124,5 +162,17 @@ class VendaOperacaoPedidoPolicy
     {
         return app(VendaOperacaoService::class)->podeVerTodasVendas($user)
             && $user->hasPermissionTo(PermissoesEnum::EditarVendasOperacao->value);
+    }
+
+    protected function hasDocumentableStatus(VendaOperacaoPedido $pedido): bool
+    {
+        return in_array($pedido->status, [
+            VendaOperacaoPedido::STATUS_CONFIRMADA,
+            VendaOperacaoPedido::STATUS_PARCIALMENTE_DESPACHADA,
+            VendaOperacaoPedido::STATUS_DESPACHADA,
+            VendaOperacaoPedido::STATUS_CONCLUIDA,
+            VendaOperacaoPedido::STATUS_DEVOLVIDA_PARCIAL,
+            VendaOperacaoPedido::STATUS_DEVOLVIDA,
+        ], true);
     }
 }

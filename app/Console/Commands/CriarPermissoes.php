@@ -102,6 +102,9 @@ class CriarPermissoes extends Command
             PermissoesEnum::ListarVendasOperacao->value,
             PermissoesEnum::CriarVendasOperacao->value,
             PermissoesEnum::EditarVendasOperacao->value,
+            PermissoesEnum::GerarPdfPedido->value,
+            PermissoesEnum::VisualizarAnexosPedido->value,
+            PermissoesEnum::AdicionarFotosPedido->value,
         ];
     }
 
@@ -137,6 +140,12 @@ class CriarPermissoes extends Command
             PermissoesEnum::ListarResultadoOperacao->value,
             PermissoesEnum::ListarLucroPorProduto->value,
             PermissoesEnum::ListarDashboardBI->value,
+            PermissoesEnum::RemoverFotosPedido->value,
+            PermissoesEnum::CadastrarLotesValidades->value,
+            PermissoesEnum::GerarRomaneio->value,
+            PermissoesEnum::ListarRomaneios->value,
+            PermissoesEnum::ReimprimirRomaneio->value,
+            PermissoesEnum::CancelarRomaneio->value,
         ]));
     }
 }

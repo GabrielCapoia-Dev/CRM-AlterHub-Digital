@@ -58,6 +58,7 @@ class VendaOperacaoService
                 'produto_nome_snapshot' => $produto->nome,
                 'produto_categoria_snapshot' => $produto->categoriaProduto?->nome,
                 'unidade_snapshot' => $produto->unidade_medida,
+                'peso_unitario_kg_snapshot' => $produto->peso_unitario_kg,
                 'data_venda' => $payload['data_venda'],
                 'quantidade' => $payload['quantidade'],
                 'preco_unitario' => $payload['preco_unitario'],
@@ -151,6 +152,13 @@ class VendaOperacaoService
                 'data_venda' => $header['data_venda'],
                 'cliente_nome_snapshot' => $header['cliente_nome'],
                 'cliente_documento_snapshot' => $header['cliente_documento'],
+                'cliente_telefone_snapshot' => $header['cliente_telefone'],
+                'cliente_email_snapshot' => $header['cliente_email'],
+                'cliente_endereco_snapshot' => $header['cliente_endereco'],
+                'entrega_endereco_snapshot' => $header['entrega_endereco'],
+                'condicao_pagamento_snapshot' => $header['condicao_pagamento'],
+                'condicoes_comerciais' => $header['condicoes_comerciais'],
+                'quantidade_volumes' => $header['quantidade_volumes'],
                 'vendedor_nome_snapshot' => $header['vendedor_nome'],
                 'observacao' => $header['observacao'],
             ]);
@@ -189,6 +197,8 @@ class VendaOperacaoService
                 ]);
             }
 
+            $this->assertSemDependenciasDocumentais($pedido);
+
             $items = $this->extractItems($data);
 
             if ($items === []) {
@@ -206,6 +216,13 @@ class VendaOperacaoService
                 'data_venda' => $header['data_venda'],
                 'cliente_nome_snapshot' => $header['cliente_nome'],
                 'cliente_documento_snapshot' => $header['cliente_documento'],
+                'cliente_telefone_snapshot' => $header['cliente_telefone'],
+                'cliente_email_snapshot' => $header['cliente_email'],
+                'cliente_endereco_snapshot' => $header['cliente_endereco'],
+                'entrega_endereco_snapshot' => $header['entrega_endereco'],
+                'condicao_pagamento_snapshot' => $header['condicao_pagamento'],
+                'condicoes_comerciais' => $header['condicoes_comerciais'],
+                'quantidade_volumes' => $header['quantidade_volumes'],
                 'vendedor_nome_snapshot' => $header['vendedor_nome'],
                 'observacao' => $header['observacao'],
                 'aprovado_por' => null,
@@ -388,6 +405,10 @@ class VendaOperacaoService
             'data_venda' => now()->toDateString(),
             'vendedor_user_id' => $authUser?->id,
             'observacao' => null,
+            'condicao_pagamento_snapshot' => $origem->condicao_pagamento_snapshot,
+            'condicoes_comerciais' => $origem->condicoes_comerciais,
+            'entrega_endereco' => $origem->entrega_endereco_snapshot,
+            'quantidade_volumes' => null,
             'origem_pedido_id' => $origem->id,
             'itens' => $itens,
         ];
@@ -403,6 +424,10 @@ class VendaOperacaoService
             'data_venda' => $pedido->data_venda?->toDateString(),
             'vendedor_user_id' => $pedido->user_id,
             'observacao' => $pedido->observacao,
+            'condicao_pagamento_snapshot' => $pedido->condicao_pagamento_snapshot,
+            'condicoes_comerciais' => $pedido->condicoes_comerciais,
+            'entrega_endereco' => $pedido->entrega_endereco_snapshot,
+            'quantidade_volumes' => $pedido->quantidade_volumes,
             'itens' => $pedido->vendasOperacao->map(fn (VendaOperacao $linha): array => [
                 'produto_id' => $linha->produto_id,
                 'quantidade' => (float) $linha->quantidade,
@@ -451,6 +476,26 @@ class VendaOperacaoService
         return $query->where('user_id', $user->id);
     }
 
+    protected function assertSemDependenciasDocumentais(VendaOperacaoPedido $pedido): void
+    {
+        $possuiItensDependentes = $pedido->vendasOperacao()
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereHas('lotes')
+                    ->orWhereHas('fotos')
+                    ->orWhereHas('romaneioItens');
+            })
+            ->exists();
+
+        if ($possuiItensDependentes
+            || $pedido->fotos()->exists()
+            || $pedido->romaneioPedidos()->exists()) {
+            throw ValidationException::withMessages([
+                'itens' => 'Este pedido possui lotes, fotos ou historico de romaneio. Os itens nao podem ser substituidos sem perder a rastreabilidade.',
+            ]);
+        }
+    }
+
     public function refreshPedidoTotals(VendaOperacaoPedido $pedido): VendaOperacaoPedido
     {
         $linhas = $pedido->vendasOperacao()->get();
@@ -495,6 +540,7 @@ class VendaOperacaoService
             'produto_nome_snapshot' => $produto->nome,
             'produto_categoria_snapshot' => $produto->categoriaProduto?->nome,
             'unidade_snapshot' => $produto->unidade_medida,
+            'peso_unitario_kg_snapshot' => $produto->peso_unitario_kg,
             'data_venda' => $payload['data_venda'],
             'quantidade' => $payload['quantidade'],
             'preco_unitario' => $payload['preco_unitario'],
@@ -553,12 +599,39 @@ class VendaOperacaoService
     {
         $cliente = $this->resolveCliente($data['cliente_id'] ?? null);
         $vendedor = $this->resolveVendedor($data['vendedor_user_id'] ?? null, $user);
+        $quantidadeVolumes = filled($data['quantidade_volumes'] ?? null)
+            ? (int) $data['quantidade_volumes']
+            : null;
+
+        if ($quantidadeVolumes !== null && $quantidadeVolumes < 1) {
+            throw ValidationException::withMessages([
+                'quantidade_volumes' => 'A quantidade de volumes deve ser maior que zero.',
+            ]);
+        }
+
+        $enderecoCliente = $this->normalizeEndereco($cliente ? [
+            'cep' => $cliente->cep,
+            'logradouro' => $cliente->logradouro,
+            'numero' => $cliente->numero,
+            'complemento' => $cliente->complemento,
+            'bairro' => $cliente->bairro,
+            'cidade' => $cliente->cidade,
+            'uf' => $cliente->uf,
+        ] : null);
+        $enderecoEntrega = $this->normalizeEndereco($data['entrega_endereco'] ?? null) ?: $enderecoCliente;
 
         return [
             'data_venda' => $data['data_venda'] ?? now()->toDateString(),
             'cliente_id' => $cliente?->id,
             'cliente_nome' => $cliente?->razao_social ?? $this->normalizeString($data['cliente_nome'] ?? null),
             'cliente_documento' => $cliente?->cnpj,
+            'cliente_telefone' => $cliente?->telefone,
+            'cliente_email' => $cliente?->email,
+            'cliente_endereco' => $enderecoCliente,
+            'entrega_endereco' => $enderecoEntrega,
+            'condicao_pagamento' => $this->normalizeString($data['condicao_pagamento_snapshot'] ?? null),
+            'condicoes_comerciais' => $this->normalizeString($data['condicoes_comerciais'] ?? null),
+            'quantidade_volumes' => $quantidadeVolumes,
             'vendedor_user' => $vendedor,
             'vendedor_user_id' => $vendedor?->id,
             'vendedor_nome' => $vendedor?->name
@@ -777,5 +850,29 @@ class VendaOperacaoService
         $trimmed = trim((string) $value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * @return array{cep:?string,logradouro:?string,numero:?string,complemento:?string,bairro:?string,cidade:?string,uf:?string}|null
+     */
+    protected function normalizeEndereco(mixed $value): ?array
+    {
+        if (! is_array($value)) {
+            return null;
+        }
+
+        $endereco = [
+            'cep' => $this->normalizeString($value['cep'] ?? null),
+            'logradouro' => $this->normalizeString($value['logradouro'] ?? null),
+            'numero' => $this->normalizeString($value['numero'] ?? null),
+            'complemento' => $this->normalizeString($value['complemento'] ?? null),
+            'bairro' => $this->normalizeString($value['bairro'] ?? null),
+            'cidade' => $this->normalizeString($value['cidade'] ?? null),
+            'uf' => $this->normalizeString($value['uf'] ?? null),
+        ];
+
+        return collect($endereco)->filter(fn (?string $campo): bool => filled($campo))->isEmpty()
+            ? null
+            : $endereco;
     }
 }

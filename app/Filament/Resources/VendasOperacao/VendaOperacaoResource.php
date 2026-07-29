@@ -10,10 +10,14 @@ use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Clientes\Cliente;
 use App\Models\Produto;
 use App\Models\Status\StatusCliente;
+use App\Models\VendaOperacao;
 use App\Models\VendaOperacaoPedido;
+use App\Models\VendaPedidoFoto;
 use App\Rules\UniqueNormalizedTaxIdentifierRule;
 use App\Services\Acesso\RoleService;
 use App\Services\CRM\OportunidadeClienteService;
+use App\Services\Documentos\VendaFotoService;
+use App\Services\Documentos\VendaSeparacaoService;
 use App\Services\Operacao\VendaOperacaoService;
 use App\Services\Operacao\VendaWorkflowService;
 use App\Support\Ui\NumericFormat;
@@ -22,6 +26,7 @@ use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
@@ -47,6 +52,8 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 use UnitEnum;
@@ -100,6 +107,7 @@ class VendaOperacaoResource extends Resource
                         ->options(fn (): array => static::clienteOptions())
                         ->searchable()
                         ->preload()
+                        ->live()
                         ->required()
                         ->native(false)
                         ->createOptionForm(static::clienteCreateOptionForm())
@@ -110,6 +118,13 @@ class VendaOperacaoResource extends Resource
                             ->modalSubmitActionLabel('Salvar cliente')
                             ->extraModalWindowAttributes(['class' => 'oa-record-modal oa-sales-modal']))
                         ->helperText('Se o cliente nao existir, clique no + para cadastrar sem sair da venda.')
+                        ->afterStateUpdated(function ($state, Set $set): void {
+                            $cliente = filled($state) ? Cliente::query()->find($state) : null;
+
+                            foreach (['cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf'] as $campo) {
+                                $set("entrega_endereco.{$campo}", $cliente?->{$campo});
+                            }
+                        })
                         ->columnSpan(6),
 
                     DatePicker::make('data_venda')
@@ -140,6 +155,69 @@ class VendaOperacaoResource extends Resource
                         ->columnSpanFull(),
 
                     Hidden::make('origem_pedido_id'),
+                ]),
+
+            Section::make('Condicoes comerciais e entrega')
+                ->description('Dados exibidos no pedido e utilizados na preparacao do romaneio.')
+                ->icon(Heroicon::OutlinedTruck)
+                ->columns(12)
+                ->columnSpanFull()
+                ->collapsible()
+                ->schema([
+                    TextInput::make('condicao_pagamento_snapshot')
+                        ->label('Forma ou condicao de pagamento')
+                        ->maxLength(255)
+                        ->placeholder('Ex.: boleto 30/45')
+                        ->columnSpan(6),
+
+                    TextInput::make('quantidade_volumes')
+                        ->label('Quantidade de volumes')
+                        ->integer()
+                        ->minValue(1)
+                        ->placeholder('Informar ate a separacao')
+                        ->helperText('Obrigatorio somente antes de gerar o romaneio.')
+                        ->columnSpan(3),
+
+                    Textarea::make('condicoes_comerciais')
+                        ->label('Condicoes comerciais')
+                        ->rows(2)
+                        ->placeholder('Frete, prazo, instrucoes ou outras condicoes acordadas.')
+                        ->columnSpanFull(),
+
+                    TextInput::make('entrega_endereco.cep')
+                        ->label('CEP de entrega')
+                        ->maxLength(20)
+                        ->columnSpan(3),
+
+                    TextInput::make('entrega_endereco.logradouro')
+                        ->label('Logradouro de entrega')
+                        ->maxLength(255)
+                        ->columnSpan(6),
+
+                    TextInput::make('entrega_endereco.numero')
+                        ->label('Numero')
+                        ->maxLength(30)
+                        ->columnSpan(3),
+
+                    TextInput::make('entrega_endereco.complemento')
+                        ->label('Complemento')
+                        ->maxLength(255)
+                        ->columnSpan(4),
+
+                    TextInput::make('entrega_endereco.bairro')
+                        ->label('Bairro')
+                        ->maxLength(255)
+                        ->columnSpan(3),
+
+                    TextInput::make('entrega_endereco.cidade')
+                        ->label('Cidade')
+                        ->maxLength(255)
+                        ->columnSpan(3),
+
+                    TextInput::make('entrega_endereco.uf')
+                        ->label('UF')
+                        ->maxLength(2)
+                        ->columnSpan(2),
                 ]),
 
             Section::make('Itens')
@@ -849,6 +927,227 @@ class VendaOperacaoResource extends Resource
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--operation')
             ->recordActions([
                 ActionGroup::make([
+                    Action::make('pedidoPdf')
+                        ->label('Gerar PDF do pedido')
+                        ->icon('heroicon-o-document-arrow-down')
+                        ->color('primary')
+                        ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('generatePdf', $record) ?? false)
+                        ->url(fn (VendaOperacaoPedido $record): string => route('documentos.pedidos.pdf', [
+                            'pedido' => $record,
+                            'download' => 1,
+                        ])),
+
+                    Action::make('separacao')
+                        ->label('Lotes, peso e volumes')
+                        ->icon('heroicon-o-clipboard-document-check')
+                        ->color('gray')
+                        ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('manageLots', $record) ?? false)
+                        ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Separacao do pedido '.$record->codigo)
+                        ->modalDescription('Informe volumes e os lotes efetivamente separados. O peso e copiado do cadastro do produto e fica preservado no item.')
+                        ->modalWidth('7xl')
+                        ->schema([
+                            TextInput::make('quantidade_volumes')
+                                ->label('Quantidade total de volumes')
+                                ->integer()
+                                ->minValue(1)
+                                ->required(),
+
+                            Repeater::make('itens')
+                                ->label('Produtos e lotes')
+                                ->addable(false)
+                                ->deletable(false)
+                                ->reorderable(false)
+                                ->collapsible()
+                                ->itemLabel(fn (array $state): string => (string) ($state['produto_nome'] ?? 'Produto'))
+                                ->schema([
+                                    Hidden::make('venda_operacao_id'),
+                                    Hidden::make('produto_nome'),
+                                    Placeholder::make('produto_resumo')
+                                        ->label('Produto')
+                                        ->content(fn (Get $get): string => sprintf(
+                                            '%s - Quantidade confirmada: %s %s',
+                                            $get('produto_nome') ?: 'Produto',
+                                            NumericFormat::decimal((float) ($get('quantidade_confirmada') ?? 0)),
+                                            $get('unidade') ?: 'UN',
+                                        )),
+                                    Hidden::make('quantidade_confirmada'),
+                                    Hidden::make('unidade'),
+                                    Placeholder::make('peso_resumo')
+                                        ->label('Peso unitario')
+                                        ->content(fn (Get $get): string => (float) ($get('peso_unitario_kg') ?? 0) > 0
+                                            ? number_format((float) $get('peso_unitario_kg'), 4, ',', '.').' kg'
+                                            : 'Pendente - cadastre o peso no produto antes do romaneio.'),
+                                    Hidden::make('peso_unitario_kg'),
+
+                                    Repeater::make('lotes')
+                                        ->label('Lotes separados')
+                                        ->addActionLabel('Adicionar lote')
+                                        ->reorderable(false)
+                                        ->columns(12)
+                                        ->schema([
+                                            TextInput::make('numero_lote')
+                                                ->label('Lote')
+                                                ->required()
+                                                ->maxLength(100)
+                                                ->columnSpan(3),
+                                            TextInput::make('quantidade')
+                                                ->label('Quantidade')
+                                                ->numeric()
+                                                ->rule('decimal:0,4')
+                                                ->minValue(0.0001)
+                                                ->required()
+                                                ->columnSpan(2),
+                                            TextInput::make('ano_fabricacao')
+                                                ->label('Ano de fabricacao')
+                                                ->integer()
+                                                ->minValue(1900)
+                                                ->maxValue((int) now()->format('Y') + 1)
+                                                ->columnSpan(2),
+                                            DatePicker::make('data_fabricacao')
+                                                ->label('Fabricacao')
+                                                ->columnSpan(2),
+                                            DatePicker::make('data_validade')
+                                                ->label('Validade')
+                                                ->columnSpan(2),
+                                            Textarea::make('observacao')
+                                                ->label('Observacao')
+                                                ->rows(2)
+                                                ->columnSpanFull(),
+                                        ]),
+                                ]),
+                        ])
+                        ->fillForm(function (VendaOperacaoPedido $record): array {
+                            $record->load(['vendasOperacao.produto', 'vendasOperacao.lotes']);
+
+                            return [
+                                'quantidade_volumes' => $record->quantidade_volumes,
+                                'itens' => $record->vendasOperacao->map(fn (VendaOperacao $item): array => [
+                                    'venda_operacao_id' => $item->id,
+                                    'produto_nome' => $item->produto_nome_snapshot ?: $item->produto?->nome,
+                                    'quantidade_confirmada' => (float) $item->quantidade,
+                                    'unidade' => $item->unidade_snapshot,
+                                    'peso_unitario_kg' => (float) ($item->peso_unitario_kg_snapshot ?: $item->produto?->peso_unitario_kg),
+                                    'lotes' => $item->lotes->map(fn ($lote): array => [
+                                        'numero_lote' => $lote->numero_lote,
+                                        'quantidade' => (float) $lote->quantidade,
+                                        'ano_fabricacao' => $lote->ano_fabricacao,
+                                        'data_fabricacao' => $lote->data_fabricacao?->toDateString(),
+                                        'data_validade' => $lote->data_validade?->toDateString(),
+                                        'observacao' => $lote->observacao,
+                                    ])->all(),
+                                ])->all(),
+                            ];
+                        })
+                        ->action(function (VendaOperacaoPedido $record, array $data): void {
+                            Gate::authorize('manageLots', $record);
+                            $service = app(VendaSeparacaoService::class);
+
+                            DB::transaction(function () use ($record, $data, $service): void {
+                                $service->informarVolumes($record, (int) $data['quantidade_volumes'], auth()->user());
+
+                                foreach ($data['itens'] ?? [] as $itemData) {
+                                    $item = $record->vendasOperacao()->findOrFail($itemData['venda_operacao_id']);
+                                    $service->registrarLotes($item, array_values($itemData['lotes'] ?? []), auth()->user());
+                                }
+                            });
+
+                            Notification::make()
+                                ->title('Separacao atualizada')
+                                ->body('Volumes, pesos disponiveis, lotes e validades foram registrados.')
+                                ->success()
+                                ->send();
+                        }),
+
+                    Action::make('adicionarFotos')
+                        ->label('Adicionar fotos da mercadoria')
+                        ->icon('heroicon-o-camera')
+                        ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('addPhotos', $record) ?? false)
+                        ->modalHeading('Adicionar fotos da mercadoria separada')
+                        ->modalWidth('4xl')
+                        ->schema([
+                            FileUpload::make('arquivos')
+                                ->label('Fotos')
+                                ->multiple()
+                                ->storeFiles(false)
+                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                ->maxSize(10240)
+                                ->maxFiles(20)
+                                ->image()
+                                ->required(),
+                            Select::make('venda_operacao_id')
+                                ->label('Produto relacionado (opcional)')
+                                ->options(fn (VendaOperacaoPedido $record): array => $record->vendasOperacao()
+                                    ->orderBy('id')
+                                    ->pluck('produto_nome_snapshot', 'id')
+                                    ->all())
+                                ->searchable(),
+                            Textarea::make('descricao')
+                                ->label('Descricao ou observacao')
+                                ->rows(3)
+                                ->maxLength(2000),
+                        ])
+                        ->action(function (VendaOperacaoPedido $record, array $data): void {
+                            Gate::authorize('addPhotos', $record);
+                            $item = filled($data['venda_operacao_id'] ?? null)
+                                ? $record->vendasOperacao()->findOrFail($data['venda_operacao_id'])
+                                : null;
+                            $adicionadas = 0;
+
+                            foreach ((array) ($data['arquivos'] ?? []) as $arquivo) {
+                                app(VendaFotoService::class)->adicionar(
+                                    $record,
+                                    $arquivo,
+                                    auth()->user(),
+                                    $item,
+                                    $data['descricao'] ?? null,
+                                );
+                                $adicionadas++;
+                            }
+
+                            Notification::make()
+                                ->title($adicionadas.' foto(s) adicionada(s)')
+                                ->success()
+                                ->send();
+                        }),
+
+                    Action::make('galeriaFotos')
+                        ->label('Visualizar fotos')
+                        ->icon('heroicon-o-photo')
+                        ->visible(fn (VendaOperacaoPedido $record): bool => ($record->fotos()->exists())
+                            && (auth()->user()?->can('viewAttachments', $record) ?? false))
+                        ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Fotos do pedido '.$record->codigo)
+                        ->modalWidth('6xl')
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Fechar')
+                        ->modalContent(fn (VendaOperacaoPedido $record): View => view('filament.resources.vendas-operacao.modals.fotos', [
+                            'pedido' => $record->load(['fotos.item', 'fotos.user']),
+                        ])),
+
+                    Action::make('removerFoto')
+                        ->label('Remover foto')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->visible(fn (VendaOperacaoPedido $record): bool => ($record->fotos()->exists())
+                            && (auth()->user()?->can('removePhotos', $record) ?? false))
+                        ->requiresConfirmation()
+                        ->schema([
+                            Select::make('foto_id')
+                                ->label('Foto')
+                                ->options(fn (VendaOperacaoPedido $record): array => $record->fotos()
+                                    ->get()
+                                    ->mapWithKeys(fn (VendaPedidoFoto $foto): array => [
+                                        $foto->id => $foto->nome_original.($foto->descricao ? ' - '.$foto->descricao : ''),
+                                    ])
+                                    ->all())
+                                ->required(),
+                        ])
+                        ->action(function (VendaOperacaoPedido $record, array $data): void {
+                            $foto = $record->fotos()->findOrFail($data['foto_id']);
+                            Gate::authorize('delete', $foto);
+                            app(VendaFotoService::class)->remover($foto, auth()->user());
+                            Notification::make()->title('Foto removida')->success()->send();
+                        }),
+
                     Action::make('editDraft')
                         ->label('Editar')
                         ->icon('heroicon-o-pencil-square')

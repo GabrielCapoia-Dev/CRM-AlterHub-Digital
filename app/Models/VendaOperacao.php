@@ -7,6 +7,7 @@ use App\Models\Acesso\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
@@ -23,6 +24,7 @@ class VendaOperacao extends Model
         'produto_nome_snapshot',
         'produto_categoria_snapshot',
         'unidade_snapshot',
+        'peso_unitario_kg_snapshot',
         'data_venda',
         'ano_referencia',
         'mes_referencia',
@@ -57,6 +59,7 @@ class VendaOperacao extends Model
         'produto_id' => 'integer',
         'venda_operacao_pedido_id' => 'integer',
         'produto_movimentacao_id' => 'integer',
+        'peso_unitario_kg_snapshot' => 'decimal:4',
         'data_venda' => 'date',
         'ano_referencia' => 'integer',
         'mes_referencia' => 'integer',
@@ -131,6 +134,23 @@ class VendaOperacao extends Model
     public function reserva(): HasOne
     {
         return $this->hasOne(ProdutoReserva::class, 'venda_operacao_id');
+    }
+
+    public function lotes(): HasMany
+    {
+        return $this->hasMany(VendaOperacaoLote::class, 'venda_operacao_id')
+            ->orderBy('id');
+    }
+
+    public function fotos(): HasMany
+    {
+        return $this->hasMany(VendaPedidoFoto::class, 'venda_operacao_id')
+            ->orderBy('id');
+    }
+
+    public function romaneioItens(): HasMany
+    {
+        return $this->hasMany(RomaneioItem::class, 'venda_operacao_id');
     }
 
     public function scopeEfetivadas(Builder $query): Builder
