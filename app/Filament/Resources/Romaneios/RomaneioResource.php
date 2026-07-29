@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Romaneios;
 
+use App\Filament\Clusters\VendasCluster;
 use App\Filament\Resources\Romaneios\Pages\ManageRomaneios;
 use App\Models\Romaneio;
 use App\Services\Operacao\RomaneioService;
@@ -17,7 +18,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
-use UnitEnum;
 
 class RomaneioResource extends Resource
 {
@@ -31,11 +31,11 @@ class RomaneioResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Romaneios';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Estoque';
+    protected static ?string $cluster = VendasCluster::class;
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 3;
 
-    public static ?string $slug = 'estoque/romaneios';
+    public static ?string $slug = 'romaneios';
 
     public static function form(Schema $schema): Schema
     {

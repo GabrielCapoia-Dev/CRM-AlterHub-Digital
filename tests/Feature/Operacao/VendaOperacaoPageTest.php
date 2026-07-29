@@ -3,6 +3,9 @@
 namespace Tests\Feature\Operacao;
 
 use App\Enum\PermissoesEnum;
+use App\Filament\Clusters\VendasCluster;
+use App\Filament\Resources\PedidosSeparacao\PedidoSeparacaoResource;
+use App\Filament\Resources\Romaneios\RomaneioResource;
 use App\Filament\Resources\VendasOperacao\Pages\ManageVendasOperacao;
 use App\Filament\Resources\VendasOperacao\VendaOperacaoResource;
 use App\Models\Acesso\User;
@@ -21,6 +24,18 @@ use Tests\TestCase;
 class VendaOperacaoPageTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_sales_workflow_pages_share_the_sales_cluster_as_top_tabs(): void
+    {
+        Filament::setCurrentPanel(Filament::getPanel('painel'));
+
+        $this->assertSame(VendasCluster::class, VendaOperacaoResource::getCluster());
+        $this->assertSame(VendasCluster::class, PedidoSeparacaoResource::getCluster());
+        $this->assertSame(VendasCluster::class, RomaneioResource::getCluster());
+        $this->assertStringEndsWith('/painel/operacao/vendas', VendaOperacaoResource::getUrl());
+        $this->assertStringEndsWith('/painel/operacao/separacao-pedidos', PedidoSeparacaoResource::getUrl());
+        $this->assertStringEndsWith('/painel/operacao/romaneios', RomaneioResource::getUrl());
+    }
 
     public function test_sales_page_renders_when_column_visibility_is_evaluated_without_a_record(): void
     {

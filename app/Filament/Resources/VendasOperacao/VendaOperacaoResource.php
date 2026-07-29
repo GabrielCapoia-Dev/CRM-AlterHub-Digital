@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\VendasOperacao;
 
 use App\Enum\RolesEnum;
+use App\Filament\Clusters\VendasCluster;
 use App\Filament\Resources\VendasOperacao\Pages\ManageVendasOperacao;
 use App\Filament\Support\Fields\TaxIdentifierField;
 use App\Models\Acesso\User;
@@ -58,7 +59,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
-use UnitEnum;
 
 class VendaOperacaoResource extends Resource
 {
@@ -72,11 +72,11 @@ class VendaOperacaoResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Vendas';
 
-    public static ?string $slug = 'operacao/vendas';
+    public static ?string $slug = 'vendas';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Operação';
+    protected static ?string $cluster = VendasCluster::class;
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 1;
 
     public static function getEloquentQuery(): Builder
     {

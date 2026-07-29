@@ -4,6 +4,7 @@ namespace App\Filament\Resources\PedidosSeparacao;
 
 use App\Enum\SeparacaoStatus;
 use App\Enum\VendaStatus;
+use App\Filament\Clusters\VendasCluster;
 use App\Filament\Resources\PedidosSeparacao\Actions\SepararPedidoAction;
 use App\Filament\Resources\PedidosSeparacao\Pages\ManagePedidosSeparacao;
 use App\Filament\Resources\Romaneios\RomaneioResource;
@@ -33,7 +34,6 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\ValidationException;
-use UnitEnum;
 
 class PedidoSeparacaoResource extends Resource
 {
@@ -47,11 +47,11 @@ class PedidoSeparacaoResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Pedidos em separação';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Estoque';
+    protected static ?string $cluster = VendasCluster::class;
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
-    public static ?string $slug = 'estoque/separacao-pedidos';
+    public static ?string $slug = 'separacao-pedidos';
 
     public static function form(Schema $schema): Schema
     {
