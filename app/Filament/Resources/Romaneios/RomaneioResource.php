@@ -50,8 +50,16 @@ class RomaneioResource extends Resource
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => $state === Romaneio::STATUS_CANCELADO ? 'Cancelado' : 'Ativo')
-                    ->color(fn (string $state): string => $state === Romaneio::STATUS_CANCELADO ? 'danger' : 'success'),
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        Romaneio::STATUS_DESPACHADO => 'Despachado',
+                        Romaneio::STATUS_CANCELADO => 'Cancelado',
+                        default => 'Aguardando despacho',
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        Romaneio::STATUS_DESPACHADO => 'success',
+                        Romaneio::STATUS_CANCELADO => 'danger',
+                        default => 'warning',
+                    }),
                 TextColumn::make('gerado_em')->label('Gerado em')->dateTime('d/m/Y H:i')->sortable(),
                 TextColumn::make('user.name')->label('Responsavel')->placeholder('-')->searchable(),
                 TextColumn::make('total_pedidos')->label('Pedidos')->numeric(),
@@ -62,7 +70,8 @@ class RomaneioResource extends Resource
             ->filters([
                 SelectFilter::make('status')
                     ->options([
-                        Romaneio::STATUS_ATIVO => 'Ativo',
+                        Romaneio::STATUS_GERADO => 'Aguardando despacho',
+                        Romaneio::STATUS_DESPACHADO => 'Despachado',
                         Romaneio::STATUS_CANCELADO => 'Cancelado',
                     ]),
             ])
@@ -91,6 +100,32 @@ class RomaneioResource extends Resource
                         'download' => 1,
                     ])),
 
+                Action::make('despachar')
+                    ->label('Despachar romaneio')
+                    ->icon('heroicon-o-truck')
+                    ->color('success')
+                    ->visible(fn (Romaneio $record): bool => auth()->user()?->can('dispatch', $record) ?? false)
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Romaneio $record): string => 'Despachar '.$record->codigo)
+                    ->modalDescription('Confirme somente quando a carga tiver saído. Todos os pedidos serão marcados como despachados.')
+                    ->modalSubmitActionLabel('Confirmar despacho')
+                    ->action(function (Romaneio $record): void {
+                        try {
+                            app(RomaneioService::class)->despachar($record, auth()->user());
+                            Notification::make()
+                                ->title('Romaneio despachado')
+                                ->body('A carga e seus pedidos foram atualizados com sucesso.')
+                                ->success()
+                                ->send();
+                        } catch (ValidationException $exception) {
+                            Notification::make()
+                                ->title('Não foi possível despachar o romaneio')
+                                ->body(collect($exception->errors())->flatten()->implode(' '))
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
                 Action::make('cancelar')
                     ->label('Cancelar romaneio')
                     ->icon('heroicon-o-x-circle')
@@ -113,7 +148,7 @@ class RomaneioResource extends Resource
                             );
                             Notification::make()
                                 ->title('Romaneio cancelado')
-                                ->body('Os pedidos foram liberados para um novo romaneio e o historico foi preservado.')
+                                ->body('Os pedidos retornaram para a fila de separação com o motivo do cancelamento.')
                                 ->success()
                                 ->send();
                         } catch (ValidationException $exception) {

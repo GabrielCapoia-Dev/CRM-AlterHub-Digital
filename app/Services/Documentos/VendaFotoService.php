@@ -129,6 +129,112 @@ class VendaFotoService
         return $this->adicionar($pedido, $arquivo, $actor, $item, $descricao);
     }
 
+    public function registrarArquivoArmazenado(
+        VendaOperacaoPedido $pedido,
+        string $path,
+        string $nomeOriginal,
+        User $actor,
+        ?VendaOperacao $item = null,
+        ?string $descricao = null,
+    ): VendaPedidoFoto {
+        Gate::forUser($actor)->authorize('addPhotos', $pedido);
+        $disk = 'local';
+        $path = trim($path);
+        $prefixoEsperado = "pedidos/{$pedido->id}/fotos/";
+
+        if ($path === '' || ! str_starts_with($path, $prefixoEsperado)) {
+            throw ValidationException::withMessages([
+                'arquivo' => 'O arquivo armazenado não pertence a este pedido.',
+            ]);
+        }
+
+        try {
+            $mime = (string) Storage::disk($disk)->mimeType($path);
+            $tamanho = (int) Storage::disk($disk)->size($path);
+        } catch (Throwable) {
+            throw ValidationException::withMessages([
+                'arquivo' => 'A imagem não está mais disponível. Envie o arquivo novamente.',
+            ]);
+        }
+
+        if (! array_key_exists($mime, self::EXTENSOES_POR_MIME)) {
+            throw ValidationException::withMessages([
+                'arquivo' => 'Envie uma imagem JPEG, PNG ou WebP.',
+            ]);
+        }
+
+        if ($tamanho <= 0 || $tamanho > self::MAX_BYTES) {
+            throw ValidationException::withMessages([
+                'arquivo' => 'A imagem deve possuir no máximo 10 MB.',
+            ]);
+        }
+
+        return DB::transaction(function () use (
+            $pedido,
+            $path,
+            $nomeOriginal,
+            $actor,
+            $item,
+            $descricao,
+            $disk,
+            $mime,
+            $tamanho,
+        ): VendaPedidoFoto {
+            $pedido = VendaOperacaoPedido::query()
+                ->lockForUpdate()
+                ->findOrFail($pedido->id);
+            $this->assertAceitaFotos($pedido);
+
+            if ($item) {
+                $item = VendaOperacao::query()->lockForUpdate()->findOrFail($item->id);
+
+                if ((int) $item->venda_operacao_pedido_id !== (int) $pedido->id) {
+                    throw ValidationException::withMessages([
+                        'venda_operacao_id' => 'O item informado não pertence ao pedido.',
+                    ]);
+                }
+            }
+
+            $existente = VendaPedidoFoto::query()
+                ->where('venda_operacao_pedido_id', $pedido->id)
+                ->where('path', $path)
+                ->first();
+
+            if ($existente) {
+                return $existente;
+            }
+
+            $foto = VendaPedidoFoto::query()->create([
+                'venda_operacao_pedido_id' => $pedido->id,
+                'venda_operacao_id' => $item?->id,
+                'user_id' => $actor->id,
+                'disk' => $disk,
+                'path' => $path,
+                'nome_original' => mb_substr(trim($nomeOriginal) ?: basename($path), 0, 255),
+                'mime_type' => $mime,
+                'tamanho_bytes' => $tamanho,
+                'descricao' => $this->nullableString($descricao),
+            ]);
+
+            $this->workflowService->registrarHistorico(
+                $pedido,
+                $actor,
+                'foto_separacao_adicionada',
+                $pedido->status,
+                $pedido->status,
+                metadados: [
+                    'foto_id' => $foto->id,
+                    'venda_operacao_id' => $item?->id,
+                    'nome_original' => $foto->nome_original,
+                    'mime_type' => $foto->mime_type,
+                    'tamanho_bytes' => $foto->tamanho_bytes,
+                ],
+            );
+
+            return $foto->fresh(['pedido', 'item', 'user']);
+        });
+    }
+
     public function remover(
         VendaPedidoFoto $foto,
         User $actor,

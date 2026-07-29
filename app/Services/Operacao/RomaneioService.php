@@ -2,6 +2,7 @@
 
 namespace App\Services\Operacao;
 
+use App\Enum\SeparacaoStatus;
 use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
 use App\Models\ProdutoMovimentacao;
@@ -24,12 +25,14 @@ class RomaneioService
     public function __construct(
         protected DocumentoConfiguracaoService $configuracoes,
         protected VendaOperacaoService $vendas,
+        protected VendaWorkflowService $workflow,
     ) {}
 
     public function elegiveisQuery(User $actor): Builder
     {
         return $this->vendas->queryPorPerfil($actor)
             ->where('status', VendaStatus::Confirmada->value)
+            ->where('separacao_status', SeparacaoStatus::Separado->value)
             ->whereNotNull('data_venda')
             ->whereRaw("TRIM(COALESCE(codigo, '')) <> ''")
             ->whereRaw("TRIM(COALESCE(cliente_nome_snapshot, '')) <> ''")
@@ -193,7 +196,7 @@ class RomaneioService
 
                 $romaneio = Romaneio::query()->create([
                     'user_id' => $actor->id,
-                    'status' => Romaneio::STATUS_ATIVO,
+                    'status' => Romaneio::STATUS_GERADO,
                     'gerado_em' => now(),
                     'observacao' => $observacao,
                     'empresa_snapshot' => $empresaSnapshot,
@@ -239,7 +242,7 @@ class RomaneioService
                         'vendedor_nome_snapshot' => $pedido->vendedor_nome_snapshot,
                         'condicao_pagamento_snapshot' => $pedido->condicao_pagamento_snapshot,
                         'condicoes_comerciais_snapshot' => $pedido->condicoes_comerciais,
-                        'observacao_snapshot' => $pedido->observacao,
+                        'observacao_snapshot' => $pedido->separacao_observacao ?: $pedido->observacao,
                         'total_itens' => $snapshotItens->count(),
                         'quantidade_total' => $quantidadePedido,
                         'quantidade_volumes' => $quantidadesVolumes[$pedido->id],
@@ -264,6 +267,23 @@ class RomaneioService
                         ? 'id:'.$pedido->cliente_id
                         : 'nome:'.mb_strtolower(trim((string) $pedido->cliente_nome_snapshot));
                     $clientes[$chaveCliente] = true;
+
+                    $pedido->forceFill([
+                        'separacao_status' => SeparacaoStatus::EmRomaneio->value,
+                    ])->save();
+
+                    $this->workflow->registrarHistorico(
+                        $pedido,
+                        $actor,
+                        'pedido_incluido_romaneio',
+                        $pedido->status,
+                        $pedido->status,
+                        metadados: [
+                            'romaneio_id' => $romaneio->id,
+                            'romaneio_codigo' => $romaneio->codigo,
+                            'separacao_status' => SeparacaoStatus::EmRomaneio->value,
+                        ],
+                    );
                 }
 
                 $romaneio->forceFill([
@@ -279,7 +299,7 @@ class RomaneioService
                     'user_id' => $actor->id,
                     'evento' => 'criado',
                     'status_anterior' => null,
-                    'status_novo' => Romaneio::STATUS_ATIVO,
+                    'status_novo' => Romaneio::STATUS_GERADO,
                     'metadados' => [
                         'pedido_ids' => $ids,
                         'total_pedidos' => $romaneio->total_pedidos,
@@ -336,7 +356,7 @@ class RomaneioService
                 ->lockForUpdate()
                 ->get();
 
-            if (! $romaneio->isAtivo()) {
+            if (! $romaneio->isGerado()) {
                 return $romaneio->fresh(['pedidos.itens', 'historicos', 'canceladoPor']);
             }
 
@@ -356,6 +376,40 @@ class RomaneioService
                     'updated_at' => $agora,
                 ]);
 
+            $descricaoRetorno = sprintf(
+                'Retornado do romaneio %s: %s',
+                $romaneio->codigo ?: '#'.$romaneio->id,
+                $justificativa,
+            );
+
+            $pedidosLiberados = VendaOperacaoPedido::query()
+                ->whereIn('id', $pedidoIdsLiberados)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($pedidosLiberados as $pedido) {
+                $pedido->forceFill([
+                    'separacao_status' => SeparacaoStatus::RetornadoRomaneio->value,
+                    'retornado_romaneio_em' => $agora,
+                    'retorno_romaneio_descricao' => $descricaoRetorno,
+                ])->save();
+
+                $this->workflow->registrarHistorico(
+                    $pedido,
+                    $actor,
+                    'romaneio_cancelado_retorno_separacao',
+                    $pedido->status,
+                    $pedido->status,
+                    $justificativa,
+                    [
+                        'romaneio_id' => $romaneio->id,
+                        'romaneio_codigo' => $romaneio->codigo,
+                        'separacao_status' => SeparacaoStatus::RetornadoRomaneio->value,
+                    ],
+                );
+            }
+
             $romaneio->forceFill([
                 'status' => Romaneio::STATUS_CANCELADO,
                 'cancelado_por' => $actor->id,
@@ -367,7 +421,7 @@ class RomaneioService
                 'romaneio_id' => $romaneio->id,
                 'user_id' => $actor->id,
                 'evento' => 'cancelado',
-                'status_anterior' => Romaneio::STATUS_ATIVO,
+                'status_anterior' => Romaneio::STATUS_GERADO,
                 'status_novo' => Romaneio::STATUS_CANCELADO,
                 'justificativa' => $justificativa,
                 'metadados' => [
@@ -376,6 +430,93 @@ class RomaneioService
             ]);
 
             return $romaneio->fresh(['pedidos.itens', 'historicos', 'canceladoPor']);
+        }, 3);
+    }
+
+    public function despachar(Romaneio $romaneio, User $actor): Romaneio
+    {
+        Gate::forUser($actor)->authorize('dispatch', $romaneio);
+
+        return DB::transaction(function () use ($romaneio, $actor): Romaneio {
+            $romaneio = Romaneio::query()
+                ->lockForUpdate()
+                ->findOrFail($romaneio->id);
+
+            if ($romaneio->isDespachado()) {
+                return $romaneio->fresh(['pedidos.itens', 'historicos', 'despachadoPor']);
+            }
+
+            if (! $romaneio->isGerado()) {
+                throw ValidationException::withMessages([
+                    'status' => 'Somente romaneios gerados podem ser despachados.',
+                ]);
+            }
+
+            $vinculos = RomaneioPedido::query()
+                ->where('romaneio_id', $romaneio->id)
+                ->whereNotNull('pedido_ativo_id')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+            $pedidoIds = $vinculos->pluck('pedido_ativo_id')->map(fn (mixed $id): int => (int) $id)->all();
+            $pedidos = VendaOperacaoPedido::query()
+                ->whereIn('id', $pedidoIds)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($pedidos->count() !== count($pedidoIds)) {
+                throw ValidationException::withMessages([
+                    'pedidos' => 'Um ou mais pedidos do romaneio não estão disponíveis para despacho.',
+                ]);
+            }
+
+            foreach ($pedidos as $pedido) {
+                if ($pedido->status !== VendaStatus::Confirmada->value
+                    || $pedido->separacao_status !== SeparacaoStatus::EmRomaneio->value) {
+                    throw ValidationException::withMessages([
+                        'pedidos' => 'Todos os pedidos precisam estar confirmados e vinculados ao romaneio.',
+                    ]);
+                }
+
+                $pedido = $this->workflow->alterarStatusLogistico(
+                    $pedido,
+                    VendaStatus::Despachada,
+                    $actor,
+                    [
+                        'romaneio_id' => $romaneio->id,
+                        'romaneio_codigo' => $romaneio->codigo,
+                    ],
+                );
+                $pedido->forceFill([
+                    'separacao_status' => SeparacaoStatus::Despachado->value,
+                ])->save();
+            }
+
+            $agora = now();
+            $romaneio->forceFill([
+                'status' => Romaneio::STATUS_DESPACHADO,
+                'despachado_por' => $actor->id,
+                'despachado_em' => $agora,
+            ])->save();
+
+            RomaneioHistorico::query()->create([
+                'romaneio_id' => $romaneio->id,
+                'user_id' => $actor->id,
+                'evento' => 'despachado',
+                'status_anterior' => Romaneio::STATUS_GERADO,
+                'status_novo' => Romaneio::STATUS_DESPACHADO,
+                'metadados' => [
+                    'pedido_ids' => $pedidoIds,
+                    'total_pedidos' => count($pedidoIds),
+                ],
+            ]);
+
+            return $romaneio->fresh([
+                'pedidos.itens',
+                'historicos',
+                'despachadoPor',
+            ]);
         }, 3);
     }
 
@@ -396,6 +537,10 @@ class RomaneioService
 
         if ($pedido->status !== VendaStatus::Confirmada->value) {
             $pendencias[] = 'o status nao e confirmado';
+        }
+
+        if ($pedido->separacao_status !== SeparacaoStatus::Separado->value) {
+            $pendencias[] = 'a separacao ainda nao foi concluida';
         }
 
         if (blank($pedido->codigo) || ! $pedido->data_venda) {

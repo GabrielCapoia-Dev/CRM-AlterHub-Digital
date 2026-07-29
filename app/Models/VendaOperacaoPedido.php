@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enum\RemessaStatus;
+use App\Enum\SeparacaoStatus;
 use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
@@ -50,6 +51,7 @@ class VendaOperacaoPedido extends Model
         'codigo',
         'idempotency_key',
         'status',
+        'separacao_status',
         'versao',
         'data_venda',
         'confirmada_em',
@@ -78,6 +80,11 @@ class VendaOperacaoPedido extends Model
         'valor_frete_custo',
         'valor_frete_cobrado',
         'observacao',
+        'separacao_observacao',
+        'separado_por',
+        'separado_em',
+        'retornado_romaneio_em',
+        'retorno_romaneio_descricao',
         'motivo_recusa',
         'motivos_aprovacao',
     ];
@@ -89,6 +96,9 @@ class VendaOperacaoPedido extends Model
         'user_id' => 'integer',
         'aprovado_por' => 'integer',
         'aprovado_em' => 'datetime',
+        'separado_por' => 'integer',
+        'separado_em' => 'datetime',
+        'retornado_romaneio_em' => 'datetime',
         'data_venda' => 'date',
         'confirmada_em' => 'datetime',
         'cancelada_em' => 'datetime',
@@ -155,6 +165,18 @@ class VendaOperacaoPedido extends Model
         return VendaStatus::from($this->status);
     }
 
+    public function separacaoStatusEnum(): ?SeparacaoStatus
+    {
+        return filled($this->separacao_status)
+            ? SeparacaoStatus::tryFrom((string) $this->separacao_status)
+            : null;
+    }
+
+    public function isSeparado(): bool
+    {
+        return $this->separacao_status === SeparacaoStatus::Separado->value;
+    }
+
     public function canEditCommercially(): bool
     {
         return $this->statusEnum()->allowsCommercialEditing();
@@ -204,6 +226,11 @@ class VendaOperacaoPedido extends Model
     public function aprovadoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'aprovado_por');
+    }
+
+    public function separadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'separado_por');
     }
 
     public function vendasOperacao(): HasMany

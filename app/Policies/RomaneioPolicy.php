@@ -43,8 +43,14 @@ class RomaneioPolicy
 
     public function cancel(User $user, Romaneio $romaneio): bool
     {
-        return $romaneio->isAtivo()
+        return $romaneio->isGerado()
             && $user->hasPermissionTo(PermissoesEnum::CancelarRomaneio->value);
+    }
+
+    public function dispatch(User $user, Romaneio $romaneio): bool
+    {
+        return $romaneio->isGerado()
+            && $user->hasPermissionTo(PermissoesEnum::GerarRomaneio->value);
     }
 
     public function delete(User $user, Romaneio $romaneio): bool

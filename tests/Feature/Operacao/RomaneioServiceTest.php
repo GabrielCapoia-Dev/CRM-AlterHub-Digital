@@ -3,6 +3,7 @@
 namespace Tests\Feature\Operacao;
 
 use App\Enum\PermissoesEnum;
+use App\Enum\SeparacaoStatus;
 use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
 use App\Models\DocumentoConfiguracao;
@@ -177,9 +178,32 @@ class RomaneioServiceTest extends TestCase
             ['criado', 'cancelado'],
             $cancelado->historicos()->reorder('id')->pluck('evento')->all(),
         );
-        $this->assertTrue(app(RomaneioService::class)->elegiveisQuery($actor)->whereKey($pedido->id)->exists());
+        $pedido = $pedido->fresh();
+        $this->assertSame(SeparacaoStatus::RetornadoRomaneio->value, $pedido->separacao_status);
+        $this->assertStringContainsString('Carga cancelada por mudanca de rota.', $pedido->retorno_romaneio_descricao);
+        $this->assertFalse(app(RomaneioService::class)->elegiveisQuery($actor)->whereKey($pedido->id)->exists());
         $this->assertSame($estoqueAntes, (float) $produto->fresh()->estoque_fisico);
         $this->assertSame($movimentacoesAntes, ProdutoMovimentacao::query()->count());
+    }
+
+    public function test_despachar_romaneio_atualiza_carga_e_pedidos(): void
+    {
+        $this->configurarEmpresa();
+        $actor = $this->createActor([PermissoesEnum::GerarRomaneio]);
+        $pedido = $this->createEligiblePedido($actor);
+        $romaneio = app(RomaneioService::class)->criar([$pedido->id], $actor);
+
+        $despachado = app(RomaneioService::class)->despachar($romaneio, $actor);
+
+        $this->assertSame(Romaneio::STATUS_DESPACHADO, $despachado->status);
+        $this->assertSame($actor->id, $despachado->despachado_por);
+        $this->assertNotNull($despachado->despachado_em);
+        $this->assertSame('despachada', $pedido->fresh()->status);
+        $this->assertSame(SeparacaoStatus::Despachado->value, $pedido->fresh()->separacao_status);
+        $this->assertSame(
+            ['criado', 'despachado'],
+            $despachado->historicos()->reorder('id')->pluck('evento')->all(),
+        );
     }
 
     public function test_query_e_criacao_respeitam_o_escopo_do_vendedor(): void
@@ -399,8 +423,16 @@ class RomaneioServiceTest extends TestCase
             ]],
         ], $actor);
 
-        return app(VendaWorkflowService::class)
+        $pedido = app(VendaWorkflowService::class)
             ->confirmar($pedido, $actor, 'teste-romaneio-'.$pedido->id)
             ->fresh(['vendasOperacao.produtoMovimentacao', 'vendasOperacao.produto']);
+
+        $pedido->forceFill([
+            'separacao_status' => SeparacaoStatus::Separado->value,
+            'separado_por' => $actor->id,
+            'separado_em' => now(),
+        ])->save();
+
+        return $pedido->fresh(['vendasOperacao.produtoMovimentacao', 'vendasOperacao.produto']);
     }
 }

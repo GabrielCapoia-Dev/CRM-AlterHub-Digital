@@ -944,7 +944,7 @@ class VendaOperacaoResource extends Resource
                         ->label('Separação, lotes e fotos')
                         ->icon('heroicon-o-clipboard-document-check')
                         ->color('gray')
-                        ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('manageLots', $record) ?? false)
+                        ->visible(false)
                         ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Separação do pedido '.$record->codigo)
                         ->modalDescription('Informe os lotes e as fotos na mesma linha de cada produto. A quantidade de volumes será registrada somente no romaneio.')
                         ->modalWidth(Width::FiveExtraLarge)

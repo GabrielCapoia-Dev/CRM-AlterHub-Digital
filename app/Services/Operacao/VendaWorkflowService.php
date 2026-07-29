@@ -3,6 +3,7 @@
 namespace App\Services\Operacao;
 
 use App\Enum\RemessaStatus;
+use App\Enum\SeparacaoStatus;
 use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
 use App\Models\Oportunidade;
@@ -91,6 +92,7 @@ class VendaWorkflowService
 
             $pedido->forceFill([
                 'status' => VendaStatus::Confirmada->value,
+                'separacao_status' => SeparacaoStatus::Aguardando->value,
                 'confirmada_em' => $pedido->confirmada_em ?? now(),
                 'cancelada_em' => null,
             ])->save();
@@ -163,6 +165,7 @@ class VendaWorkflowService
 
             $pedido->forceFill([
                 'status' => VendaStatus::Cancelada->value,
+                'separacao_status' => null,
                 'cancelada_em' => now(),
             ])->save();
 
@@ -244,6 +247,12 @@ class VendaWorkflowService
                 'aprovado_em' => null,
                 'motivo_recusa' => null,
                 'motivos_aprovacao' => null,
+                'separacao_status' => null,
+                'separacao_observacao' => null,
+                'separado_por' => null,
+                'separado_em' => null,
+                'retornado_romaneio_em' => null,
+                'retorno_romaneio_descricao' => null,
             ])->save();
 
             $this->registrarHistorico(

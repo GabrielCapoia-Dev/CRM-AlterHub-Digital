@@ -2,6 +2,7 @@
 
 namespace App\Services\Documentos;
 
+use App\Enum\SeparacaoStatus;
 use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
 use App\Models\RomaneioPedido;
@@ -151,13 +152,16 @@ class VendaSeparacaoService
 
             $this->assertPedidoSeparavel($pedido);
             $this->assertSemRomaneioAtivo($pedido);
-            $anterior = $this->nullableString($pedido->observacao);
+            $anterior = $this->nullableString($pedido->separacao_observacao);
 
             if ($anterior === $observacao) {
                 return $pedido->fresh(['historicos']);
             }
 
-            $pedido->forceFill(['observacao' => $observacao])->save();
+            $pedido->forceFill([
+                'separacao_observacao' => $observacao,
+                'observacao' => $observacao,
+            ])->save();
 
             $this->workflowService->registrarHistorico(
                 $pedido,
@@ -244,6 +248,92 @@ class VendaSeparacaoService
         User $actor,
     ): VendaOperacaoPedido {
         return $this->informarVolumes($pedido, $quantidadeVolumes, $actor);
+    }
+
+    public function concluirSeparacao(
+        VendaOperacaoPedido $pedido,
+        User $actor,
+    ): VendaOperacaoPedido {
+        Gate::forUser($actor)->authorize('manageLots', $pedido);
+
+        return DB::transaction(function () use ($pedido, $actor): VendaOperacaoPedido {
+            $pedido = VendaOperacaoPedido::query()
+                ->lockForUpdate()
+                ->findOrFail($pedido->id);
+            $this->assertPedidoSeparavel($pedido);
+            $this->assertSemRomaneioAtivo($pedido);
+
+            $itens = VendaOperacao::query()
+                ->with(['lotes', 'fotos'])
+                ->where('venda_operacao_pedido_id', $pedido->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($itens->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'itens' => 'O pedido não possui produtos para separar.',
+                ]);
+            }
+
+            $pendencias = [];
+
+            foreach ($itens as $item) {
+                $produto = $item->produto_nome_snapshot ?: 'Item #'.$item->id;
+                $quantidadeConfirmada = round((float) $item->quantidade, 4);
+                $quantidadeLotes = round((float) $item->lotes->sum('quantidade'), 4);
+
+                if (abs($quantidadeConfirmada - $quantidadeLotes) > 0.0001) {
+                    $pendencias[] = sprintf(
+                        '%s: os lotes somam %.4f, mas a quantidade confirmada é %.4f',
+                        $produto,
+                        $quantidadeLotes,
+                        $quantidadeConfirmada,
+                    );
+                }
+
+                if ($item->fotos->isEmpty()) {
+                    $pendencias[] = $produto.': adicione ao menos uma foto';
+                }
+
+                if ((float) $item->peso_unitario_kg_snapshot <= 0) {
+                    $pendencias[] = $produto.': cadastre o peso unitário do produto';
+                }
+            }
+
+            if ($pendencias !== []) {
+                throw ValidationException::withMessages([
+                    'separacao' => 'Conclua a separação: '.implode('; ', $pendencias).'.',
+                ]);
+            }
+
+            $statusAnterior = $pedido->separacao_status;
+            $pedido->forceFill([
+                'separacao_status' => SeparacaoStatus::Separado->value,
+                'separado_por' => $actor->id,
+                'separado_em' => now(),
+            ])->save();
+
+            $this->workflowService->registrarHistorico(
+                $pedido,
+                $actor,
+                'separacao_concluida',
+                $pedido->status,
+                $pedido->status,
+                metadados: [
+                    'separacao_status_anterior' => $statusAnterior,
+                    'separacao_status' => SeparacaoStatus::Separado->value,
+                    'total_itens' => $itens->count(),
+                ],
+            );
+
+            return $pedido->fresh([
+                'vendasOperacao.lotes',
+                'vendasOperacao.fotos',
+                'separadoPor',
+                'historicos',
+            ]);
+        });
     }
 
     public function atualizarPesoSnapshot(
