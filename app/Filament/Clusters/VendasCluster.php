@@ -10,6 +10,8 @@ use UnitEnum;
 
 class VendasCluster extends Cluster
 {
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShoppingCart;
 
     protected static ?string $navigationLabel = 'Vendas';

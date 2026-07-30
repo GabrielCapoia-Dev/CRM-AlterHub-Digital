@@ -2,9 +2,11 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Clusters\VendasCluster;
 use App\Filament\Pages\Operacao\DashboardBiPage;
 use App\Filament\Resources\Oportunidades\OportunidadeResource;
 use App\Filament\Resources\PedidosSeparacao\PedidoSeparacaoResource;
+use App\Filament\Resources\VendasOperacao\VendaOperacaoResource;
 use Caresome\FilamentAuthDesigner\AuthDesignerPlugin;
 use Caresome\FilamentAuthDesigner\Data\AuthPageConfig;
 use Caresome\FilamentAuthDesigner\Enums\MediaPosition;
@@ -12,6 +14,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\View\PanelsRenderHook;
@@ -134,6 +137,15 @@ class PainelPanelProvider extends PanelProvider
                 'Operação',
                 'Acesso',
                 'Estoque',
+            ])
+            ->navigationItems([
+                NavigationItem::make('Vendas')
+                    ->icon('heroicon-o-shopping-cart')
+                    ->group(VendasCluster::getNavigationGroup())
+                    ->sort(4)
+                    ->url(fn (): string => VendaOperacaoResource::getUrl())
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.painel.operacao.*'))
+                    ->visible(fn (): bool => VendaOperacaoResource::canAccess()),
             ])
             ->discoverClusters(in: app_path('Filament/Clusters'), for: 'App\\Filament\\Clusters')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')

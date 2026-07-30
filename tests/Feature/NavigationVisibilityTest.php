@@ -12,12 +12,22 @@ use App\Filament\Resources\ProdutoMovimentacoes\ProdutoMovimentacaoResource;
 use App\Filament\Resources\Romaneios\RomaneioResource;
 use App\Filament\Resources\VendasOperacao\VendaOperacaoResource;
 use Filament\Facades\Filament;
+use Filament\Navigation\NavigationItem;
 use Tests\TestCase;
 
 class NavigationVisibilityTest extends TestCase
 {
     public function test_sales_and_stock_movements_are_registered_in_navigation(): void
     {
+        Filament::setCurrentPanel(Filament::getPanel('painel'));
+        $salesNavigationItem = collect(Filament::getPanel('painel')->getNavigationItems())
+            ->first(fn (NavigationItem $item): bool => $item->getLabel() === 'Vendas');
+
+        $this->assertNotNull($salesNavigationItem);
+        $this->assertSame(VendasCluster::getNavigationGroup(), $salesNavigationItem->getGroup());
+        $this->assertSame(4, $salesNavigationItem->getSort());
+        $this->assertStringEndsWith('/painel/operacao/vendas', $salesNavigationItem->getUrl());
+
         $this->assertSame(
             ClienteResource::getNavigationGroup(),
             VendasCluster::getNavigationGroup(),
