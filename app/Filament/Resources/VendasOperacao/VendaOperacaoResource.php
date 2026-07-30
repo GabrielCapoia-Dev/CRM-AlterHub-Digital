@@ -938,7 +938,7 @@ class VendaOperacaoResource extends Resource
                             'pedido' => $record,
                             'download' => 1,
                         ]))
-                        ->extraAttributes(['download' => true]),
+                        ->openUrlInNewTab(),
 
                     Action::make('separacao')
                         ->label('Separação, lotes e fotos')

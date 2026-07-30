@@ -221,6 +221,11 @@ class DocumentosPdfServicesTest extends TestCase
     {
         $this->configurarEmpresa(exibirValoresRomaneio: false);
         [$pedido, $item, $user] = $this->criarPedidoConfirmado();
+        $this->concederPermissoes($user, [
+            PermissoesEnum::ListarRomaneios,
+            PermissoesEnum::GerarRomaneio,
+            PermissoesEnum::ReimprimirRomaneio,
+        ]);
 
         $romaneio = Romaneio::query()->create([
             'user_id' => $user->id,
@@ -282,6 +287,24 @@ class DocumentosPdfServicesTest extends TestCase
         $service = app(RomaneioPdfService::class);
         $primeiraVia = $service->gerar($romaneio, $user);
         $segundaVia = $service->gerar($romaneio, $user);
+        $response = $this->actingAs($user)
+            ->get(route('documentos.romaneios.pdf', [
+                'romaneio' => $romaneio,
+                'download' => 1,
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertStreamed()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Content-Transfer-Encoding', 'binary')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+
+        $this->assertStringStartsWith(
+            'attachment;',
+            (string) $response->headers->get('Content-Disposition'),
+        );
+        $this->assertStringStartsWith('%PDF-', $response->streamedContent());
 
         $this->assertStringStartsWith('%PDF-', $primeiraVia->bytes);
         $this->assertStringStartsWith('%PDF-', $segundaVia->bytes);
@@ -290,7 +313,7 @@ class DocumentosPdfServicesTest extends TestCase
 
         $historicos = $romaneio->historicos()->reorder('id')->get();
 
-        $this->assertSame(['pdf_gerado', 'pdf_reimpresso'], $historicos->pluck('evento')->all());
+        $this->assertSame(['pdf_gerado', 'pdf_reimpresso', 'pdf_reimpresso'], $historicos->pluck('evento')->all());
         $this->assertFalse($historicos->first()->metadados['exibir_valores']);
         $this->assertSame($user->id, $historicos->first()->user_id);
     }

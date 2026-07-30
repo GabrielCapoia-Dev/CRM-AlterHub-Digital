@@ -5,6 +5,7 @@ namespace Tests\Feature\Operacao;
 use App\Enum\PermissoesEnum;
 use App\Filament\Clusters\VendasCluster;
 use App\Filament\Resources\PedidosSeparacao\PedidoSeparacaoResource;
+use App\Filament\Resources\Romaneios\Pages\ManageRomaneios;
 use App\Filament\Resources\Romaneios\RomaneioResource;
 use App\Filament\Resources\VendasOperacao\Pages\ManageVendasOperacao;
 use App\Filament\Resources\VendasOperacao\VendaOperacaoResource;
@@ -35,6 +36,41 @@ class VendaOperacaoPageTest extends TestCase
         $this->assertStringEndsWith('/painel/operacao/vendas', VendaOperacaoResource::getUrl());
         $this->assertStringEndsWith('/painel/operacao/separacao-pedidos', PedidoSeparacaoResource::getUrl());
         $this->assertStringEndsWith('/painel/operacao/romaneios', RomaneioResource::getUrl());
+    }
+
+    public function test_pdf_actions_use_native_navigation_outside_the_spa(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        foreach (PermissoesEnum::cases() as $permissionCase) {
+            Permission::findOrCreate($permissionCase->value, 'web');
+        }
+
+        $user = User::factory()->create([
+            'email_approved' => true,
+            'email_verified_at' => now(),
+        ]);
+        $user->givePermissionTo([
+            PermissoesEnum::ListarVendasOperacao->value,
+            PermissoesEnum::ListarRomaneios->value,
+        ]);
+
+        Filament::setCurrentPanel(Filament::getPanel('painel'));
+        $this->actingAs($user);
+
+        $pedidoAction = Livewire::test(ManageVendasOperacao::class)
+            ->instance()
+            ->getTable()
+            ->getAction('pedidoPdf');
+        $romaneioAction = Livewire::test(ManageRomaneios::class)
+            ->instance()
+            ->getTable()
+            ->getAction('pdf');
+
+        $this->assertNotNull($pedidoAction);
+        $this->assertTrue($pedidoAction->shouldOpenUrlInNewTab());
+        $this->assertNotNull($romaneioAction);
+        $this->assertTrue($romaneioAction->shouldOpenUrlInNewTab());
     }
 
     public function test_sales_page_renders_when_column_visibility_is_evaluated_without_a_record(): void
@@ -151,7 +187,7 @@ class VendaOperacaoPageTest extends TestCase
         $pdfAction = $component->instance()->getTable()->getAction('pedidoPdf');
 
         $this->assertNotNull($pdfAction);
-        $this->assertTrue($pdfAction->getExtraAttributes()['download'] ?? false);
+        $this->assertTrue($pdfAction->shouldOpenUrlInNewTab());
         $this->assertNull($component->instance()->getTable()->getAction('adicionarFotos'));
     }
 

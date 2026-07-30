@@ -7,11 +7,11 @@ use App\Models\Romaneio;
 use App\Services\Documentos\DocumentoPdfGerado;
 use App\Services\Documentos\RomaneioPdfService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\HeaderUtils;
+use Symfony\Component\HttpFoundation\Response;
 
 class RomaneioPdfController extends Controller
 {
@@ -61,10 +61,13 @@ class RomaneioPdfController extends Controller
             Str::ascii($filename),
         );
 
-        return response($documento->bytes, 200, [
+        return response()->stream(static function () use ($documento): void {
+            echo $documento->bytes;
+        }, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => $disposition,
             'Content-Length' => (string) strlen($documento->bytes),
+            'Content-Transfer-Encoding' => 'binary',
             'Cache-Control' => 'private, no-store, max-age=0',
             'X-Content-Type-Options' => 'nosniff',
         ]);

@@ -98,7 +98,8 @@ class RomaneioResource extends Resource
                     ->url(fn (Romaneio $record): string => route('documentos.romaneios.pdf', [
                         'romaneio' => $record,
                         'download' => 1,
-                    ])),
+                    ]))
+                    ->openUrlInNewTab(),
 
                 Action::make('despachar')
                     ->label('Despachar romaneio')
