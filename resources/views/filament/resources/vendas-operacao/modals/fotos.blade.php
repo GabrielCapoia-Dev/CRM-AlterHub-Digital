@@ -1,27 +1,38 @@
-<div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+<div class="oa-photo-gallery">
     @forelse ($pedido->fotos as $foto)
-        <article class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-            <a href="{{ route('documentos.pedidos.fotos.visualizar', ['pedido' => $pedido, 'foto' => $foto]) }}" target="_blank" rel="noopener">
+        <article class="oa-photo-card">
+            <a
+                class="oa-photo-card__preview"
+                href="{{ route('documentos.pedidos.fotos.visualizar', ['pedido' => $pedido, 'foto' => $foto]) }}"
+                target="_blank"
+                rel="noopener"
+                title="Abrir imagem original em uma nova aba"
+            >
                 <img
                     src="{{ route('documentos.pedidos.fotos.visualizar', ['pedido' => $pedido, 'foto' => $foto]) }}"
                     alt="{{ $foto->descricao ?: $foto->nome_original }}"
-                    class="h-52 w-full object-contain bg-gray-50 dark:bg-gray-950"
+                    class="oa-photo-card__image"
                     loading="lazy"
                 >
+                <span class="oa-photo-card__hint">Clique para abrir no tamanho original</span>
             </a>
-            <div class="space-y-2 p-4 text-sm">
-                <div class="font-medium">{{ $foto->descricao ?: $foto->nome_original }}</div>
-                <div class="text-gray-500">
-                    Produto: {{ $foto->item?->produto_nome_snapshot ?: 'Pedido inteiro' }}<br>
-                    Enviado por {{ $foto->user?->name ?: '-' }} em {{ $foto->created_at?->format('d/m/Y H:i') }}
+            <div class="oa-photo-card__details">
+                <div class="oa-photo-card__copy">
+                    <strong class="oa-photo-card__title">{{ $foto->descricao ?: $foto->nome_original }}</strong>
+                    <span class="oa-photo-card__meta">
+                        Produto: {{ $foto->item?->produto_nome_snapshot ?: 'Pedido inteiro' }}
+                    </span>
+                    <span class="oa-photo-card__meta">
+                        Enviado por {{ $foto->user?->name ?: '-' }} em {{ $foto->created_at?->format('d/m/Y H:i') }}
+                    </span>
                 </div>
                 <a
                     href="{{ route('documentos.pedidos.fotos.baixar', ['pedido' => $pedido, 'foto' => $foto]) }}"
-                    class="font-medium text-primary-600 hover:underline"
+                    class="oa-photo-card__download"
                 >Baixar original</a>
             </div>
         </article>
     @empty
-        <p class="text-sm text-gray-500">Nenhuma foto vinculada a este pedido.</p>
+        <div class="oa-photo-gallery__empty">Nenhuma foto vinculada a este pedido.</div>
     @endforelse
 </div>

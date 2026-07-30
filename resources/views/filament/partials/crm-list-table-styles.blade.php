@@ -126,6 +126,124 @@
             gap: 0.55rem;
         }
 
+        .oa-photo-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .oa-photo-card {
+            min-width: 0;
+            overflow: hidden;
+            border: 1px solid rgba(212, 216, 230, 0.95);
+            border-radius: 1rem;
+            background: rgb(255 255 255);
+            box-shadow: 0 10px 28px rgba(15, 23, 41, 0.08);
+        }
+
+        .oa-photo-card__preview {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: clamp(18rem, 52vh, 38rem);
+            padding: 1rem;
+            overflow: hidden;
+            background-color: rgb(244 245 249);
+            background-image:
+                linear-gradient(45deg, rgba(212, 216, 230, 0.2) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(212, 216, 230, 0.2) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(212, 216, 230, 0.2) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(212, 216, 230, 0.2) 75%);
+            background-position: 0 0, 0 0.5rem, 0.5rem -0.5rem, -0.5rem 0;
+            background-size: 1rem 1rem;
+        }
+
+        .oa-photo-card__image {
+            display: block;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            object-position: center;
+            image-orientation: from-image;
+        }
+
+        .oa-photo-card__hint {
+            position: absolute;
+            right: 0.75rem;
+            bottom: 0.75rem;
+            padding: 0.4rem 0.65rem;
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            border-radius: 999px;
+            color: rgb(255 255 255);
+            background: rgba(15, 23, 41, 0.78);
+            box-shadow: 0 4px 14px rgba(15, 23, 41, 0.18);
+            font-size: 0.72rem;
+            font-weight: 600;
+            line-height: 1.2;
+            pointer-events: none;
+        }
+
+        .oa-photo-card__details {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem 1.1rem;
+            border-top: 1px solid rgba(212, 216, 230, 0.85);
+        }
+
+        .oa-photo-card__copy {
+            display: grid;
+            min-width: 0;
+            gap: 0.28rem;
+        }
+
+        .oa-photo-card__title {
+            color: rgb(15 23 41);
+            font-size: 0.9rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .oa-photo-card__meta {
+            color: rgb(107 118 148);
+            font-size: 0.78rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .oa-photo-card__download {
+            flex: 0 0 auto;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid rgba(58, 109, 214, 0.28);
+            border-radius: 0.65rem;
+            color: rgb(30 69 168);
+            background: rgb(234 241 253);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .oa-photo-card__download:hover {
+            border-color: rgba(30, 69, 168, 0.5);
+            background: rgb(208 224 250);
+        }
+
+        .oa-photo-gallery__empty {
+            padding: 2rem;
+            border: 1px dashed rgb(180 186 206);
+            border-radius: 1rem;
+            color: rgb(107 118 148);
+            background: rgb(244 245 249);
+            text-align: center;
+            font-size: 0.88rem;
+        }
+
         @media (max-width: 48rem) {
             .crm-list-record .fi-ta-record-content {
                 gap: 0.65rem;
@@ -147,6 +265,24 @@
 
             .crm-list-record .fi-ta-actions .fi-btn {
                 justify-content: center;
+            }
+
+            .oa-photo-card__preview {
+                height: clamp(16rem, 48vh, 30rem);
+                padding: 0.65rem;
+            }
+
+            .oa-photo-card__hint {
+                display: none;
+            }
+
+            .oa-photo-card__details {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .oa-photo-card__download {
+                text-align: center;
             }
         }
     </style>

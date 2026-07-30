@@ -4,6 +4,8 @@ namespace Tests\Feature\Operacao;
 
 use App\Enum\PermissoesEnum;
 use App\Enum\SeparacaoStatus;
+use App\Filament\Resources\PedidosSeparacao\Pages\ManagePedidosSeparacao;
+use App\Filament\Resources\Romaneios\RomaneioResource;
 use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
 use App\Models\DocumentoConfiguracao;
@@ -17,11 +19,13 @@ use App\Services\Operacao\RomaneioService;
 use App\Services\Operacao\VendaOperacaoService;
 use App\Services\Operacao\VendaWorkflowService;
 use App\Services\Produtos\MovimentacaoEstoqueService;
+use Filament\Facades\Filament;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -127,6 +131,38 @@ class RomaneioServiceTest extends TestCase
         }
 
         $this->assertSame(1, Romaneio::query()->count());
+    }
+
+    public function test_acao_em_massa_gera_romaneio_com_os_volumes_informados(): void
+    {
+        $this->configurarEmpresa();
+        $actor = $this->createActor([
+            PermissoesEnum::GerarRomaneio,
+            PermissoesEnum::ListarRomaneios,
+            PermissoesEnum::CadastrarLotesValidades,
+        ]);
+        $pedido = $this->createEligiblePedido($actor, volumes: 1);
+
+        Filament::setCurrentPanel(Filament::getPanel('painel'));
+        $this->actingAs($actor);
+
+        $component = Livewire::test(ManagePedidosSeparacao::class)
+            ->mountTableBulkAction('gerarRomaneio', [$pedido]);
+        $data = $component->get('mountedActions.0.data');
+        $rowKey = array_key_first($data['pedidos_volumes']);
+        $data['pedidos_volumes'][$rowKey]['quantidade_volumes'] = 3;
+        $data['observacao'] = 'Carga conferida no teste da interface.';
+
+        $component
+            ->setTableBulkActionData($data)
+            ->callMountedTableBulkAction()
+            ->assertHasNoActionErrors()
+            ->assertRedirect(RomaneioResource::getUrl());
+
+        $romaneio = Romaneio::query()->sole();
+
+        $this->assertSame(3, $romaneio->quantidade_volumes_total);
+        $this->assertSame(SeparacaoStatus::EmRomaneio->value, $pedido->fresh()->separacao_status);
     }
 
     public function test_cancelar_exige_permissao_e_justificativa_libera_pedido_sem_tocar_estoque(): void

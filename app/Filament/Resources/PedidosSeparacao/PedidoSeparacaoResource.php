@@ -17,14 +17,11 @@ use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -176,20 +173,21 @@ class PedidoSeparacaoResource extends Resource
                     ->addable(false)
                     ->deletable(false)
                     ->reorderable(false)
-                    ->table([
-                        TableColumn::make('Pedido'),
-                        TableColumn::make('Quantidade de volumes')->markAsRequired()->width('14rem'),
-                    ])
+                    ->columns(['default' => 1, 'md' => 3])
+                    ->itemLabel(fn (array $state): string => (string) ($state['pedido_resumo'] ?? 'Pedido selecionado'))
                     ->schema([
                         Hidden::make('pedido_id'),
-                        Placeholder::make('pedido_resumo')
-                            ->hiddenLabel()
-                            ->content(fn (Get $get): string => (string) $get('pedido_resumo')),
+                        TextInput::make('pedido_resumo')
+                            ->label('Pedido')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->columnSpan(['default' => 1, 'md' => 2]),
                         TextInput::make('quantidade_volumes')
-                            ->hiddenLabel()
+                            ->label('Quantidade de volumes')
                             ->integer()
                             ->minValue(1)
-                            ->required(),
+                            ->required()
+                            ->columnSpan(1),
                     ])
                     ->extraAttributes(['class' => 'oa-romaneio-volumes-table']),
                 Textarea::make('observacao')
@@ -223,8 +221,6 @@ class PedidoSeparacaoResource extends Resource
                         ->body(collect($exception->errors())->flatten()->implode(' '))
                         ->danger()
                         ->send();
-
-                    throw $exception;
                 }
             })
             ->deselectRecordsAfterCompletion();
