@@ -264,7 +264,7 @@ class VendaSeparacaoService
             $this->assertSemRomaneioAtivo($pedido);
 
             $itens = VendaOperacao::query()
-                ->with(['lotes', 'fotos'])
+                ->with(['produto', 'lotes', 'fotos'])
                 ->where('venda_operacao_pedido_id', $pedido->id)
                 ->orderBy('id')
                 ->lockForUpdate()
@@ -296,7 +296,35 @@ class VendaSeparacaoService
                     $pendencias[] = $produto.': adicione ao menos uma foto';
                 }
 
-                if ((float) $item->peso_unitario_kg_snapshot <= 0) {
+                $pesoAnterior = $item->peso_unitario_kg_snapshot;
+                $pesoSnapshot = (float) $pesoAnterior;
+
+                if ($pesoSnapshot <= 0) {
+                    $pesoProduto = (float) ($item->produto?->peso_unitario_kg ?? 0);
+
+                    if (is_finite($pesoProduto) && $pesoProduto > 0) {
+                        $pesoSnapshot = round($pesoProduto, 4);
+                        $item->forceFill([
+                            'peso_unitario_kg_snapshot' => $pesoSnapshot,
+                        ])->save();
+
+                        $this->workflowService->registrarHistorico(
+                            $pedido,
+                            $actor,
+                            'peso_separacao_atualizado',
+                            $pedido->status,
+                            $pedido->status,
+                            metadados: [
+                                'venda_operacao_id' => $item->id,
+                                'peso_anterior' => $pesoAnterior,
+                                'peso_unitario_kg_snapshot' => $pesoSnapshot,
+                                'origem' => 'cadastro_produto',
+                            ],
+                        );
+                    }
+                }
+
+                if ($pesoSnapshot <= 0) {
                     $pendencias[] = $produto.': cadastre o peso unitário do produto';
                 }
             }

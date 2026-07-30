@@ -37,6 +37,8 @@ class PedidoSeparacaoFlowTest extends TestCase
         $actor = $this->createActor();
         $pedido = $this->createConfirmedPedido($actor);
         $item = $pedido->vendasOperacao->firstOrFail();
+        $item->forceFill(['peso_unitario_kg_snapshot' => null])->save();
+        $item->produto->forceFill(['peso_unitario_kg' => 1.85])->save();
         $service = app(VendaSeparacaoService::class);
 
         $this->assertSame(SeparacaoStatus::Aguardando->value, $pedido->separacao_status);
@@ -76,6 +78,7 @@ class PedidoSeparacaoFlowTest extends TestCase
         $this->assertSame('Conferido pela expedição.', $separado->separacao_observacao);
         $this->assertSame($actor->id, $separado->separado_por);
         $this->assertNotNull($separado->separado_em);
+        $this->assertSame(1.85, (float) $item->fresh()->peso_unitario_kg_snapshot);
         $this->assertDatabaseHas('venda_pedido_fotos', [
             'venda_operacao_pedido_id' => $pedido->id,
             'venda_operacao_id' => $item->id,
