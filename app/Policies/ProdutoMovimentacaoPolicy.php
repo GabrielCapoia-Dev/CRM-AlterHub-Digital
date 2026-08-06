@@ -20,7 +20,8 @@ class ProdutoMovimentacaoPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::EditarProdutosCRM->value);
+        return $user->hasPermissionTo(PermissoesEnum::MovimentarEstoqueProdutos->value)
+            || $user->hasPermissionTo(PermissoesEnum::EditarProdutosCRM->value);
     }
 
     public function update(User $user, ProdutoMovimentacao $produtoMovimentacao): bool

@@ -5,6 +5,7 @@ namespace App\Services\Documentos;
 use App\Enum\VendaStatus;
 use App\Models\Acesso\User;
 use App\Models\VendaOperacao;
+use App\Models\VendaOperacaoLote;
 use App\Models\VendaOperacaoPedido;
 use App\Models\VendaPedidoFoto;
 use App\Services\Operacao\VendaWorkflowService;
@@ -37,86 +38,63 @@ class VendaFotoService
         User $actor,
         ?VendaOperacao $item = null,
         ?string $descricao = null,
+        ?VendaOperacaoLote $lote = null,
     ): VendaPedidoFoto {
-        Gate::forUser($actor)->authorize('addPhotos', $pedido);
-        $this->validarArquivo($arquivo);
-        $pathArmazenado = null;
+        $armazenado = $this->armazenarUploadPendente($pedido, $arquivo, $actor);
 
         try {
-            return DB::transaction(function () use (
+            return $this->registrarArquivoArmazenado(
                 $pedido,
-                $arquivo,
+                $armazenado['path'],
+                $armazenado['nome_original'],
                 $actor,
                 $item,
                 $descricao,
-                &$pathArmazenado,
-            ): VendaPedidoFoto {
-                $pedido = VendaOperacaoPedido::query()
-                    ->lockForUpdate()
-                    ->findOrFail($pedido->id);
-                $this->assertAceitaFotos($pedido);
-
-                if ($item) {
-                    $item = VendaOperacao::query()
-                        ->lockForUpdate()
-                        ->findOrFail($item->id);
-
-                    if ((int) $item->venda_operacao_pedido_id !== (int) $pedido->id) {
-                        throw ValidationException::withMessages([
-                            'venda_operacao_id' => 'O item informado nao pertence ao pedido.',
-                        ]);
-                    }
-                }
-
-                $mime = (string) $arquivo->getMimeType();
-                $extensao = self::EXTENSOES_POR_MIME[$mime];
-                $disk = 'local';
-                $diretorio = "pedidos/{$pedido->id}/fotos";
-                $nome = Str::uuid()->toString().".{$extensao}";
-                $pathArmazenado = $arquivo->storeAs($diretorio, $nome, $disk);
-
-                if (! is_string($pathArmazenado) || $pathArmazenado === '') {
-                    throw ValidationException::withMessages([
-                        'arquivo' => 'Nao foi possivel armazenar a foto.',
-                    ]);
-                }
-
-                $foto = VendaPedidoFoto::query()->create([
-                    'venda_operacao_pedido_id' => $pedido->id,
-                    'venda_operacao_id' => $item?->id,
-                    'user_id' => $actor->id,
-                    'disk' => $disk,
-                    'path' => $pathArmazenado,
-                    'nome_original' => $arquivo->getClientOriginalName(),
-                    'mime_type' => $mime,
-                    'tamanho_bytes' => (int) $arquivo->getSize(),
-                    'descricao' => $this->nullableString($descricao),
-                ]);
-
-                $this->workflowService->registrarHistorico(
-                    $pedido,
-                    $actor,
-                    'foto_separacao_adicionada',
-                    $pedido->status,
-                    $pedido->status,
-                    metadados: [
-                        'foto_id' => $foto->id,
-                        'venda_operacao_id' => $item?->id,
-                        'nome_original' => $foto->nome_original,
-                        'mime_type' => $foto->mime_type,
-                        'tamanho_bytes' => $foto->tamanho_bytes,
-                    ],
-                );
-
-                return $foto->fresh(['pedido', 'item', 'user']);
-            });
+                $lote,
+            );
         } catch (Throwable $exception) {
-            if (is_string($pathArmazenado) && $pathArmazenado !== '') {
-                Storage::disk('local')->delete($pathArmazenado);
-            }
+            Storage::disk('local')->delete($armazenado['path']);
 
             throw $exception;
         }
+    }
+
+    /**
+     * Valida e transfere o upload antes de adquirir locks de banco. O chamador
+     * deve remover o caminho caso a transação que registra a foto seja desfeita.
+     *
+     * @return array{path:string,nome_original:string}
+     */
+    public function armazenarUploadPendente(
+        VendaOperacaoPedido $pedido,
+        UploadedFile $arquivo,
+        User $actor,
+    ): array {
+        Gate::forUser($actor)->authorize('addPhotos', $pedido);
+        $this->validarArquivo($arquivo);
+
+        try {
+            $mime = (string) $arquivo->getMimeType();
+            $extensao = self::EXTENSOES_POR_MIME[$mime];
+            $diretorio = "pedidos/{$pedido->id}/fotos";
+            $nome = Str::uuid()->toString().".{$extensao}";
+            $path = $arquivo->storeAs($diretorio, $nome, 'local');
+        } catch (Throwable) {
+            throw ValidationException::withMessages([
+                'arquivo' => 'Não foi possível armazenar a foto. Envie o arquivo novamente.',
+            ]);
+        }
+
+        if (! is_string($path) || $path === '') {
+            throw ValidationException::withMessages([
+                'arquivo' => 'Não foi possível armazenar a foto. Envie o arquivo novamente.',
+            ]);
+        }
+
+        return [
+            'path' => $path,
+            'nome_original' => $arquivo->getClientOriginalName(),
+        ];
     }
 
     public function armazenar(
@@ -125,8 +103,9 @@ class VendaFotoService
         User $actor,
         ?VendaOperacao $item = null,
         ?string $descricao = null,
+        ?VendaOperacaoLote $lote = null,
     ): VendaPedidoFoto {
-        return $this->adicionar($pedido, $arquivo, $actor, $item, $descricao);
+        return $this->adicionar($pedido, $arquivo, $actor, $item, $descricao, $lote);
     }
 
     public function registrarArquivoArmazenado(
@@ -136,6 +115,7 @@ class VendaFotoService
         User $actor,
         ?VendaOperacao $item = null,
         ?string $descricao = null,
+        ?VendaOperacaoLote $lote = null,
     ): VendaPedidoFoto {
         Gate::forUser($actor)->authorize('addPhotos', $pedido);
         $disk = 'local';
@@ -176,6 +156,7 @@ class VendaFotoService
             $actor,
             $item,
             $descricao,
+            $lote,
             $disk,
             $mime,
             $tamanho,
@@ -195,6 +176,16 @@ class VendaFotoService
                 }
             }
 
+            if ($lote) {
+                $lote = VendaOperacaoLote::query()->lockForUpdate()->findOrFail($lote->id);
+
+                if (! $item || (int) $lote->venda_operacao_id !== (int) $item->id) {
+                    throw ValidationException::withMessages([
+                        'venda_operacao_lote_id' => 'O lote informado não pertence ao item do pedido.',
+                    ]);
+                }
+            }
+
             $existente = VendaPedidoFoto::query()
                 ->where('venda_operacao_pedido_id', $pedido->id)
                 ->where('path', $path)
@@ -207,6 +198,7 @@ class VendaFotoService
             $foto = VendaPedidoFoto::query()->create([
                 'venda_operacao_pedido_id' => $pedido->id,
                 'venda_operacao_id' => $item?->id,
+                'venda_operacao_lote_id' => $lote?->id,
                 'user_id' => $actor->id,
                 'disk' => $disk,
                 'path' => $path,
@@ -225,13 +217,14 @@ class VendaFotoService
                 metadados: [
                     'foto_id' => $foto->id,
                     'venda_operacao_id' => $item?->id,
+                    'venda_operacao_lote_id' => $lote?->id,
                     'nome_original' => $foto->nome_original,
                     'mime_type' => $foto->mime_type,
                     'tamanho_bytes' => $foto->tamanho_bytes,
                 ],
             );
 
-            return $foto->fresh(['pedido', 'item', 'user']);
+            return $foto->fresh(['pedido', 'item', 'lote', 'user']);
         });
     }
 
@@ -271,6 +264,7 @@ class VendaFotoService
                 metadados: [
                     'foto_id' => $foto->id,
                     'venda_operacao_id' => $foto->venda_operacao_id,
+                    'venda_operacao_lote_id' => $foto->venda_operacao_lote_id,
                     'nome_original' => $foto->nome_original,
                     'disk' => $foto->disk,
                     'path' => $foto->path,
@@ -290,12 +284,18 @@ class VendaFotoService
 
     protected function validarArquivo(UploadedFile $arquivo): void
     {
-        $mime = (string) $arquivo->getMimeType();
-        $tamanho = (int) $arquivo->getSize();
-
         if (! $arquivo->isValid()) {
             throw ValidationException::withMessages([
                 'arquivo' => 'O envio da foto falhou. Tente novamente.',
+            ]);
+        }
+
+        try {
+            $mime = (string) $arquivo->getMimeType();
+            $tamanho = (int) $arquivo->getSize();
+        } catch (Throwable) {
+            throw ValidationException::withMessages([
+                'arquivo' => 'A imagem não está mais disponível. Envie o arquivo novamente.',
             ]);
         }
 

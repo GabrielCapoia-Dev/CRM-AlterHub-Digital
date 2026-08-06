@@ -53,37 +53,74 @@ class EstoqueService
             }
 
             $produtos = $produtosQuery->get()->keyBy('id');
-            $faltas = [];
+            return $this->calcularFaltas($necessidades, $produtos);
+        });
+    }
 
-            foreach ($necessidades as $produtoId => $solicitado) {
-                $produto = $produtos->get((int) $produtoId);
-                $disponivel = $produto?->estoqueDisponivel() ?? 0.0;
+    /**
+     * Calcula faltas usando as relações já carregadas pela listagem, sem abrir
+     * transações nem repetir consultas por pedido. Não deve ser usado para
+     * confirmar uma venda, pois essa operação exige locks pessimistas.
+     *
+     * @return list<array{produto_id:int,produto:string,solicitado:float,disponivel:float,deficit:float}>
+     */
+    public function faltasVendaParaExibicao(VendaOperacaoPedido $pedido): array
+    {
+        $pedido->loadMissing('vendasOperacao.produto');
 
-                if ($produto && $produto->status === 'ativo' && $produto->ativo && $solicitado <= $disponivel) {
-                    continue;
-                }
+        $linhas = $pedido->vendasOperacao
+            ->whereNull('produto_movimentacao_id');
+        $necessidades = $linhas
+            ->groupBy('produto_id')
+            ->map(fn (Collection $items): float => round((float) $items->sum('quantidade'), 4));
+        $produtos = $linhas
+            ->pluck('produto')
+            ->filter()
+            ->keyBy('id');
 
-                $faltas[] = [
-                    'produto_id' => (int) $produtoId,
-                    'produto' => $produto?->nome ?? 'Produto indisponível',
-                    'solicitado' => round($solicitado, 4),
-                    'disponivel' => round($disponivel, 4),
-                    'deficit' => round(max(0, $solicitado - $disponivel), 4),
-                ];
+        return $this->calcularFaltas($necessidades, $produtos);
+    }
+
+    /**
+     * @param  Collection<int|string, float>  $necessidades
+     * @param  Collection<int|string, Produto>  $produtos
+     * @return list<array{produto_id:int,produto:string,solicitado:float,disponivel:float,deficit:float}>
+     */
+    private function calcularFaltas(Collection $necessidades, Collection $produtos): array
+    {
+        $faltas = [];
+
+        foreach ($necessidades as $produtoId => $solicitado) {
+            $produto = $produtos->get((int) $produtoId);
+            $disponivel = $produto?->estoqueDisponivel() ?? 0.0;
+
+            if ($produto && $produto->status === 'ativo' && $produto->ativo && $solicitado <= $disponivel) {
+                continue;
             }
 
-            return $faltas;
-        });
+            $faltas[] = [
+                'produto_id' => (int) $produtoId,
+                'produto' => $produto?->nome ?? 'Produto indisponível',
+                'solicitado' => round($solicitado, 4),
+                'disponivel' => round($disponivel, 4),
+                'deficit' => round(max(0, $solicitado - $disponivel), 4),
+            ];
+        }
+
+        return $faltas;
     }
 
     public function efetivarVenda(
         VendaOperacaoPedido $pedido,
         User $actor,
         string $idempotencyKey,
+        bool $estoqueJaValidado = false,
     ): VendaOperacaoPedido {
-        return DB::transaction(function () use ($pedido, $actor, $idempotencyKey): VendaOperacaoPedido {
+        return DB::transaction(function () use ($pedido, $actor, $idempotencyKey, $estoqueJaValidado): VendaOperacaoPedido {
             $pedido = VendaOperacaoPedido::query()->lockForUpdate()->findOrFail($pedido->id);
-            $faltas = $this->faltasVenda($pedido, bloquear: true);
+            $faltas = $estoqueJaValidado
+                ? []
+                : $this->faltasVenda($pedido, bloquear: true);
 
             if ($faltas !== []) {
                 throw ValidationException::withMessages([

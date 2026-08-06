@@ -8,5 +8,6 @@ enum RolesEnum: string
     case Admin = 'Admin';
     case Gestor = 'Gestor';
     case Vendedor = 'Vendedor';
+    case Estoquista = 'Estoquista';
     case Usuario = 'Usuário';
 }

@@ -88,6 +88,7 @@ class VendaWorkflowService
                 $pedido,
                 $actor,
                 $chaveIdempotencia,
+                estoqueJaValidado: true,
             );
 
             $pedido->forceFill([

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Acesso\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VendaOperacaoLote extends Model
@@ -48,6 +49,11 @@ class VendaOperacaoLote extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function fotos(): HasMany
+    {
+        return $this->hasMany(VendaPedidoFoto::class, 'venda_operacao_lote_id');
     }
 
     public function excluidoPor(): BelongsTo

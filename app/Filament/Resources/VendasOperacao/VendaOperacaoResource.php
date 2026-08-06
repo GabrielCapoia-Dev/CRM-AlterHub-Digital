@@ -21,6 +21,7 @@ use App\Services\Documentos\VendaFotoService;
 use App\Services\Documentos\VendaSeparacaoService;
 use App\Services\Operacao\VendaOperacaoService;
 use App\Services\Operacao\VendaWorkflowService;
+use App\Services\Produtos\EstoqueService;
 use App\Support\Ui\LivewireTemporaryUploadResolver;
 use App\Support\Ui\NumericFormat;
 use BackedEnum;
@@ -524,9 +525,7 @@ class VendaOperacaoResource extends Resource
      */
     protected static function approvalReasonLines(VendaOperacaoPedido $pedido): array
     {
-        $motivos = is_array($pedido->motivos_aprovacao)
-            ? $pedido->motivos_aprovacao
-            : [];
+        $motivos = static::currentApprovalReasons($pedido);
         $linhas = [];
 
         if (isset($motivos['desconto'])) {
@@ -564,8 +563,25 @@ class VendaOperacaoResource extends Resource
     {
         return new HtmlString(view(
             'filament.resources.vendas-operacao.partials.motivos-aprovacao',
-            ['pedido' => $pedido],
+            [
+                'pedido' => $pedido,
+                'approvalReasons' => static::currentApprovalReasons($pedido),
+            ],
         )->render());
+    }
+
+    /** @return array<string, mixed> */
+    protected static function currentApprovalReasons(VendaOperacaoPedido $pedido): array
+    {
+        $motivos = is_array($pedido->motivos_aprovacao)
+            ? $pedido->motivos_aprovacao
+            : [];
+
+        if ($pedido->isPendenteAprovacao() && $pedido->vendasOperacao->isNotEmpty()) {
+            $motivos['estoque'] = app(EstoqueService::class)->faltasVendaParaExibicao($pedido);
+        }
+
+        return $motivos;
     }
 
     protected static function renderApprovalReasons(VendaOperacaoPedido $pedido): HtmlString
@@ -1327,7 +1343,10 @@ class VendaOperacaoResource extends Resource
                         ->modalDescription('Revise os alertas de estoque e preço antes de confirmar.')
                         ->modalContent(fn (VendaOperacaoPedido $record): View => view(
                             'filament.resources.vendas-operacao.modals.aprovacao-venda',
-                            ['pedido' => $record],
+                            [
+                                'pedido' => $record,
+                                'approvalReasons' => static::currentApprovalReasons($record),
+                            ],
                         ))
                         ->modalIcon('heroicon-o-shield-check')
                         ->modalIconColor('warning')

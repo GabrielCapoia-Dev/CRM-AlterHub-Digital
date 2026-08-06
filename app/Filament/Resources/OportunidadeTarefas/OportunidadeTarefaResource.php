@@ -44,6 +44,7 @@ class OportunidadeTarefaResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
+            ->with(['oportunidade', 'user'])
             ->whereHas('oportunidade', fn (Builder $query) => $query->visiveisPara(auth()->user()));
     }
 
@@ -163,6 +164,7 @@ class OportunidadeTarefaResource extends Resource
         return $table
             ->columns(static::tableColumns())
             ->defaultSort('data_prevista')
+            ->searchDebounce('750ms')
             ->recordClasses(fn ($record): string => 'crm-list-record crm-list-record--crm')
             ->recordActions([
                 ActionGroup::make([

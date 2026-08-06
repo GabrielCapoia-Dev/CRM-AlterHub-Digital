@@ -1520,6 +1520,80 @@
     margin-bottom: 0.35rem;
 }
 
+/* Visualizacao dos pedidos do romaneio */
+.oa-orders-view-modal.fi-modal-window {
+    max-width: min(72rem, calc(100vw - 2rem));
+    max-height: calc(100dvh - 2rem);
+    overflow: hidden;
+}
+
+.oa-orders-view-modal .fi-modal-content {
+    padding: 1.25rem;
+    overflow-y: auto;
+    background: #f8fafc;
+}
+
+.oa-orders-view { display: grid; gap: 1rem; }
+.oa-orders-view__summary > div {
+    padding: .85rem 1rem;
+    border: 1px solid #dbe3ef;
+    border-radius: .8rem;
+    background: #fff;
+}
+
+.oa-orders-view__order {
+    overflow: hidden;
+    padding: 0 !important;
+    border-color: #dbe3ef;
+    background: #fff;
+}
+
+.oa-orders-view__order-header {
+    margin: 0 !important;
+    padding: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f1f5f9;
+}
+
+.oa-orders-view__table th {
+    padding: .75rem 1rem;
+    color: #475569;
+    background: #f8fafc;
+    white-space: nowrap;
+}
+
+.oa-orders-view__table td {
+    padding: .75rem 1rem;
+    border-top: 1px solid #eef2f7;
+    vertical-align: top;
+}
+
+.dark .oa-orders-view-modal .fi-modal-content,
+.dark .oa-orders-view__table th {
+    background: #0f172a;
+}
+
+.dark .oa-orders-view__summary > div,
+.dark .oa-orders-view__order {
+    border-color: #334155;
+    background: #111827;
+}
+
+.dark .oa-orders-view__order-header {
+    border-bottom-color: #334155;
+    background: #1e293b;
+}
+
+.dark .oa-orders-view__table td { border-top-color: #334155; }
+
+@media (max-width: 640px) {
+    .oa-orders-view-modal.fi-modal-window {
+        max-width: calc(100vw - 1rem);
+    }
+
+    .oa-orders-view-modal .fi-modal-content { padding: .75rem; }
+}
+
 .oa-sale-calc {
     margin-top: 0.15rem;
 }

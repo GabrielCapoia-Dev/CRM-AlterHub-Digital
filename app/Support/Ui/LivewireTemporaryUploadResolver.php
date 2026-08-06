@@ -33,6 +33,12 @@ final class LivewireTemporaryUploadResolver
         }
 
         if ($upload instanceof UploadedFile) {
+            if ($upload instanceof TemporaryUploadedFile && ! $upload->exists()) {
+                throw ValidationException::withMessages([
+                    'arquivos' => 'O arquivo temporário expirou. Envie a imagem novamente.',
+                ]);
+            }
+
             $files[] = $upload;
 
             return;

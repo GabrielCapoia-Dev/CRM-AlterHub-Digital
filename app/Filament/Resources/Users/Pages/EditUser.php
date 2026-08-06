@@ -3,68 +3,49 @@
 namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Resources\Users\UserResource;
-use App\Models\Acesso\Role;
+use App\Models\Acesso\User;
 use App\Services\Acesso\UserService;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\PermissionRegistrar;
 
 class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
 
-    protected function afterSave(): void
+    protected ?bool $hasDatabaseTransactions = true;
+
+    protected function beforeSave(): void
     {
-        $this->sincronizarRole();
-        $this->sincronizarPermissoes();
-
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-    }
-
-    private function sincronizarRole(): void
-    {
-        if (empty($this->data['role'])) return;
-
-        $roleId = is_array($this->data['role'])
-            ? $this->data['role'][0]
-            : $this->data['role'];
-
-        $role = Role::find($roleId);
-
-        if ($role) {
-            $this->record->syncRoles([$role]);
-        }
-    }
-
-    private function sincronizarPermissoes(): void
-    {
-        if (empty($this->data['usar_permissoes_extras'])) {
-            $this->record->syncPermissions([]);
+        if (! array_key_exists('role', $this->data) || empty($this->data['role'])) {
             return;
         }
 
-        $permissoesSelecionadas = collect($this->data)
-            ->filter(fn($_, $key) => str_starts_with($key, 'permissions_'))
-            ->flatten()
-            ->unique()
-            ->values();
+        /** @var User $actor */
+        $actor = Auth::user();
+        app(UserService::class)->validarRoleAtribuivel($actor, $this->data['role']);
+    }
 
-        $permissoesDaRole = $this->record->roles
-            ->flatMap(fn($role) => $role->permissions)
-            ->pluck('name')
-            ->toArray();
+    protected function afterSave(): void
+    {
+        /** @var User $actor */
+        $actor = Auth::user();
+        /** @var User $record */
+        $record = $this->record;
+        $service = app(UserService::class);
 
-        $permissoesAtuais = $this->record->getDirectPermissions()->pluck('name');
-
-        $paraRemover = $permissoesAtuais->diff($permissoesSelecionadas);
-        $paraAdicionar = $permissoesSelecionadas->diff($permissoesAtuais)->diff($permissoesDaRole);
-
-        if ($paraRemover->isNotEmpty()) {
-            $this->record->revokePermissionTo($paraRemover->toArray());
+        if (array_key_exists('role', $this->data) && ! empty($this->data['role'])) {
+            $service->sincronizarRole($record, $actor, $this->data['role']);
         }
 
-        if ($paraAdicionar->isNotEmpty()) {
-            $this->record->givePermissionTo($paraAdicionar->toArray());
-        }
+        $service->sincronizarPermissoesDiretas(
+            $record,
+            $actor,
+            (bool) ($this->data['usar_permissoes_extras'] ?? false),
+            (array) ($this->data['permissions'] ?? []),
+        );
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     protected function getRedirectUrl(): string

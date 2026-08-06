@@ -4,11 +4,13 @@ namespace App\Services\Acesso;
 
 use App\Enum\PermissoesEnum;
 use App\Enum\RolesEnum;
+use App\Models\Acesso\Role;
 use App\Models\Acesso\User;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
 
 class UserService
@@ -30,12 +32,76 @@ class UserService
 
     public function opcoesDeRoles(Builder $base, ?User $user): Builder
     {
-        return $base
-            ->where('name', '!=', RolesEnum::SuperAdmin->value)
-            ->when(
-                ! $this->roleService->ehSuperAdmin($user),
-                fn ($q) => $q->where('name', '!=', RolesEnum::Admin->value)
-            );
+        $base->where('name', '!=', RolesEnum::SuperAdmin->value);
+
+        if (! $user) {
+            return $base->whereRaw('1 = 0');
+        }
+
+        if ($this->roleService->ehSuperAdmin($user)) {
+            return $base;
+        }
+
+        $delegaveis = $this->roleService->permissoesAtribuiveis($user)->all();
+        $base->where('name', '!=', RolesEnum::Admin->value);
+
+        if ($delegaveis === []) {
+            return $base->whereDoesntHave('permissions');
+        }
+
+        return $base->whereDoesntHave(
+            'permissions',
+            fn (Builder $query): Builder => $query->whereNotIn('name', $delegaveis),
+        );
+    }
+
+    public function validarRoleAtribuivel(User $actor, mixed $roleState): Role
+    {
+        $roleId = is_array($roleState) ? reset($roleState) : $roleState;
+        $role = $roleId
+            ? $this->opcoesDeRoles(Role::query(), $actor)->find($roleId)
+            : null;
+
+        if (! $role) {
+            throw ValidationException::withMessages([
+                'role' => 'Selecione um nível de acesso que você tenha permissão para atribuir.',
+            ]);
+        }
+
+        return $role;
+    }
+
+    public function sincronizarRole(User $record, User $actor, mixed $roleState): void
+    {
+        $record->syncRoles([$this->validarRoleAtribuivel($actor, $roleState)]);
+    }
+
+    public function podeGerenciarPermissoesDiretas(User $actor, User $record): bool
+    {
+        return $this->roleService->ehSuperAdmin($actor)
+            && (int) $actor->id !== (int) $record->id
+            && ! $this->roleService->ehSuperAdmin($record);
+    }
+
+    /** @param array<int, mixed> $permissions */
+    public function sincronizarPermissoesDiretas(
+        User $record,
+        User $actor,
+        bool $usarPermissoesExtras,
+        array $permissions,
+    ): void {
+        if (! $this->podeGerenciarPermissoesDiretas($actor, $record)) {
+            return;
+        }
+
+        $selecionadas = $usarPermissoesExtras
+            ? app(RoleService::class)->validarPermissoesAtribuiveis($actor, $permissions)
+            : [];
+        $herdadas = $record->roles
+            ->flatMap(fn ($role) => $role->permissions)
+            ->pluck('name');
+
+        $record->syncPermissions(collect($selecionadas)->diff($herdadas)->all());
     }
 
     public function desabilitarCampoRole(?User $user, ?User $record, string $context): bool

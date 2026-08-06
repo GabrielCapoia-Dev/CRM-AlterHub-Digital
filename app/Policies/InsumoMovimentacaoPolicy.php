@@ -20,7 +20,8 @@ class InsumoMovimentacaoPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::EditarInsumos->value);
+        return $user->hasPermissionTo(PermissoesEnum::MovimentarEstoqueInsumos->value)
+            || $user->hasPermissionTo(PermissoesEnum::EditarInsumos->value);
     }
 
     public function update(User $user, InsumoMovimentacao $insumoMovimentacao): bool

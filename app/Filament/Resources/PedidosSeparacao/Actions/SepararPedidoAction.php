@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\PedidosSeparacao\Actions;
 
+use App\Models\Acesso\User;
 use App\Models\VendaOperacao;
 use App\Models\VendaOperacaoPedido;
 use App\Services\Documentos\VendaFotoService;
 use App\Services\Documentos\VendaSeparacaoService;
+use App\Support\Ui\LivewireTemporaryUploadResolver;
 use App\Support\Ui\NumericFormat;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
@@ -38,7 +40,7 @@ final class SepararPedidoAction
             ->color('primary')
             ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('manageLots', $record) ?? false)
             ->modalHeading(fn (VendaOperacaoPedido $record): string => 'Separação do pedido '.$record->codigo)
-            ->modalDescription('Informe os lotes e envie ao menos uma foto de cada produto. Ao salvar, o pedido ficará pronto para o romaneio.')
+            ->modalDescription('Informe os lotes e confirme cada lote com ao menos uma foto. Ao salvar, o pedido ficará pronto para o romaneio.')
             ->modalWidth(Width::FiveExtraLarge)
             ->modalSubmitActionLabel('Concluir separação')
             ->modalCancelActionLabel('Cancelar')
@@ -120,18 +122,19 @@ final class SepararPedidoAction
                                 DatePicker::make('data_validade')->hiddenLabel(),
                                 DatePicker::make('data_fabricacao')->hiddenLabel(),
                                 Hidden::make('ano_fabricacao'),
-                                Hidden::make('nomes_arquivos'),
+                                Hidden::make('fotos_count'),
                                 FileUpload::make('arquivos')
                                     ->hiddenLabel()
                                     ->multiple()
-                                    ->disk('local')
-                                    ->directory(fn (VendaOperacaoPedido $record): string => "pedidos/{$record->id}/fotos")
-                                    ->visibility('private')
-                                    ->storeFileNamesIn('nomes_arquivos')
+                                    ->storeFiles(false)
                                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                                     ->maxSize(10240)
                                     ->maxFiles(5)
                                     ->image()
+                                    ->helperText(fn (Get $get): string => sprintf(
+                                        '%d foto(s) já confirmada(s) neste lote.',
+                                        (int) ($get('fotos_count') ?? 0),
+                                    ))
                                     ->panelLayout('compact')
                                     ->imagePreviewHeight('56')
                                     ->visible(fn (VendaOperacaoPedido $record): bool => auth()->user()?->can('addPhotos', $record) ?? false),
@@ -149,7 +152,7 @@ final class SepararPedidoAction
             ->fillForm(function (VendaOperacaoPedido $record): array {
                 $record->load([
                     'vendasOperacao.produto',
-                    'vendasOperacao.lotes',
+                    'vendasOperacao.lotes.fotos',
                     'vendasOperacao.fotos',
                 ]);
 
@@ -164,7 +167,7 @@ final class SepararPedidoAction
                         'fotos_count' => $item->fotos->count(),
                         'lotes' => ($item->lotes->isEmpty() ? collect([null]) : $item->lotes)->map(fn ($lote): array => [
                             'arquivos' => [],
-                            'nomes_arquivos' => [],
+                            'fotos_count' => $lote?->fotos?->count() ?? 0,
                             'numero_lote' => $lote?->numero_lote,
                             'quantidade' => $lote ? (float) $lote->quantidade : null,
                             'ano_fabricacao' => $lote?->ano_fabricacao,
@@ -176,47 +179,85 @@ final class SepararPedidoAction
             })
             ->action(function (VendaOperacaoPedido $record, array $data): void {
                 Gate::authorize('manageLots', $record);
-                $storedPaths = static::storedPaths($data);
+                /** @var User $actor */
+                $actor = auth()->user();
+                $uploadsPendentes = [];
 
                 try {
-                    DB::transaction(function () use ($record, $data): void {
-                        $separacao = app(VendaSeparacaoService::class);
-                        $fotos = app(VendaFotoService::class);
+                    $separacao = app(VendaSeparacaoService::class);
+                    $fotos = app(VendaFotoService::class);
+
+                    foreach ($data['itens'] ?? [] as $itemData) {
+                        foreach (array_values($itemData['lotes'] ?? []) as $loteData) {
+                            foreach (LivewireTemporaryUploadResolver::resolve($loteData['arquivos'] ?? []) as $arquivo) {
+                                $arquivoPendente = $fotos->armazenarUploadPendente(
+                                    $record,
+                                    $arquivo,
+                                    $actor,
+                                );
+                                $uploadsPendentes[] = [
+                                    ...$arquivoPendente,
+                                    'venda_operacao_id' => (int) $itemData['venda_operacao_id'],
+                                    'numero_lote' => trim((string) ($loteData['numero_lote'] ?? '')),
+                                ];
+                            }
+                        }
+                    }
+
+                    DB::transaction(function () use (
+                        $record,
+                        $data,
+                        $actor,
+                        $separacao,
+                        $fotos,
+                        $uploadsPendentes,
+                    ): void {
                         $separacao->atualizarObservacaoPedido(
                             $record,
                             $data['observacao'] ?? null,
-                            auth()->user(),
+                            $actor,
                         );
 
                         foreach ($data['itens'] ?? [] as $itemData) {
                             $item = $record->vendasOperacao()->findOrFail($itemData['venda_operacao_id']);
-                            $lotes = array_values($itemData['lotes'] ?? []);
-                            $separacao->registrarLotes($item, $lotes, auth()->user());
+                            $item = $separacao->registrarLotes(
+                                $item,
+                                array_values($itemData['lotes'] ?? []),
+                                $actor,
+                            );
 
-                            foreach ($lotes as $loteData) {
-                                foreach (static::storedFiles($loteData) as $arquivo) {
-                                    $fotos->registrarArquivoArmazenado(
-                                        $record,
-                                        $arquivo['path'],
-                                        $arquivo['name'],
-                                        auth()->user(),
-                                        $item,
-                                    );
+                            foreach ($uploadsPendentes as $upload) {
+                                if ((int) $upload['venda_operacao_id'] !== (int) $item->id) {
+                                    continue;
                                 }
+
+                                $numeroLote = mb_strtolower((string) $upload['numero_lote']);
+                                $lote = $item->lotes->first(
+                                    fn ($registro): bool => mb_strtolower($registro->numero_lote) === $numeroLote,
+                                );
+
+                                if (! $lote) {
+                                    throw ValidationException::withMessages([
+                                        'lotes' => 'Não foi possível vincular a foto ao lote informado.',
+                                    ]);
+                                }
+
+                                $fotos->registrarArquivoArmazenado(
+                                    $record,
+                                    $upload['path'],
+                                    $upload['nome_original'],
+                                    $actor,
+                                    $item,
+                                    lote: $lote,
+                                );
                             }
                         }
 
-                        $separacao->concluirSeparacao($record, auth()->user());
-                    }, 3);
-
-                    Notification::make()
-                        ->title('Pedido separado')
-                        ->body('Lotes, fotos e observação foram salvos. O pedido está pronto para entrar em um romaneio.')
-                        ->success()
-                        ->send();
+                        $separacao->concluirSeparacao($record, $actor);
+                    });
                 } catch (Throwable $exception) {
-                    foreach ($storedPaths as $path) {
-                        Storage::disk('local')->delete($path);
+                    foreach ($uploadsPendentes as $upload) {
+                        Storage::disk('local')->delete($upload['path']);
                     }
 
                     if ($exception instanceof ValidationException) {
@@ -229,35 +270,12 @@ final class SepararPedidoAction
 
                     throw $exception;
                 }
+
+                Notification::make()
+                    ->title('Pedido separado')
+                    ->body('Lotes, fotos e observação foram salvos. O pedido está pronto para entrar em um romaneio.')
+                    ->success()
+                    ->send();
             });
-    }
-
-    /** @return list<array{path:string,name:string}> */
-    private static function storedFiles(array $loteData): array
-    {
-        $paths = collect((array) ($loteData['arquivos'] ?? []))
-            ->filter(fn (mixed $path): bool => is_string($path) && trim($path) !== '')
-            ->values();
-        $names = (array) ($loteData['nomes_arquivos'] ?? []);
-
-        return $paths->map(function (string $path, int $index) use ($names): array {
-            $name = $names[$path] ?? $names[$index] ?? basename($path);
-
-            return [
-                'path' => $path,
-                'name' => is_string($name) ? $name : basename($path),
-            ];
-        })->all();
-    }
-
-    /** @return list<string> */
-    private static function storedPaths(array $data): array
-    {
-        return collect($data['itens'] ?? [])
-            ->flatMap(fn (array $item): array => $item['lotes'] ?? [])
-            ->flatMap(fn (array $lote): array => collect(self::storedFiles($lote))->pluck('path')->all())
-            ->unique()
-            ->values()
-            ->all();
     }
 }

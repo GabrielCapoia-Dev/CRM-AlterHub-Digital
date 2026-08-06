@@ -83,6 +83,9 @@ class RomaneioResource extends Resource
                     ->modalWidth('6xl')
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fechar')
+                    ->extraModalWindowAttributes([
+                        'class' => 'oa-record-modal oa-orders-view-modal',
+                    ])
                     ->modalContent(fn (Romaneio $record): View => view('filament.resources.romaneios.pedidos', [
                         'romaneio' => $record->load(['pedidos.itens', 'user', 'canceladoPor']),
                     ])),

@@ -106,39 +106,7 @@ class VendaOperacaoService
             }
 
             $header = $this->normalizeHeader($data, $user);
-            $preparedItems = [];
-            $requiresApproval = false;
-
-            foreach ($items as $index => $item) {
-                $produto = Produto::query()
-                    ->with(['categoriaProduto', 'produtoMovimentacoes'])
-                    ->lockForUpdate()
-                    ->find($item['produto_id'] ?? null);
-
-                if (! $produto) {
-                    throw ValidationException::withMessages([
-                        "itens.{$index}.produto_id" => 'Selecione um produto valido.',
-                    ]);
-                }
-
-                $payload = $this->normalizePayload(array_merge($header, $item));
-                $pricing = $this->resolvePricing($produto, $payload['preco_unitario']);
-                $snapshot = $this->analyticsService->productStockSnapshot($produto);
-
-                // Estoque e regras de produto: hard quando ativo; em pendente ainda valida produto/preco/qtd.
-                $this->validate($produto, $payload, $snapshot['estoque_atual'], deductStock: false);
-
-                if ($pricing['requer_aprovacao']) {
-                    $requiresApproval = true;
-                }
-
-                $preparedItems[] = [
-                    'produto' => $produto,
-                    'payload' => $payload,
-                    'pricing' => $pricing,
-                    'snapshot' => $snapshot,
-                ];
-            }
+            [$preparedItems, $requiresApproval] = $this->prepareItems($items, $header);
 
             $status = $requiresApproval
                 ? VendaOperacaoPedido::STATUS_PENDENTE_APROVACAO
@@ -206,9 +174,9 @@ class VendaOperacaoService
             }
 
             $header = $this->normalizeHeader($data, $user);
+            [$preparedItems, $requiresApproval] = $this->prepareItems($items, $header);
             $statusAnterior = $pedido->status;
             $pedido->vendasOperacao()->delete();
-            $requiresApproval = false;
 
             $pedido->forceFill([
                 'cliente_id' => $header['cliente_id'],
@@ -230,16 +198,8 @@ class VendaOperacaoService
                 'motivo_recusa' => null,
             ])->save();
 
-            foreach ($items as $index => $item) {
-                $produto = Produto::query()->find($item['produto_id'] ?? null);
-
-                if (! $produto) {
-                    throw ValidationException::withMessages(["itens.{$index}.produto_id" => 'Selecione um produto valido.']);
-                }
-
-                $payload = array_merge($header, $item);
-                $linha = $this->create($payload, $header['vendedor_user'] ?? $user, $pedido, false);
-                $requiresApproval = $requiresApproval || $linha->desconto_requer_aprovacao;
+            foreach ($preparedItems as $prepared) {
+                $this->createLineFromPrepared($prepared, $header['vendedor_user'] ?? $user, $pedido, false);
             }
 
             $faltas = $this->estoqueService->faltasVenda($pedido, bloquear: true);
@@ -269,7 +229,7 @@ class VendaOperacaoService
     {
         return DB::transaction(function () use ($pedido, $approver): VendaOperacaoPedido {
             $pedido = VendaOperacaoPedido::query()
-                ->with(['vendasOperacao.produto.produtoMovimentacoes', 'vendasOperacao.produto.categoriaProduto'])
+                ->with('vendasOperacao')
                 ->lockForUpdate()
                 ->findOrFail($pedido->id);
 
@@ -294,14 +254,6 @@ class VendaOperacaoService
                 ]);
             }
 
-            $faltas = $this->estoqueService->faltasVenda($pedido, bloquear: true);
-
-            if ($faltas !== []) {
-                throw ValidationException::withMessages([
-                    'estoque' => 'A venda continua sem saldo suficiente. Reponha o estoque antes de aprovar.',
-                ]);
-            }
-
             foreach ($pedido->vendasOperacao as $linha) {
                 $linha->forceFill([
                     'desconto_aprovado_por' => $linha->desconto_requer_aprovacao ? $approver->id : $linha->desconto_aprovado_por,
@@ -320,6 +272,12 @@ class VendaOperacaoService
                 $approver,
                 "aprovar:venda:{$pedido->id}:v{$pedido->versao}",
             );
+
+            if ($pedido->isPendenteAprovacao()) {
+                throw ValidationException::withMessages([
+                    'estoque' => 'A venda continua sem saldo suficiente. Reponha o estoque antes de aprovar.',
+                ]);
+            }
 
             $this->finalizeOpportunityAfterApproval($pedido);
 
@@ -446,19 +404,7 @@ class VendaOperacaoService
 
     public function podeVerTodasVendas(?User $user): bool
     {
-        if (! $user) {
-            return false;
-        }
-
-        if ($user->hasAnyRole([
-            RolesEnum::SuperAdmin->value,
-            RolesEnum::Admin->value,
-            RolesEnum::Gestor->value,
-        ])) {
-            return true;
-        }
-
-        return $user->getAllPermissions()->contains('name', PermissoesEnum::AprovarDesconto->value);
+        return $user?->hasPermissionTo(PermissoesEnum::VisualizarTodasVendasOperacao->value) ?? false;
     }
 
     public function queryPorPerfil(?User $user): Builder
@@ -564,6 +510,61 @@ class VendaOperacaoService
             'vendedor_nome' => $payload['vendedor_nome'],
             'observacao' => $payload['observacao'],
         ]);
+    }
+
+    /**
+     * Carrega produtos e históricos em lote e calcula o snapshot apenas uma
+     * vez por produto, evitando crescimento quadrático em pedidos maiores.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @param  array<string, mixed>  $header
+     * @return array{0:array<int, array{produto:Produto,payload:array<string,mixed>,pricing:array<string,mixed>,snapshot:array<string,mixed>}>,1:bool}
+     */
+    protected function prepareItems(array $items, array $header): array
+    {
+        $produtoIds = collect($items)
+            ->pluck('produto_id')
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values();
+        $produtos = Produto::query()
+            ->with(['categoriaProduto', 'produtoMovimentacoes'])
+            ->whereKey($produtoIds->all())
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
+        $snapshots = [];
+        $preparedItems = [];
+        $requiresApproval = false;
+
+        foreach ($items as $index => $item) {
+            $produtoId = (int) ($item['produto_id'] ?? 0);
+            $produto = $produtos->get($produtoId);
+
+            if (! $produto) {
+                throw ValidationException::withMessages([
+                    "itens.{$index}.produto_id" => 'Selecione um produto valido.',
+                ]);
+            }
+
+            $payload = $this->normalizePayload(array_merge($header, $item));
+            $pricing = $this->resolvePricing($produto, $payload['preco_unitario']);
+            $snapshot = $snapshots[$produtoId]
+                ??= $this->analyticsService->productStockSnapshot($produto);
+
+            $this->validate($produto, $payload, $snapshot['estoque_atual'], deductStock: false);
+            $requiresApproval = $requiresApproval || $pricing['requer_aprovacao'];
+            $preparedItems[] = [
+                'produto' => $produto,
+                'payload' => $payload,
+                'pricing' => $pricing,
+                'snapshot' => $snapshot,
+            ];
+        }
+
+        return [$preparedItems, $requiresApproval];
     }
 
     /**

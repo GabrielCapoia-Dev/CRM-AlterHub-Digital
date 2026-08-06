@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Acesso\Role;
+use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
 use App\Models\DespesaOperacional;
 use App\Models\DocumentoConfiguracao;
@@ -24,12 +26,14 @@ use App\Policies\InsumoPolicy;
 use App\Policies\OrdemProducaoPolicy;
 use App\Policies\ProdutoPolicy;
 use App\Policies\RegraTributariaPolicy;
+use App\Policies\RolePolicy;
 use App\Policies\RomaneioPolicy;
 use App\Policies\TransportadoraPolicy;
 use App\Policies\VendaOperacaoLotePolicy;
 use App\Policies\VendaOperacaoPedidoPolicy;
 use App\Policies\VendaOperacaoPolicy;
 use App\Policies\VendaPedidoFotoPolicy;
+use App\Policies\UserPolicy;
 use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
@@ -48,6 +52,8 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Gate::policy(Produto::class, ProdutoPolicy::class);
+        Gate::policy(Role::class, RolePolicy::class);
+        Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Insumo::class, InsumoPolicy::class);
         Gate::policy(DespesaOperacional::class, DespesaOperacionalPolicy::class);
         Gate::policy(DocumentoConfiguracao::class, DocumentoConfiguracaoPolicy::class);

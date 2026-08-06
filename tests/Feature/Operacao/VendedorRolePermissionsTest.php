@@ -23,6 +23,7 @@ class VendedorRolePermissionsTest extends TestCase
         $vendedor = Role::findByName(RolesEnum::Vendedor->value, 'web');
         $gestor = Role::findByName(RolesEnum::Gestor->value, 'web');
         $admin = Role::findByName(RolesEnum::Admin->value, 'web');
+        $estoquista = Role::findByName(RolesEnum::Estoquista->value, 'web');
 
         $this->assertTrue($vendedor->hasPermissionTo(PermissoesEnum::ListarVendasOperacao->value));
         $this->assertTrue($vendedor->hasPermissionTo(PermissoesEnum::CriarVendasOperacao->value));
@@ -41,5 +42,13 @@ class VendedorRolePermissionsTest extends TestCase
         $this->assertTrue($admin->hasPermissionTo(PermissoesEnum::AprovarDesconto->value));
         $this->assertTrue($admin->hasPermissionTo(PermissoesEnum::ListarVendasOperacao->value));
         $this->assertTrue($admin->hasPermissionTo(PermissoesEnum::CriarVendasOperacao->value));
+
+        $this->assertTrue($estoquista->hasPermissionTo(PermissoesEnum::EditarProdutosCRM->value));
+        $this->assertTrue($estoquista->hasPermissionTo(PermissoesEnum::EditarInsumos->value));
+        $this->assertTrue($estoquista->hasPermissionTo(PermissoesEnum::CadastrarLotesValidades->value));
+        $this->assertTrue($estoquista->hasPermissionTo(PermissoesEnum::AdicionarFotosPedido->value));
+        $this->assertTrue($estoquista->hasPermissionTo(PermissoesEnum::GerarRomaneio->value));
+        $this->assertFalse($estoquista->hasPermissionTo(PermissoesEnum::CriarVendasOperacao->value));
+        $this->assertFalse($estoquista->hasPermissionTo(PermissoesEnum::AprovarDesconto->value));
     }
 }

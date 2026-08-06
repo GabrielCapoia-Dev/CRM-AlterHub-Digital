@@ -43,6 +43,7 @@ enum PermissoesEnum: string
     case CriarInsumos = 'Criar Insumos';
     case EditarInsumos = 'Editar Insumos';
     case ExcluirInsumos = 'Excluir Insumos';
+    case MovimentarEstoqueInsumos = 'Movimentar Estoque de Insumos';
 
     // CRM - Etapas
     case ListarEtapasCRM = 'Listar Etapas CRM';
@@ -90,6 +91,9 @@ enum PermissoesEnum: string
     case CriarVendasOperacao = 'Criar Vendas de Operacao';
     case EditarVendasOperacao = 'Editar Vendas de Operacao';
     case ExcluirVendasOperacao = 'Excluir Vendas de Operacao';
+    case VisualizarTodasVendasOperacao = 'Visualizar Todas as Vendas de Operacao';
+    case SepararPedidos = 'Separar Pedidos';
+    case MovimentarEstoqueProdutos = 'Movimentar Estoque de Produtos';
 
     // Documentos comerciais e separacao
     case AcessarConfiguracoesDocumentos = 'Acessar Configuracoes de Documentos';

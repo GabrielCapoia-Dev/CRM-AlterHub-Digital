@@ -47,22 +47,37 @@ class CriarPermissoes extends Command
             'name' => RolesEnum::Admin->value,
             'guard_name' => 'web',
         ]);
-        $adminRole->syncPermissions($this->adminPermissions());
-        $this->info('Permissoes sincronizadas com Admin.');
+        if ($adminRole->wasRecentlyCreated) {
+            $adminRole->syncPermissions($this->adminPermissions());
+        }
+        $this->info('Perfil Admin disponivel.');
 
         $gestorRole = Role::firstOrCreate([
             'name' => RolesEnum::Gestor->value,
             'guard_name' => 'web',
         ]);
-        $gestorRole->syncPermissions($this->gestorPermissions());
-        $this->info('Permissoes sincronizadas com Gestor.');
+        if ($gestorRole->wasRecentlyCreated) {
+            $gestorRole->syncPermissions($this->gestorPermissions());
+        }
+        $this->info('Perfil Gestor disponivel.');
 
         $vendedorRole = Role::firstOrCreate([
             'name' => RolesEnum::Vendedor->value,
             'guard_name' => 'web',
         ]);
-        $vendedorRole->syncPermissions($this->vendedorPermissions());
-        $this->info('Permissoes sincronizadas com Vendedor.');
+        if ($vendedorRole->wasRecentlyCreated) {
+            $vendedorRole->syncPermissions($this->vendedorPermissions());
+        }
+        $this->info('Perfil Vendedor disponivel.');
+
+        $estoquistaRole = Role::firstOrCreate([
+            'name' => RolesEnum::Estoquista->value,
+            'guard_name' => 'web',
+        ]);
+        if ($estoquistaRole->wasRecentlyCreated) {
+            $estoquistaRole->syncPermissions($this->estoquistaPermissions());
+        }
+        $this->info('Perfil Estoquista disponivel.');
 
         Role::firstOrCreate([
             'name' => RolesEnum::Usuario->value,
@@ -123,6 +138,29 @@ class CriarPermissoes extends Command
             ->all();
     }
 
+    /** @return list<string> */
+    protected function estoquistaPermissions(): array
+    {
+        return [
+            PermissoesEnum::ListarProdutosCRM->value,
+            PermissoesEnum::MovimentarEstoqueProdutos->value,
+            PermissoesEnum::ListarInsumos->value,
+            PermissoesEnum::MovimentarEstoqueInsumos->value,
+            PermissoesEnum::ListarVendasOperacao->value,
+            PermissoesEnum::VisualizarTodasVendasOperacao->value,
+            PermissoesEnum::SepararPedidos->value,
+            PermissoesEnum::GerarPdfPedido->value,
+            PermissoesEnum::VisualizarAnexosPedido->value,
+            PermissoesEnum::AdicionarFotosPedido->value,
+            PermissoesEnum::RemoverFotosPedido->value,
+            PermissoesEnum::CadastrarLotesValidades->value,
+            PermissoesEnum::GerarRomaneio->value,
+            PermissoesEnum::ListarRomaneios->value,
+            PermissoesEnum::ReimprimirRomaneio->value,
+            PermissoesEnum::CancelarRomaneio->value,
+        ];
+    }
+
     /**
      * Gestores operam e aprovam o funil e as vendas, mas nao recebem por
      * heranca poderes de administracao, fiscal, producao ou edicao de estoque.
@@ -133,6 +171,8 @@ class CriarPermissoes extends Command
     {
         return array_values(array_unique([
             ...$this->vendedorPermissions(),
+            PermissoesEnum::VisualizarTodasVendasOperacao->value,
+            PermissoesEnum::SepararPedidos->value,
             PermissoesEnum::AprovarDesconto->value,
             PermissoesEnum::ListarDespesasOperacionais->value,
             PermissoesEnum::CriarDespesasOperacionais->value,

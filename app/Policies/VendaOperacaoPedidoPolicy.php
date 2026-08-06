@@ -137,7 +137,8 @@ class VendaOperacaoPedidoPolicy
     public function manageLots(User $user, VendaOperacaoPedido $pedido): bool
     {
         return $this->view($user, $pedido)
-            && $user->hasPermissionTo(PermissoesEnum::CadastrarLotesValidades->value)
+            && ($user->hasPermissionTo(PermissoesEnum::SepararPedidos->value)
+                || $user->hasPermissionTo(PermissoesEnum::CadastrarLotesValidades->value))
             && $pedido->status === VendaOperacaoPedido::STATUS_CONFIRMADA;
     }
 

@@ -171,27 +171,31 @@ class KanbanOportunidades extends Page
             return null;
         }
 
+        $relations = [
+            'cliente.categoriaSegmento',
+            'user',
+            'etapa',
+            'vendaOperacaoPedido',
+        ];
+
+        if ($this->activeDrawerTab === 'products') {
+            $relations['oportunidadeProdutos'] = fn ($query) => $query
+                ->with(['produto', 'descontoAprovadoPor'])
+                ->latest('updated_at');
+        } elseif ($this->activeDrawerTab === 'tasks') {
+            $relations['oportunidadeTarefas'] = fn ($query) => $query
+                ->with('user')
+                ->orderBy('data_prevista')
+                ->latest('updated_at');
+        } elseif ($this->activeDrawerTab === 'movements') {
+            $relations['oportunidadeMovimentacoes'] = fn ($query) => $query
+                ->with(['user', 'etapaOrigem', 'etapaDestino'])
+                ->latest('movido_em');
+        }
+
         return Oportunidade::query()
             ->visiveisPara(auth()->user())
-            ->with([
-                'cliente.categoriaSegmento',
-                'user',
-                'etapa',
-                'oportunidadeProdutos' => fn ($query) => $query
-                    ->with(['produto', 'descontoAprovadoPor'])
-                    ->latest('updated_at'),
-                'oportunidadeInteracoes' => fn ($query) => $query
-                    ->with('user')
-                    ->latest('ocorreu_em'),
-                'oportunidadeTarefas' => fn ($query) => $query
-                    ->with('user')
-                    ->orderBy('data_prevista')
-                    ->latest('updated_at'),
-                'oportunidadeMovimentacoes' => fn ($query) => $query
-                    ->with(['user', 'etapaOrigem', 'etapaDestino'])
-                    ->latest('movido_em'),
-                'vendaOperacaoPedido.vendasOperacao.produto',
-            ])
+            ->with($relations)
             ->find($this->selectedOpportunityId);
     }
 

@@ -264,7 +264,7 @@ class VendaSeparacaoService
             $this->assertSemRomaneioAtivo($pedido);
 
             $itens = VendaOperacao::query()
-                ->with(['produto', 'lotes', 'fotos'])
+                ->with(['produto', 'lotes.fotos'])
                 ->where('venda_operacao_pedido_id', $pedido->id)
                 ->orderBy('id')
                 ->lockForUpdate()
@@ -292,8 +292,14 @@ class VendaSeparacaoService
                     );
                 }
 
-                if ($item->fotos->isEmpty()) {
-                    $pendencias[] = $produto.': adicione ao menos uma foto';
+                foreach ($item->lotes as $lote) {
+                    if ($lote->fotos->isEmpty()) {
+                        $pendencias[] = sprintf(
+                            '%s, lote %s: adicione ao menos uma foto',
+                            $produto,
+                            $lote->numero_lote,
+                        );
+                    }
                 }
 
                 $pesoAnterior = $item->peso_unitario_kg_snapshot;

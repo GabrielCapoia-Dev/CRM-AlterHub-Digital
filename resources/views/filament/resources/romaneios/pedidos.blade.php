@@ -1,5 +1,5 @@
-<div class="space-y-5">
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+<div class="space-y-5 oa-orders-view">
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 oa-orders-view__summary">
         <div><strong>Status:</strong> {{ $romaneio->status === 'cancelado' ? 'Cancelado' : 'Ativo' }}</div>
         <div><strong>Responsavel:</strong> {{ $romaneio->user?->name ?? '-' }}</div>
         <div><strong>Volumes:</strong> {{ $romaneio->quantidade_volumes_total }}</div>
@@ -14,8 +14,8 @@
     @endif
 
     @foreach ($romaneio->pedidos as $pedido)
-        <section class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <section class="rounded-xl border border-gray-200 p-4 dark:border-gray-700 oa-orders-view__order">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2 oa-orders-view__order-header">
                 <div>
                     <div class="font-semibold">{{ $pedido->pedido_codigo_snapshot }} - {{ $pedido->cliente_nome_snapshot }}</div>
                     <div class="text-sm text-gray-500">{{ $pedido->vendedor_nome_snapshot ?: '-' }} · {{ $pedido->pedido_data_snapshot?->format('d/m/Y') }}</div>
@@ -23,8 +23,8 @@
                 <div class="text-sm">{{ $pedido->quantidade_volumes }} volume(s) · {{ number_format((float) $pedido->peso_total_kg, 4, ',', '.') }} kg</div>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
+            <div class="overflow-x-auto oa-orders-view__table-wrap">
+                <table class="w-full text-left text-sm oa-orders-view__table">
                     <thead><tr><th class="py-2">Produto</th><th>Qtd.</th><th>Peso</th><th>Lotes</th></tr></thead>
                     <tbody>
                     @foreach ($pedido->itens as $item)

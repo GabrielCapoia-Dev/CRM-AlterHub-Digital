@@ -16,6 +16,7 @@ class VendaPedidoFoto extends Model
     protected $fillable = [
         'venda_operacao_pedido_id',
         'venda_operacao_id',
+        'venda_operacao_lote_id',
         'user_id',
         'disk',
         'path',
@@ -30,6 +31,7 @@ class VendaPedidoFoto extends Model
     protected $casts = [
         'venda_operacao_pedido_id' => 'integer',
         'venda_operacao_id' => 'integer',
+        'venda_operacao_lote_id' => 'integer',
         'user_id' => 'integer',
         'tamanho_bytes' => 'integer',
         'removida_por' => 'integer',
@@ -52,6 +54,11 @@ class VendaPedidoFoto extends Model
     public function item(): BelongsTo
     {
         return $this->vendaOperacao();
+    }
+
+    public function lote(): BelongsTo
+    {
+        return $this->belongsTo(VendaOperacaoLote::class, 'venda_operacao_lote_id');
     }
 
     public function user(): BelongsTo

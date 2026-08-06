@@ -33,6 +33,7 @@ class EssentialSeederTest extends TestCase
         $this->assertSame(0, User::query()->count());
         $this->assertTrue(Role::query()->where('name', RolesEnum::SuperAdmin->value)->exists());
         $this->assertTrue(Role::query()->where('name', RolesEnum::Gestor->value)->exists());
+        $this->assertTrue(Role::query()->where('name', RolesEnum::Estoquista->value)->exists());
     }
 
     public function test_bootstrap_admin_requires_all_fields_and_a_strong_password(): void

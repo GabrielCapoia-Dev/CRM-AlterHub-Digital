@@ -2,11 +2,9 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
-use App\Enum\PermissoesEnum;
 use App\Models\Acesso\User;
 use App\Services\Acesso\RoleService;
 use App\Services\Acesso\UserService;
-use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -17,7 +15,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password as PasswordRule;
-use Spatie\Permission\Models\Permission;
 
 class UserForm
 {
@@ -65,6 +62,7 @@ class UserForm
                 ->helperText('Necessário para delimitar as ações do usuário no sistema.')
                 ->relationship('roles', 'name', fn (Builder $query) => $userService->opcoesDeRoles($query, $user))
                 ->preload()
+                ->searchable()
                 ->required()
                 ->disabled(fn (?User $record, string $context) => $userService->desabilitarCampoRole($user, $record, $context)),
 
@@ -108,7 +106,7 @@ class UserForm
             Components\Section::make('Permissões específicas')
                 ->collapsible()
                 ->columnSpanFull()
-                ->description('Permissões herdadas do nível de acesso já vêm marcadas.')
+                ->description('Marque somente permissões diretas. As permissões do nível de acesso são herdadas automaticamente.')
                 ->visible(fn (Get $get) => $get('usar_permissoes_extras') === true)
                 ->schema(function (?User $record) use ($roleService, $user) {
                     if (! $user || ! $roleService->ehSuperAdmin($user)) {
@@ -121,42 +119,24 @@ class UserForm
                         return [];
                     }
 
-                    $todasPermissoes = Permission::query()
-                        ->whereNotIn('name', PermissoesEnum::disabledValues())
-                        ->orderBy('name')
-                        ->get();
+                    $atribuiveis = $roleService->permissoesAtribuiveis($user);
 
-                    $permissoesDaRole = $record?->roles
-                        ->flatMap(fn ($role) => $role->permissions)
-                        ->pluck('name')
-                        ->toArray() ?? [];
-
-                    $permissoesDiretas = $record?->getDirectPermissions()->pluck('name')->toArray() ?? [];
-
-                    return $todasPermissoes
-                        ->groupBy(fn ($perm) => explode(' ', $perm->name)[0])
-                        ->map(function ($permissoes, $grupo) use ($permissoesDaRole, $permissoesDiretas) {
-                            $permissoesDoGrupoNaRole = collect($permissoes)
-                                ->filter(fn ($p) => in_array($p->name, $permissoesDaRole))
+                    return [
+                        \Filament\Forms\Components\CheckboxList::make('permissions')
+                            ->label('Permissões adicionais')
+                            ->options($atribuiveis->mapWithKeys(
+                                fn (string $name): array => [$name => $name],
+                            )->all())
+                            ->default(fn (): array => $record?->getDirectPermissions()
                                 ->pluck('name')
-                                ->toArray();
-
-                            return CheckboxList::make("permissions_{$grupo}")
-                                ->label($grupo)
-                                ->options($permissoes->pluck('name', 'name')->toArray())
-                                ->columns(3)
-                                ->helperText(! empty($permissoesDoGrupoNaRole) ? '🔒 Herança da role: '.implode(', ', $permissoesDoGrupoNaRole) : '')
-                                ->afterStateHydrated(function (callable $set) use ($grupo, $permissoes, $permissoesDaRole, $permissoesDiretas) {
-                                    $set("permissions_{$grupo}", collect($permissoesDaRole)
-                                        ->merge($permissoesDiretas)
-                                        ->intersect($permissoes->pluck('name'))
-                                        ->values()
-                                        ->toArray());
-                                })
-                                ->dehydrated(true);
-                        })
-                        ->values()
-                        ->toArray();
+                                ->intersect($atribuiveis)
+                                ->values()
+                                ->all() ?? [])
+                            ->searchable()
+                            ->bulkToggleable()
+                            ->columns(3)
+                            ->columnSpanFull(),
+                    ];
                 }),
         ]);
     }

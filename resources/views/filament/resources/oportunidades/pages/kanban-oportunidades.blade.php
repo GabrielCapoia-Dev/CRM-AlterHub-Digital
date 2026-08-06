@@ -9,7 +9,9 @@
         $owners = $this->getOwnerOptions();
         $segments = $this->getSegmentOptions();
         $stages = $this->getStageOptions();
-        $products = $this->getProductOptions();
+        $products = $drawerOpen && $activeDrawerTab === 'products'
+            ? $this->getProductOptions()
+            : [];
         $selectedOpportunity = $this->getSelectedOpportunity();
         $pendingStageName = data_get(collect($stages)->firstWhere('id', $pendingMoveStageId), 'nome', 'Encerramento');
         $canEditOpportunity = $selectedOpportunity
@@ -589,9 +591,6 @@
                         <button type="button" class="{{ $activeDrawerTab === 'products' ? 'is-active' : '' }}" wire:click="$set('activeDrawerTab', 'products')" @disabled(! $selectedOpportunity)>
                             Produtos
                         </button>
-                        <button type="button" class="{{ $activeDrawerTab === 'interactions' ? 'is-active' : '' }}" wire:click="$set('activeDrawerTab', 'interactions')" @disabled(! $selectedOpportunity)>
-                            Interacoes
-                        </button>
                         <button type="button" class="{{ $activeDrawerTab === 'tasks' ? 'is-active' : '' }}" wire:click="$set('activeDrawerTab', 'tasks')" @disabled(! $selectedOpportunity)>
                             Tarefas
                         </button>
@@ -605,8 +604,6 @@
                             @include('filament.resources.oportunidades.pages.partials.summary')
                         @elseif ($activeDrawerTab === 'products')
                             @include('filament.resources.oportunidades.pages.partials.products')
-                        @elseif ($activeDrawerTab === 'interactions')
-                            @include('filament.resources.oportunidades.pages.partials.interactions')
                         @elseif ($activeDrawerTab === 'tasks')
                             @include('filament.resources.oportunidades.pages.partials.tasks')
                         @else

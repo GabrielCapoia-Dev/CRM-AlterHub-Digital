@@ -1,5 +1,7 @@
 @php
-    $approvalReasons = is_array($pedido->motivos_aprovacao) ? $pedido->motivos_aprovacao : [];
+    $approvalReasons = isset($approvalReasons) && is_array($approvalReasons)
+        ? $approvalReasons
+        : (is_array($pedido->motivos_aprovacao) ? $pedido->motivos_aprovacao : []);
     $stockShortages = collect($approvalReasons['estoque'] ?? [])
         ->filter(fn ($shortage): bool => is_array($shortage))
         ->values();
