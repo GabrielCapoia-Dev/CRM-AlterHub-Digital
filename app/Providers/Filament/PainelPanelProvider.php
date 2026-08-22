@@ -2,14 +2,19 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Auth\Pages\Login;
+use App\Filament\Auth\Pages\RequestPasswordReset;
+use App\Filament\Auth\Pages\ResetPassword;
 use App\Filament\Clusters\VendasCluster;
 use App\Filament\Pages\Operacao\DashboardBiPage;
 use App\Filament\Resources\Oportunidades\OportunidadeResource;
 use App\Filament\Resources\PedidosSeparacao\PedidoSeparacaoResource;
 use App\Filament\Resources\VendasOperacao\VendaOperacaoResource;
+use App\Http\Middleware\EnsureRequiredPasswordChange;
 use Caresome\FilamentAuthDesigner\AuthDesignerPlugin;
 use Caresome\FilamentAuthDesigner\Data\AuthPageConfig;
 use Caresome\FilamentAuthDesigner\Enums\MediaPosition;
+use Caresome\FilamentAuthDesigner\View\AuthDesignerRenderHook;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -36,7 +41,13 @@ class PainelPanelProvider extends PanelProvider
             ->id('painel')
             ->default()
             ->path('painel')
+            ->brandName('Unibiotech')
+            ->brandLogo(asset('images/unibiotech-logo.svg'))
+            ->brandLogoHeight('2rem')
             ->login()
+            ->passwordResetRoutePrefix('recuperar-senha')
+            ->passwordResetRequestRouteSlug('solicitar')
+            ->passwordResetRouteSlug('redefinir')
             ->profile()
             ->databaseNotifications()
             ->globalSearch(false)
@@ -172,6 +183,7 @@ class PainelPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                EnsureRequiredPasswordChange::class,
             ])
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
@@ -183,12 +195,24 @@ class PainelPanelProvider extends PanelProvider
             )
             ->plugins([
                 AuthDesignerPlugin::make()
-                    ->login(
-                        fn (AuthPageConfig $config) => $config
-                            ->media(asset('images/background.webp'))
+                    ->defaults(
+                        fn (AuthPageConfig $config): AuthPageConfig => $config
+                            ->media(
+                                'https://unibiotechbrasil.com.br/wp-content/uploads/2021/07/leite-fermentado-2.jpg',
+                                'Ingredientes e produtos lácteos da Unibiotech',
+                            )
                             ->mediaPosition(MediaPosition::Left)
-                            ->mediaSize('70%')
-                    ),
+                            ->mediaSize('56%')
+                            ->renderHook(
+                                AuthDesignerRenderHook::MediaOverlay,
+                                fn (): View => view('filament.auth.media-branding'),
+                            )
+                    )
+                    ->login(fn (AuthPageConfig $config): AuthPageConfig => $config
+                        ->usingPage(Login::class))
+                    ->passwordReset(fn (AuthPageConfig $config): AuthPageConfig => $config
+                        ->usingPage(RequestPasswordReset::class)
+                        ->usingResetPage(ResetPassword::class)),
             ]);
     }
 }

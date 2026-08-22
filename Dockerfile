@@ -51,7 +51,13 @@ COPY --from=composer-bin /usr/bin/composer /usr/bin/composer
 ENV COMPOSER_ALLOW_SUPERUSER=1
 WORKDIR /var/www
 COPY . .
-RUN composer install \
+RUN mkdir -p \
+        bootstrap/cache \
+        storage/framework/cache/data \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+    && composer install \
     --no-dev \
     --no-interaction \
     --no-progress \

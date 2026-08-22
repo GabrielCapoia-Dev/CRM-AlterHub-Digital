@@ -2,14 +2,18 @@
 
 namespace App\Models\Acesso;
 
+use App\Models\Clientes\Cliente;
 use App\Models\Oportunidade;
 use App\Models\OportunidadeInteracao;
 use App\Models\OportunidadeMovimentacao;
 use App\Models\OportunidadeTarefa;
+use App\Models\VendaOperacao;
+use App\Models\VendaOperacaoPedido;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -42,6 +46,9 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_approved' => 'boolean',
             'email_verified_at' => 'datetime',
+            'must_change_password' => 'boolean',
+            'password_reset_at' => 'datetime',
+            'password_changed_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -103,5 +110,30 @@ class User extends Authenticatable implements FilamentUser
             OportunidadeMovimentacao::class,
             'user_id',
         );
+    }
+
+    public function clientes(): HasMany
+    {
+        return $this->hasMany(Cliente::class, 'vendedor_id');
+    }
+
+    public function vendasOperacaoPedidos(): HasMany
+    {
+        return $this->hasMany(VendaOperacaoPedido::class, 'user_id');
+    }
+
+    public function vendasOperacao(): HasMany
+    {
+        return $this->hasMany(VendaOperacao::class, 'user_id');
+    }
+
+    public function passwordResetBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'password_reset_by');
+    }
+
+    public function passwordResetsPerformed(): HasMany
+    {
+        return $this->hasMany(self::class, 'password_reset_by');
     }
 }

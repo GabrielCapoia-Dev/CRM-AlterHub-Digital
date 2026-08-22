@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\CRM;
 
+use App\Enum\RolesEnum;
 use App\Models\Acesso\User;
 use App\Models\Categorias\CategoriaSegmento;
 use App\Models\Clientes\Cliente;
@@ -17,6 +18,7 @@ use App\Services\Operacao\VendaWorkflowService;
 use App\Services\Produtos\MovimentacaoEstoqueService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class OportunidadeVendaServiceTest extends TestCase
@@ -58,6 +60,43 @@ class OportunidadeVendaServiceTest extends TestCase
         $this->assertNotNull($oportunidade->convertida_em);
         $this->assertSame($ganho->id, $oportunidade->etapa_id);
         $this->assertSame('Venda confirmada', $oportunidade->motivo_fechamento);
+    }
+
+    public function test_gestor_que_converte_preserva_o_dono_da_oportunidade_no_cabecalho_e_nas_linhas(): void
+    {
+        [$vendedor, $cliente, $lead] = $this->baseData();
+        Role::findOrCreate(RolesEnum::Vendedor->value, 'web');
+        Role::findOrCreate(RolesEnum::Gestor->value, 'web');
+        $vendedor->assignRole(RolesEnum::Vendedor->value);
+
+        $gestor = User::factory()->create([
+            'name' => 'Gestor conversor',
+            'email_approved' => true,
+            'email_verified_at' => now(),
+        ]);
+        $gestor->assignRole(RolesEnum::Gestor->value);
+
+        $produto = $this->produtoComEstoque(10, precoTabela: 20);
+        $oportunidade = $this->oportunidade($vendedor, $cliente, $lead);
+
+        OportunidadeProduto::query()->create([
+            'oportunidade_id' => $oportunidade->id,
+            'produto_id' => $produto->id,
+            'quantidade' => 2,
+            'preco_negociado' => 12,
+        ]);
+
+        $pedido = app(OportunidadeVendaService::class)->convert($oportunidade, $gestor);
+        $linha = $pedido->vendasOperacao->firstOrFail();
+
+        $this->assertSame($vendedor->id, $pedido->user_id);
+        $this->assertSame($vendedor->name, $pedido->vendedor_nome_snapshot);
+        $this->assertSame($vendedor->id, $linha->user_id);
+        $this->assertSame($vendedor->name, $linha->vendedor_nome);
+        $this->assertDatabaseHas('venda_historicos', [
+            'venda_operacao_pedido_id' => $pedido->id,
+            'user_id' => $gestor->id,
+        ]);
     }
 
     public function test_it_propagates_approved_crm_discount_to_the_confirmed_sale(): void

@@ -50,7 +50,7 @@ class PedidoSeparacaoFlowTest extends TestCase
             $this->assertArrayHasKey('separacao', $exception->errors());
         }
 
-        VendaOperacaoLote::query()->create([
+        $lote = VendaOperacaoLote::query()->create([
             'venda_operacao_id' => $item->id,
             'user_id' => $actor->id,
             'numero_lote' => 'LOTE-FILA-1',
@@ -69,6 +69,7 @@ class PedidoSeparacaoFlowTest extends TestCase
             'produto.png',
             $actor,
             $item,
+            lote: $lote,
         );
         $service->atualizarObservacaoPedido($pedido, 'Conferido pela expedição.', $actor);
 
@@ -82,6 +83,7 @@ class PedidoSeparacaoFlowTest extends TestCase
         $this->assertDatabaseHas('venda_pedido_fotos', [
             'venda_operacao_pedido_id' => $pedido->id,
             'venda_operacao_id' => $item->id,
+            'venda_operacao_lote_id' => $lote->id,
             'path' => $path,
         ]);
     }

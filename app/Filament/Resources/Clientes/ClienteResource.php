@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\Clientes;
 
+use App\Enum\RolesEnum;
 use App\Filament\Resources\Clientes\Pages\ManageClientes;
 use App\Filament\Support\Fields\TaxIdentifierField;
 use App\Models\Clientes\Cliente;
 use App\Rules\UniqueNormalizedTaxIdentifierRule;
+use App\Services\Acesso\RoleService;
 use App\Support\Fiscal\TaxIdentifier;
 use BackedEnum;
 use Filament\Actions\ActionGroup;
@@ -46,6 +48,15 @@ class ClienteResource extends Resource
     protected static string|UnitEnum|null $navigationGroup = 'Operação';
 
     protected static ?int $navigationSort = 1;
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        return (new Cliente)
+            ->scopeVisiveisPara($query, auth()->user())
+            ->with('vendedor');
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -117,6 +128,33 @@ class ClienteResource extends Resource
                             ->validationMessages([
                                 'required' => 'Selecione o status do cliente.',
                             ]),
+
+                        Select::make('vendedor_id')
+                            ->label('Vendedor responsavel')
+                            ->relationship(
+                                'vendedor',
+                                'name',
+                                fn (Builder $query): Builder => $query
+                                    ->whereHas(
+                                        'roles',
+                                        fn (Builder $roles): Builder => $roles
+                                            ->where('name', RolesEnum::Vendedor->value),
+                                    )
+                                    ->where('email_approved', true)
+                                    ->orderBy('name'),
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->nullable()
+                            ->native(false)
+                            ->default(fn (): ?int => auth()->user()?->hasRole(RolesEnum::Vendedor->value)
+                                ? auth()->id()
+                                : null)
+                            ->disabled(fn (): bool => ! app(RoleService::class)->podeEscolherVendedor(auth()->user()))
+                            ->dehydrated(fn (): bool => app(RoleService::class)->podeEscolherVendedor(auth()->user()))
+                            ->helperText(fn (): string => app(RoleService::class)->podeEscolherVendedor(auth()->user())
+                                ? 'Opcional. A troca altera apenas o responsavel atual; vendas anteriores permanecem intactas.'
+                                : 'Vendedores novos sao vinculados automaticamente ao seu usuario.'),
                     ]),
 
                 Section::make('Contato principal')
@@ -330,7 +368,7 @@ class ClienteResource extends Resource
                 Grid::make([
                     'default' => 1,
                     'sm' => 2,
-                    'xl' => 3,
+                    'xl' => 4,
                 ])
                     ->schema([
                         TextColumn::make('categoriaSegmento.nome')
@@ -355,6 +393,16 @@ class ClienteResource extends Resource
                             ->icon(Heroicon::OutlinedPhone)
                             ->color('gray')
                             ->extraAttributes(['class' => 'crm-list-field'], merge: true),
+
+                        TextColumn::make('vendedor.name')
+                            ->label('Vendedor')
+                            ->description('Vendedor', position: 'above')
+                            ->placeholder('Sem vendedor')
+                            ->icon(Heroicon::OutlinedUser)
+                            ->sortable()
+                            ->searchable()
+                            ->color('gray')
+                            ->extraAttributes(['class' => 'crm-list-field'], merge: true),
                     ])
                     ->extraAttributes(['class' => 'crm-list-meta']),
             ])
@@ -370,6 +418,22 @@ class ClienteResource extends Resource
                 SelectFilter::make('id_status_cliente')
                     ->label('Status do cliente')
                     ->relationship('statusCliente', 'nome')
+                    ->searchable()
+                    ->preload(),
+
+                SelectFilter::make('vendedor_id')
+                    ->label('Vendedor')
+                    ->relationship(
+                        'vendedor',
+                        'name',
+                        fn (Builder $query): Builder => $query
+                            ->whereHas(
+                                'roles',
+                                fn (Builder $roles): Builder => $roles
+                                    ->where('name', RolesEnum::Vendedor->value),
+                            )
+                            ->orderBy('name'),
+                    )
                     ->searchable()
                     ->preload(),
 

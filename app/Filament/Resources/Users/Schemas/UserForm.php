@@ -2,9 +2,13 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Enum\RolesEnum;
+use App\Models\Acesso\Role;
 use App\Models\Acesso\User;
+use App\Models\Clientes\Cliente;
 use App\Services\Acesso\RoleService;
 use App\Services\Acesso\UserService;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -64,7 +68,50 @@ class UserForm
                 ->preload()
                 ->searchable()
                 ->required()
+                ->live()
                 ->disabled(fn (?User $record, string $context) => $userService->desabilitarCampoRole($user, $record, $context)),
+
+            Select::make('cliente_ids')
+                ->label('Carteira de clientes')
+                ->options(fn (): array => Cliente::query()
+                    ->with('vendedor:id,name')
+                    ->orderBy('razao_social')
+                    ->get()
+                    ->mapWithKeys(function (Cliente $cliente): array {
+                        $vendedor = $cliente->vendedor;
+
+                        return [
+                            $cliente->id => $cliente->razao_social
+                                .($vendedor instanceof User ? " (atual: {$vendedor->name})" : ''),
+                        ];
+                    })
+                    ->all())
+                ->multiple()
+                ->searchable()
+                ->preload()
+                ->native(false)
+                ->default(fn (?User $record): array => $record?->clientes()
+                    ->orderBy('razao_social')
+                    ->pluck('clientes.id')
+                    ->all() ?? [])
+                ->afterStateHydrated(function (Select $component, ?User $record): void {
+                    if (! $record) {
+                        return;
+                    }
+
+                    $component->state(
+                        $record->clientes()
+                            ->orderBy('razao_social')
+                            ->pluck('clientes.id')
+                            ->all(),
+                    );
+                })
+                ->visible(fn (Get $get, ?User $record): bool => static::roleSelecionadaEhVendedor(
+                    $get('role'),
+                    $record,
+                ))
+                ->helperText('A selecao substitui a carteira atual. Vendas ja registradas preservam o vendedor historico.')
+                ->columnSpanFull(),
 
             Toggle::make('email_approved')
                 ->label('Verificação de acesso')
@@ -122,7 +169,7 @@ class UserForm
                     $atribuiveis = $roleService->permissoesAtribuiveis($user);
 
                     return [
-                        \Filament\Forms\Components\CheckboxList::make('permissions')
+                        CheckboxList::make('permissions')
                             ->label('Permissões adicionais')
                             ->options($atribuiveis->mapWithKeys(
                                 fn (string $name): array => [$name => $name],
@@ -139,5 +186,21 @@ class UserForm
                     ];
                 }),
         ]);
+    }
+
+    protected static function roleSelecionadaEhVendedor(mixed $state, ?User $record): bool
+    {
+        $ids = collect(is_array($state) ? $state : [$state])
+            ->filter(fn (mixed $id): bool => filled($id) && is_numeric($id))
+            ->map(fn (mixed $id): int => (int) $id);
+
+        if ($ids->isNotEmpty()) {
+            return Role::query()
+                ->whereKey($ids->all())
+                ->where('name', RolesEnum::Vendedor->value)
+                ->exists();
+        }
+
+        return $record?->hasRole(RolesEnum::Vendedor->value) ?? false;
     }
 }

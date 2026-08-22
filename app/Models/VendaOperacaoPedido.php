@@ -223,6 +223,12 @@ class VendaOperacaoPedido extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /** Responsavel comercial historico (vendedor ou o administrador criador). */
+    public function vendedor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function aprovadoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'aprovado_por');

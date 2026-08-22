@@ -6,6 +6,7 @@ use App\Enum\PermissoesEnum;
 use App\Enum\RolesEnum;
 use App\Models\Acesso\Role;
 use App\Models\Acesso\User;
+use App\Models\Clientes\Cliente;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Database\Eloquent\Builder;
@@ -102,6 +103,53 @@ class UserService
             ->pluck('name');
 
         $record->syncPermissions(collect($selecionadas)->diff($herdadas)->all());
+    }
+
+    /**
+     * Atualiza somente a carteira atual. Pedidos e linhas de venda guardam o
+     * responsavel e o nome em snapshot, portanto nao participam deste sync.
+     *
+     * @param  array<int, mixed>  $clienteIds
+     */
+    public function sincronizarClientesDoVendedor(User $record, array $clienteIds): void
+    {
+        if (! $record->hasRole(RolesEnum::Vendedor->value)) {
+            Cliente::query()
+                ->where('vendedor_id', $record->id)
+                ->update(['vendedor_id' => null]);
+
+            return;
+        }
+
+        $ids = collect($clienteIds)
+            ->filter(fn (mixed $id): bool => filled($id) && is_numeric($id))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        $existentes = Cliente::query()
+            ->whereKey($ids->all())
+            ->pluck('id');
+
+        if ($existentes->count() !== $ids->count()) {
+            throw ValidationException::withMessages([
+                'cliente_ids' => 'Um ou mais clientes selecionados nao existem mais.',
+            ]);
+        }
+
+        Cliente::query()
+            ->where('vendedor_id', $record->id)
+            ->when(
+                $ids->isNotEmpty(),
+                fn (Builder $query): Builder => $query->whereKeyNot($ids->all()),
+            )
+            ->update(['vendedor_id' => null]);
+
+        if ($ids->isNotEmpty()) {
+            Cliente::query()
+                ->whereKey($ids->all())
+                ->update(['vendedor_id' => $record->id]);
+        }
     }
 
     public function desabilitarCampoRole(?User $user, ?User $record, string $context): bool

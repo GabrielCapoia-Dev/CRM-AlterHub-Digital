@@ -349,6 +349,8 @@ class VendaOperacaoServiceTest extends TestCase
         $vendedorA = $this->createUserWithRole(RolesEnum::Vendedor);
         $vendedorB = $this->createUserWithRole(RolesEnum::Vendedor);
 
+        $cliente->update(['vendedor_id' => $vendedorA->id]);
+
         app(VendaOperacaoService::class)->createPedido([
             'cliente_id' => $cliente->id,
             'data_venda' => now()->toDateString(),
@@ -356,6 +358,8 @@ class VendaOperacaoServiceTest extends TestCase
                 ['produto_id' => $produto->id, 'quantidade' => 1, 'preco_unitario' => 15],
             ],
         ], $vendedorA);
+
+        $cliente->update(['vendedor_id' => $vendedorB->id]);
 
         app(VendaOperacaoService::class)->createPedido([
             'cliente_id' => $cliente->id,

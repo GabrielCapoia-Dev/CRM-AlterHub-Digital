@@ -173,7 +173,13 @@ class VendaOperacaoService
                 throw ValidationException::withMessages(['itens' => 'Informe pelo menos um produto para a venda.']);
             }
 
-            $header = $this->normalizeHeader($data, $user);
+            $header = $this->normalizeHeader(
+                $data,
+                $user,
+                $pedido->cliente_id,
+                $pedido->user_id,
+                $pedido->vendedor_nome_snapshot,
+            );
             [$preparedItems, $requiresApproval] = $this->prepareItems($items, $header);
             $statusAnterior = $pedido->status;
             $pedido->vendasOperacao()->delete();
@@ -199,7 +205,11 @@ class VendaOperacaoService
             ])->save();
 
             foreach ($preparedItems as $prepared) {
-                $this->createLineFromPrepared($prepared, $header['vendedor_user'] ?? $user, $pedido, false);
+                $responsavelLinha = $header['preservar_responsavel_historico']
+                    ? null
+                    : ($header['vendedor_user'] ?? $user);
+
+                $this->createLineFromPrepared($prepared, $responsavelLinha, $pedido, false);
             }
 
             $faltas = $this->estoqueService->faltasVenda($pedido, bloquear: true);
@@ -357,11 +367,15 @@ class VendaOperacaoService
             ->all();
 
         $authUser = auth()->user();
+        $cliente = $origem->cliente;
+        $clienteVendedorId = $cliente instanceof Cliente ? $cliente->vendedor_id : null;
 
         return [
             'cliente_id' => $origem->cliente_id,
             'data_venda' => now()->toDateString(),
-            'vendedor_user_id' => $authUser?->id,
+            'vendedor_user_id' => app(RoleService::class)->podeEscolherVendedor($authUser)
+                ? $clienteVendedorId
+                : $authUser?->id,
             'observacao' => null,
             'condicao_pagamento_snapshot' => $origem->condicao_pagamento_snapshot,
             'condicoes_comerciais' => $origem->condicoes_comerciais,
@@ -596,10 +610,24 @@ class VendaOperacaoService
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    protected function normalizeHeader(array $data, ?User $user): array
-    {
-        $cliente = $this->resolveCliente($data['cliente_id'] ?? null);
-        $vendedor = $this->resolveVendedor($data['vendedor_user_id'] ?? null, $user);
+    protected function normalizeHeader(
+        array $data,
+        ?User $user,
+        ?int $clienteOriginalId = null,
+        ?int $responsavelOriginalId = null,
+        ?string $responsavelOriginalNome = null,
+    ): array {
+        $cliente = $this->resolveCliente($data['cliente_id'] ?? null, $user, $clienteOriginalId);
+        $preservarResponsavelHistorico = blank($data['vendedor_user_id'] ?? null)
+            && $responsavelOriginalId === null
+            && filled($responsavelOriginalNome);
+        $vendedor = $preservarResponsavelHistorico
+            ? null
+            : $this->resolveVendedor(
+                $data['vendedor_user_id'] ?? null,
+                $user,
+                $responsavelOriginalId,
+            );
         $quantidadeVolumes = filled($data['quantidade_volumes'] ?? null)
             ? (int) $data['quantidade_volumes']
             : null;
@@ -635,16 +663,22 @@ class VendaOperacaoService
             'quantidade_volumes' => $quantidadeVolumes,
             'vendedor_user' => $vendedor,
             'vendedor_user_id' => $vendedor?->id,
-            'vendedor_nome' => $vendedor?->name
-                ?? $this->normalizeString($data['vendedor_nome'] ?? null)
-                ?? $user?->name,
+            'vendedor_nome' => $preservarResponsavelHistorico
+                ? $this->normalizeString($responsavelOriginalNome)
+                : ($vendedor?->name
+                    ?? $this->normalizeString($data['vendedor_nome'] ?? null)
+                    ?? $user?->name),
+            'preservar_responsavel_historico' => $preservarResponsavelHistorico,
             'observacao' => $this->normalizeString($data['observacao'] ?? null),
             'origem_pedido_id' => filled($data['origem_pedido_id'] ?? null) ? (int) $data['origem_pedido_id'] : null,
         ];
     }
 
-    protected function resolveVendedor(mixed $vendedorUserId, ?User $actor): ?User
-    {
+    protected function resolveVendedor(
+        mixed $vendedorUserId,
+        ?User $actor,
+        ?int $responsavelOriginalId = null,
+    ): ?User {
         $roleService = app(RoleService::class);
 
         if ($actor && ! $roleService->podeEscolherVendedor($actor)) {
@@ -653,6 +687,8 @@ class VendaOperacaoService
 
         if (filled($vendedorUserId)) {
             $vendedor = User::query()->find((int) $vendedorUserId);
+            $mantendoResponsavelOriginal = $responsavelOriginalId !== null
+                && (int) $vendedorUserId === $responsavelOriginalId;
 
             if (! $vendedor) {
                 throw ValidationException::withMessages([
@@ -660,7 +696,7 @@ class VendaOperacaoService
                 ]);
             }
 
-            if (! $vendedor->emailAprovado()) {
+            if (! $mantendoResponsavelOriginal && ! $vendedor->emailAprovado()) {
                 throw ValidationException::withMessages([
                     'vendedor_user_id' => 'O vendedor selecionado nao possui acesso aprovado.',
                 ]);
@@ -668,6 +704,7 @@ class VendaOperacaoService
 
             if ($actor
                 && (int) $vendedor->id !== (int) $actor->id
+                && ! $mantendoResponsavelOriginal
                 && ! $vendedor->hasRole(RolesEnum::Vendedor->value)) {
                 throw ValidationException::withMessages([
                     'vendedor_user_id' => 'Selecione um usuario com o perfil Vendedor.',
@@ -776,17 +813,27 @@ class VendaOperacaoService
         ];
     }
 
-    protected function resolveCliente(mixed $clienteId): ?Cliente
-    {
+    protected function resolveCliente(
+        mixed $clienteId,
+        ?User $actor = null,
+        ?int $clienteOriginalId = null,
+    ): ?Cliente {
         if (blank($clienteId)) {
             return null;
         }
 
-        $cliente = Cliente::query()->find((int) $clienteId);
+        $query = Cliente::query();
+
+        if ($actor?->hasRole(RolesEnum::Vendedor->value)
+            && (int) $clienteId !== (int) $clienteOriginalId) {
+            $query->visiveisPara($actor);
+        }
+
+        $cliente = $query->find((int) $clienteId);
 
         if (! $cliente) {
             throw ValidationException::withMessages([
-                'cliente_id' => 'Selecione um cliente cadastrado valido.',
+                'cliente_id' => 'Selecione um cliente cadastrado vinculado ao seu usuario.',
             ]);
         }
 

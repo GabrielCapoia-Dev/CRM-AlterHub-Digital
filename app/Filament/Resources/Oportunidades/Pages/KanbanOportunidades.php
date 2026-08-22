@@ -377,9 +377,10 @@ class KanbanOportunidades extends Page
             return null;
         }
 
-        return Cliente::query()
-            ->with(['categoriaSegmento', 'statusCliente'])
-            ->find($clienteId);
+        return app(OportunidadeClienteService::class)->findVisibleById(
+            $clienteId,
+            $this->getSelectedOpportunity()?->cliente_id,
+        );
     }
 
     public function selectedStageIsClosing(): bool
@@ -529,7 +530,10 @@ class KanbanOportunidades extends Page
         ]);
 
         try {
-            $payload = app(OportunidadeClienteService::class)->prepareOpportunityData($validated['opportunityForm']);
+            $payload = app(OportunidadeClienteService::class)->prepareOpportunityData(
+                $validated['opportunityForm'],
+                $selected?->cliente_id,
+            );
         } catch (ValidationException $exception) {
             throw ValidationException::withMessages(
                 collect($exception->errors())

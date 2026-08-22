@@ -26,7 +26,7 @@ class EditOportunidade extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        return OportunidadeResource::prepareOpportunityDataForPersistence($data);
+        return OportunidadeResource::prepareOpportunityDataForPersistence($data, $this->getRecord());
     }
 
     protected function getHeaderActions(): array

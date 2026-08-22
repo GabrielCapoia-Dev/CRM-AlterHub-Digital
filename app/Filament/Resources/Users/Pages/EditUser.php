@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Pages;
 
+use App\Enum\RolesEnum;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\Acesso\User;
 use App\Services\Acesso\UserService;
@@ -36,6 +37,13 @@ class EditUser extends EditRecord
 
         if (array_key_exists('role', $this->data) && ! empty($this->data['role'])) {
             $service->sincronizarRole($record, $actor, $this->data['role']);
+        }
+
+        if (array_key_exists('cliente_ids', $this->data) || ! $record->hasRole(RolesEnum::Vendedor->value)) {
+            $service->sincronizarClientesDoVendedor(
+                $record,
+                (array) ($this->data['cliente_ids'] ?? []),
+            );
         }
 
         $service->sincronizarPermissoesDiretas(

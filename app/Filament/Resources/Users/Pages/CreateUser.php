@@ -31,6 +31,10 @@ class CreateUser extends CreateRecord
         $service = app(UserService::class);
 
         $service->sincronizarRole($record, $actor, $this->data['role'] ?? null);
+        $service->sincronizarClientesDoVendedor(
+            $record,
+            (array) ($this->data['cliente_ids'] ?? []),
+        );
         $service->sincronizarPermissoesDiretas(
             $record,
             $actor,

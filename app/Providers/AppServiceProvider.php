@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Listeners\RecordSelfServicePasswordReset;
 use App\Models\Acesso\Role;
 use App\Models\Acesso\User;
 use App\Models\Clientes\Cliente;
@@ -29,17 +30,20 @@ use App\Policies\RegraTributariaPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\RomaneioPolicy;
 use App\Policies\TransportadoraPolicy;
+use App\Policies\UserPolicy;
 use App\Policies\VendaOperacaoLotePolicy;
 use App\Policies\VendaOperacaoPedidoPolicy;
 use App\Policies\VendaOperacaoPolicy;
 use App\Policies\VendaPedidoFotoPolicy;
-use App\Policies\UserPolicy;
 use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -47,6 +51,16 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        PasswordRule::defaults(fn (): PasswordRule => PasswordRule::min(
+            max(8, (int) config('crm.access.user_password_min_length', 8))
+        )
+            ->max(30)
+            ->mixedCase()
+            ->numbers()
+            ->symbols());
+
+        Event::listen(PasswordReset::class, RecordSelfServicePasswordReset::class);
+
         if (config('crm.force_https')) {
             URL::forceScheme('https');
         }
@@ -69,6 +83,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Transportadora::class, TransportadoraPolicy::class);
 
         FilamentAsset::register([
+            Css::make('auth', asset('css/auth.css?v='.filemtime(public_path('css/auth.css')))),
             Css::make('geral', asset('css/geral.css?v='.filemtime(public_path('css/geral.css')))),
             Css::make('crm-kanban', asset('css/crm-kanban.css?v='.filemtime(public_path('css/crm-kanban.css')))),
             Css::make('operacao-analytics', asset('css/operacao-analytics.css?v='.filemtime(public_path('css/operacao-analytics.css')))),

@@ -2,6 +2,7 @@
 
 namespace App\Services\CRM;
 
+use App\Enum\RolesEnum;
 use App\Models\Clientes\Cliente;
 use App\Models\Status\StatusCliente;
 use App\Support\Ui\NumericFormat;
@@ -110,19 +111,42 @@ class OportunidadeClienteService
             return null;
         }
 
-        return Cliente::query()
+        $query = Cliente::query();
+        $actor = auth()->user();
+
+        if ($actor?->hasRole(RolesEnum::Vendedor->value)) {
+            $query->visiveisPara($actor);
+        }
+
+        return $query
             ->with(['categoriaSegmento', 'statusCliente'])
             ->lookupByCodigoOuCnpj($lookup)
             ->first();
+    }
+
+    public function findVisibleById(mixed $clienteId, ?int $clienteHistoricoId = null): ?Cliente
+    {
+        if (blank($clienteId)) {
+            return null;
+        }
+
+        $query = Cliente::query()
+            ->with(['categoriaSegmento', 'statusCliente']);
+
+        if ((int) $clienteId !== (int) $clienteHistoricoId) {
+            $query->visiveisPara(auth()->user());
+        }
+
+        return $query->find((int) $clienteId);
     }
 
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    public function prepareOpportunityData(array $data): array
+    public function prepareOpportunityData(array $data, ?int $clienteOriginalId = null): array
     {
-        $cliente = $this->resolveClientFromData($data);
+        $cliente = $this->resolveClientFromData($data, $clienteOriginalId);
 
         return [
             'titulo' => trim((string) Arr::get($data, 'titulo')),
@@ -139,22 +163,22 @@ class OportunidadeClienteService
     /**
      * @param  array<string, mixed>  $data
      */
-    public function resolveClientFromData(array $data): Cliente
+    public function resolveClientFromData(array $data, ?int $clienteOriginalId = null): Cliente
     {
         return Arr::get($data, 'client_mode') === self::MODE_NEW
             ? $this->createClientFromData($data)
-            : $this->resolveExistingClient($data);
+            : $this->resolveExistingClient($data, $clienteOriginalId);
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    protected function resolveExistingClient(array $data): Cliente
+    protected function resolveExistingClient(array $data, ?int $clienteOriginalId = null): Cliente
     {
         $clienteId = Arr::get($data, 'cliente_id');
 
         if (filled($clienteId)) {
-            $cliente = Cliente::query()->find($clienteId);
+            $cliente = $this->findVisibleById($clienteId, $clienteOriginalId);
 
             if ($cliente) {
                 return $cliente;
@@ -180,11 +204,11 @@ class OportunidadeClienteService
         $documentoFiscal = trim((string) Arr::get($data, 'client_cnpj'));
 
         if ($documentoFiscal !== '') {
-            $clienteExistente = $this->findByLookup($documentoFiscal);
-
-            if ($clienteExistente) {
+            // A selecao continua limitada a carteira, mas a unicidade precisa
+            // considerar toda a base para nunca chegar ao erro bruto do banco.
+            if (Cliente::query()->lookupByCodigoOuCnpj($documentoFiscal)->exists()) {
                 throw ValidationException::withMessages([
-                    'client_cnpj' => 'Este documento fiscal ja esta cadastrado. Use a busca para vincular o cliente existente.',
+                    'client_cnpj' => 'Este documento fiscal ja esta cadastrado. Solicite a transferencia do cliente a um administrador.',
                 ]);
             }
         }

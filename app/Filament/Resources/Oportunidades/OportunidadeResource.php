@@ -13,7 +13,6 @@ use App\Filament\Resources\Oportunidades\RelationManagers\OportunidadeProdutosRe
 use App\Filament\Resources\Oportunidades\RelationManagers\OportunidadeTarefasRelationManager;
 use App\Filament\Support\Fields\TaxIdentifierField;
 use App\Models\Categorias\CategoriaSegmento;
-use App\Models\Clientes\Cliente;
 use App\Models\Etapa;
 use App\Models\Oportunidade;
 use App\Models\Status\StatusCliente;
@@ -321,16 +320,19 @@ class OportunidadeResource extends Resource
     {
         return $action
             ->mutateRecordDataUsing(fn (array $data, Model $record): array => static::prepareOpportunityDataForFill($data, $record))
-            ->mutateDataUsing(fn (array $data): array => static::prepareOpportunityDataForPersistence($data));
+            ->mutateDataUsing(fn (array $data, Model $record): array => static::prepareOpportunityDataForPersistence($data, $record));
     }
 
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    public static function prepareOpportunityDataForPersistence(array $data): array
+    public static function prepareOpportunityDataForPersistence(array $data, ?Model $record = null): array
     {
-        return app(OportunidadeClienteService::class)->prepareOpportunityData($data);
+        return app(OportunidadeClienteService::class)->prepareOpportunityData(
+            $data,
+            $record instanceof Oportunidade ? $record->cliente_id : null,
+        );
     }
 
     /**
@@ -344,7 +346,7 @@ class OportunidadeResource extends Resource
         if ($record instanceof Oportunidade) {
             $cliente = $record->cliente;
         } elseif (filled($data['cliente_id'] ?? null)) {
-            $cliente = Cliente::query()->find($data['cliente_id']);
+            $cliente = app(OportunidadeClienteService::class)->findVisibleById($data['cliente_id']);
         }
 
         return [
@@ -451,11 +453,12 @@ class OportunidadeResource extends Resource
                 Placeholder::make('client_feedback')
                     ->label('Vinculo do cliente')
                     ->columnSpanFull()
-                    ->content(function (Get $get): string {
+                    ->content(function (Get $get, ?Model $record): string {
                         if ($get('cliente_id')) {
-                            $cliente = Cliente::query()
-                                ->with(['categoriaSegmento', 'statusCliente'])
-                                ->find($get('cliente_id'));
+                            $cliente = app(OportunidadeClienteService::class)->findVisibleById(
+                                $get('cliente_id'),
+                                $record instanceof Oportunidade ? $record->cliente_id : null,
+                            );
 
                             if ($cliente) {
                                 return collect([

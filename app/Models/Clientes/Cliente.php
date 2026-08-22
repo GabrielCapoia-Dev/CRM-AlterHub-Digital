@@ -2,17 +2,22 @@
 
 namespace App\Models\Clientes;
 
+use App\Enum\RolesEnum;
+use App\Models\Acesso\User;
 use App\Models\Categorias\CategoriaSegmento;
 use App\Models\ClienteTransportadora;
 use App\Models\Oportunidade;
 use App\Models\Status\StatusCliente;
 use App\Models\Transportadora;
+use App\Models\VendaOperacaoPedido;
+use App\Services\Acesso\RoleService;
 use App\Support\Fiscal\TaxIdentifier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Auth;
 
 class Cliente extends Model
 {
@@ -26,6 +31,7 @@ class Cliente extends Model
 
         'id_status_cliente',
         'id_categoria_segmento',
+        'vendedor_id',
 
         'nome_completo',
         'cargo',
@@ -46,6 +52,7 @@ class Cliente extends Model
     protected $casts = [
         'id_status_cliente' => 'integer',
         'id_categoria_segmento' => 'integer',
+        'vendedor_id' => 'integer',
     ];
 
     protected static function booted(): void
@@ -54,9 +61,24 @@ class Cliente extends Model
             if (blank($cliente->codigo_interno)) {
                 $cliente->codigo_interno = static::generateCodigoInterno();
             }
+
         });
 
         static::saving(function (self $cliente): void {
+            $actor = Auth::user();
+
+            if (! $cliente->exists && $actor?->hasRole(RolesEnum::Vendedor->value)) {
+                $cliente->vendedor_id = $actor->id;
+            } elseif ($actor
+                && ! app(RoleService::class)->podeEscolherVendedor($actor)
+                && $cliente->isDirty('vendedor_id')) {
+                // A autorizacao precisa existir no dominio, pois campos
+                // desabilitados no navegador ainda podem ser adulterados.
+                $cliente->vendedor_id = $cliente->exists
+                    ? $cliente->getOriginal('vendedor_id')
+                    : null;
+            }
+
             $cliente->cnpj = TaxIdentifier::normalizeForStorage($cliente->cnpj);
         });
     }
@@ -83,12 +105,22 @@ class Cliente extends Model
         );
     }
 
+    public function vendedor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'vendedor_id');
+    }
+
     public function oportunidades(): HasMany
     {
         return $this->hasMany(
             Oportunidade::class,
             'cliente_id'
         );
+    }
+
+    public function vendasOperacaoPedidos(): HasMany
+    {
+        return $this->hasMany(VendaOperacaoPedido::class, 'cliente_id');
     }
 
     public function clienteTransportadoras(): HasMany
@@ -125,6 +157,19 @@ class Cliente extends Model
                 );
             }
         });
+    }
+
+    public function scopeVisiveisPara(Builder $query, ?User $user): Builder
+    {
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->hasRole(RolesEnum::Vendedor->value)) {
+            return $query->where('vendedor_id', $user->id);
+        }
+
+        return $query;
     }
 
     protected static function generateCodigoInterno(): string

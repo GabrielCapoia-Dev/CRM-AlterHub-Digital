@@ -55,7 +55,12 @@ class OportunidadeVendaService
                 ]);
             }
 
-            $actor = $user ?? $oportunidade->user;
+            $actor = $user;
+
+            if (! ($actor instanceof User)) {
+                $opportunityOwner = $oportunidade->user;
+                $actor = $opportunityOwner instanceof User ? $opportunityOwner : null;
+            }
 
             if (! $actor) {
                 throw ValidationException::withMessages([
@@ -63,10 +68,18 @@ class OportunidadeVendaService
                 ]);
             }
 
+            // O ator executa e audita a conversao, mas a responsabilidade
+            // comercial continua pertencendo ao dono da oportunidade.
+            $responsavelVenda = $oportunidade->user;
+
+            if (! ($responsavelVenda instanceof User)) {
+                $responsavelVenda = $actor;
+            }
+
             $pedido = VendaOperacaoPedido::query()->create([
                 'oportunidade_id' => $oportunidade->id,
                 'cliente_id' => $oportunidade->cliente_id,
-                'user_id' => $oportunidade->user_id ?? $actor->id,
+                'user_id' => $responsavelVenda->id,
                 'status' => VendaOperacaoPedido::STATUS_RASCUNHO,
                 'data_venda' => now()->toDateString(),
                 'cliente_nome_snapshot' => $oportunidade->cliente?->razao_social,
@@ -91,7 +104,7 @@ class OportunidadeVendaService
                     'cidade' => $oportunidade->cliente->cidade,
                     'uf' => $oportunidade->cliente->uf,
                 ] : null,
-                'vendedor_nome_snapshot' => $oportunidade->user?->name ?? $user?->name,
+                'vendedor_nome_snapshot' => $responsavelVenda->name,
                 'observacao' => "Venda gerada a partir da oportunidade #{$oportunidade->id}.",
             ]);
             $pedido->assignCodigo();
@@ -109,7 +122,7 @@ class OportunidadeVendaService
                     'cliente_nome' => $pedido->cliente_nome_snapshot,
                     'vendedor_nome' => $pedido->vendedor_nome_snapshot,
                     'observacao' => "Venda gerada pela oportunidade {$oportunidade->titulo}.",
-                ], $actor, $pedido, false);
+                ], $responsavelVenda, $pedido, false);
 
                 $link = $linksById->get($item['oportunidade_produto_id']);
 

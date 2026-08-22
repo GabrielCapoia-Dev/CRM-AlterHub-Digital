@@ -5,6 +5,10 @@ $defaultExportChunkSize = (int) env('CRM_EXPORT_CHUNK_SIZE', 250);
 return [
     'force_https' => filter_var(env('APP_FORCE_HTTPS', false), FILTER_VALIDATE_BOOL),
 
+    'access' => [
+        'user_password_min_length' => (int) env('CRM_USER_PASSWORD_MIN_LENGTH', 8),
+    ],
+
     'exports' => [
         // Null values keep exports on Laravel's default queued connection/queue.
         'connection' => env('CRM_EXPORT_CONNECTION'),

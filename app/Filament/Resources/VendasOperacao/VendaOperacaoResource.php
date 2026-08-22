@@ -107,7 +107,9 @@ class VendaOperacaoResource extends Resource
                 ->schema([
                     Select::make('cliente_id')
                         ->label('Cliente')
-                        ->options(fn (): array => static::clienteOptions())
+                        ->options(fn (?VendaOperacaoPedido $record): array => static::clienteOptions(
+                            $record?->cliente instanceof Cliente ? $record->cliente : null,
+                        ))
                         ->searchable()
                         ->preload()
                         ->live()
@@ -121,11 +123,29 @@ class VendaOperacaoResource extends Resource
                             ->modalSubmitActionLabel('Salvar cliente')
                             ->extraModalWindowAttributes(['class' => 'oa-record-modal oa-sales-modal']))
                         ->helperText('Se o cliente nao existir, clique no + para cadastrar sem sair da venda.')
-                        ->afterStateUpdated(function ($state, Set $set): void {
-                            $cliente = filled($state) ? Cliente::query()->find($state) : null;
+                        ->afterStateUpdated(function (
+                            $state,
+                            Set $set,
+                            ?VendaOperacaoPedido $record,
+                        ) use ($canPickVendedor): void {
+                            $cliente = null;
+
+                            if (filled($state)) {
+                                $query = Cliente::query();
+
+                                if ((int) $state !== (int) $record?->cliente_id) {
+                                    $query->visiveisPara(auth()->user());
+                                }
+
+                                $cliente = $query->find($state);
+                            }
 
                             foreach (['cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf'] as $campo) {
                                 $set("entrega_endereco.{$campo}", $cliente?->{$campo});
+                            }
+
+                            if ($canPickVendedor) {
+                                $set('vendedor_user_id', $cliente?->vendedor_id);
                             }
                         })
                         ->columnSpan(6),
@@ -138,16 +158,25 @@ class VendaOperacaoResource extends Resource
 
                     Select::make('vendedor_user_id')
                         ->label('Vendedor')
-                        ->options(fn (): array => static::vendedorOptions())
-                        ->default(fn (): ?int => auth()->id())
+                        ->options(fn (?VendaOperacaoPedido $record): array => static::vendedorOptions(
+                            $record?->user instanceof User ? $record->user : null,
+                        ))
+                        ->default(fn (): ?int => $canPickVendedor ? null : auth()->id())
                         ->searchable()
                         ->preload()
-                        ->required()
+                        ->required(! $canPickVendedor)
+                        ->placeholder(fn (?VendaOperacaoPedido $record): ?string => $canPickVendedor
+                            ? (blank($record?->user_id) && filled($record?->vendedor_nome_snapshot)
+                                ? "Manter historico ({$record->vendedor_nome_snapshot})"
+                                : 'Sem vendedor (atribuir a mim)')
+                            : null)
                         ->native(false)
                         ->disabled(! $canPickVendedor)
                         ->dehydrated()
-                        ->helperText($canPickVendedor
-                            ? 'Selecione o vendedor responsavel pela venda.'
+                        ->helperText(fn (?VendaOperacaoPedido $record): string => $canPickVendedor
+                            ? (blank($record?->user_id) && filled($record?->vendedor_nome_snapshot)
+                                ? 'Sem uma nova escolha, o responsavel historico sera preservado.'
+                                : 'Opcional. Ao deixar vazio, a venda fica atribuida ao seu usuario.')
                             : 'Vendedor fixo no seu usuario.')
                         ->columnSpan(3),
 
@@ -614,9 +643,10 @@ class VendaOperacaoResource extends Resource
     /**
      * @return array<int|string, string>
      */
-    protected static function clienteOptions(): array
+    protected static function clienteOptions(?Cliente $clienteHistorico = null): array
     {
-        return Cliente::query()
+        $options = Cliente::query()
+            ->visiveisPara(auth()->user())
             ->orderBy('razao_social')
             ->get()
             ->mapWithKeys(fn (Cliente $cliente): array => [
@@ -625,12 +655,21 @@ class VendaOperacaoResource extends Resource
                     : $cliente->razao_social,
             ])
             ->all();
+
+        if ($clienteHistorico && ! array_key_exists($clienteHistorico->id, $options)) {
+            $label = $clienteHistorico->codigo_interno
+                ? "{$clienteHistorico->codigo_interno} - {$clienteHistorico->razao_social}"
+                : $clienteHistorico->razao_social;
+            $options = [$clienteHistorico->id => "{$label} (vinculo historico)"] + $options;
+        }
+
+        return $options;
     }
 
     /**
      * @return array<int|string, string>
      */
-    protected static function vendedorOptions(): array
+    protected static function vendedorOptions(?User $responsavelHistorico = null): array
     {
         $query = User::query()
             ->role(RolesEnum::Vendedor->value)
@@ -644,8 +683,14 @@ class VendaOperacaoResource extends Resource
 
         $auth = auth()->user();
 
-        if ($auth && ! array_key_exists($auth->id, $options)) {
-            $options = [$auth->id => $auth->name] + $options;
+        if (app(RoleService::class)->podeEscolherVendedor($auth)) {
+            $options = [$auth->id => "Sem vendedor - meu usuario ({$auth->name})"] + $options;
+        }
+
+        if ($responsavelHistorico && ! array_key_exists($responsavelHistorico->id, $options)) {
+            $options = [
+                $responsavelHistorico->id => "Sem vendedor - responsavel historico ({$responsavelHistorico->name})",
+            ] + $options;
         }
 
         return $options;
@@ -1433,7 +1478,9 @@ class VendaOperacaoResource extends Resource
             ])
             ->fillForm(fn (): array => [
                 'data_venda' => now()->toDateString(),
-                'vendedor_user_id' => auth()->id(),
+                'vendedor_user_id' => app(RoleService::class)->podeEscolherVendedor(auth()->user())
+                    ? null
+                    : auth()->id(),
                 'itens' => [
                     [
                         'quantidade' => null,

@@ -126,6 +126,12 @@ class VendaOperacao extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /** Responsavel comercial historico herdado do pedido. */
+    public function vendedor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function descontoAprovadoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'desconto_aprovado_por');

@@ -143,8 +143,10 @@ class CriarPermissoes extends Command
     {
         return [
             PermissoesEnum::ListarProdutosCRM->value,
+            PermissoesEnum::EditarProdutosCRM->value,
             PermissoesEnum::MovimentarEstoqueProdutos->value,
             PermissoesEnum::ListarInsumos->value,
+            PermissoesEnum::EditarInsumos->value,
             PermissoesEnum::MovimentarEstoqueInsumos->value,
             PermissoesEnum::ListarVendasOperacao->value,
             PermissoesEnum::VisualizarTodasVendasOperacao->value,
