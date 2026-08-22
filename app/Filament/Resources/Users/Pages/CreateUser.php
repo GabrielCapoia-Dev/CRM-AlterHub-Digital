@@ -44,4 +44,9 @@ class CreateUser extends CreateRecord
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

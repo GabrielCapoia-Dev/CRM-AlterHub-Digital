@@ -219,6 +219,47 @@ class AcompanhamentoEstoquePageTest extends TestCase
             ->assertDontSeeText('Produto monitorado');
     }
 
+    public function test_page_uses_responsive_filament_pagination_for_items_and_movements(): void
+    {
+        [$produto] = $this->createItems();
+
+        for ($index = 1; $index <= 13; $index++) {
+            Produto::query()->create([
+                'codigo_interno' => sprintf('PRD-PAG-%02d', $index),
+                'nome' => sprintf('Produto paginação %02d', $index),
+                'unidade_medida' => 'un',
+                'estoque_fisico' => $index,
+                'estoque_reservado' => 0,
+                'estoque_minimo' => 1,
+            ]);
+        }
+
+        for ($index = 1; $index <= 21; $index++) {
+            $this->createProductMovement($produto, [
+                'documento_referencia' => sprintf('MOV-PAG-%02d', $index),
+                'realizado_em' => now()->subMinutes($index),
+            ]);
+        }
+
+        $this->registerStockPermissions();
+        $viewer = User::factory()->create(['email_approved' => true]);
+        $viewer->givePermissionTo(PermissoesEnum::ListarProdutosCRM->value);
+
+        Filament::setCurrentPanel(Filament::getPanel('painel'));
+        $this->actingAs($viewer);
+
+        $response = $this->get(AcompanhamentoEstoque::getUrl())->assertOk();
+        $html = $response->getContent();
+
+        $this->assertStringContainsString('wire:key="stock-items-pagination"', $html);
+        $this->assertStringContainsString('wire:key="stock-movements-pagination"', $html);
+        $this->assertStringContainsString('fi-pagination-item-icon', $html);
+        $this->assertStringContainsString('itemsPage', $html);
+        $this->assertStringContainsString('movementsPage', $html);
+        $this->assertStringNotContainsString('Pagination Navigation', $html);
+        $this->assertStringNotContainsString('class="w-5 h-5"', $html);
+    }
+
     /** @return array{Produto, Insumo} */
     private function createItems(): array
     {

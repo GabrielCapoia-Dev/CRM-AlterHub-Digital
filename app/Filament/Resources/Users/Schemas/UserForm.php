@@ -71,46 +71,56 @@ class UserForm
                 ->live()
                 ->disabled(fn (?User $record, string $context) => $userService->desabilitarCampoRole($user, $record, $context)),
 
-            Select::make('cliente_ids')
-                ->label('Carteira de clientes')
-                ->options(fn (): array => Cliente::query()
-                    ->with('vendedor:id,name')
-                    ->orderBy('razao_social')
-                    ->get()
-                    ->mapWithKeys(function (Cliente $cliente): array {
-                        $vendedor = $cliente->vendedor;
-
-                        return [
-                            $cliente->id => $cliente->razao_social
-                                .($vendedor instanceof User ? " (atual: {$vendedor->name})" : ''),
-                        ];
-                    })
-                    ->all())
-                ->multiple()
-                ->searchable()
-                ->preload()
-                ->native(false)
-                ->default(fn (?User $record): array => $record?->clientes()
-                    ->orderBy('razao_social')
-                    ->pluck('clientes.id')
-                    ->all() ?? [])
-                ->afterStateHydrated(function (Select $component, ?User $record): void {
-                    if (! $record) {
-                        return;
-                    }
-
-                    $component->state(
-                        $record->clientes()
-                            ->orderBy('razao_social')
-                            ->pluck('clientes.id')
-                            ->all(),
-                    );
-                })
+            Components\Section::make('Carteira comercial')
+                ->icon('heroicon-o-user-group')
+                ->iconColor('primary')
+                ->description('Selecione os clientes que ficarão sob responsabilidade deste vendedor.')
                 ->visible(fn (Get $get, ?User $record): bool => static::roleSelecionadaEhVendedor(
                     $get('role'),
                     $record,
                 ))
-                ->helperText('A selecao substitui a carteira atual. Vendas ja registradas preservam o vendedor historico.')
+                ->compact()
+                ->extraAttributes(['class' => 'seller-portfolio-section'])
+                ->schema([
+                    CheckboxList::make('cliente_ids')
+                        ->label('Clientes vinculados')
+                        ->hint(function (mixed $state): string {
+                            $count = count((array) $state);
+
+                            return $count === 1
+                                ? '1 cliente selecionado'
+                                : "{$count} clientes selecionados";
+                        })
+                        ->options(fn (?User $record): array => static::carteiraDeClientes($record)['options'])
+                        ->descriptions(fn (?User $record): array => static::carteiraDeClientes($record)['descriptions'])
+                        ->searchable()
+                        ->searchDebounce(200)
+                        ->searchPrompt('Buscar por cliente, código, CNPJ ou vendedor atual...')
+                        ->noSearchResultsMessage('Nenhum cliente corresponde à busca.')
+                        ->columns([
+                            'default' => 1,
+                            'xl' => 2,
+                        ])
+                        ->default(fn (?User $record): array => $record?->clientes()
+                            ->orderBy('razao_social')
+                            ->pluck('clientes.id')
+                            ->all() ?? [])
+                        ->afterStateHydrated(function (CheckboxList $component, ?User $record): void {
+                            if (! $record) {
+                                return;
+                            }
+
+                            $component->state(
+                                $record->clientes()
+                                    ->orderBy('razao_social')
+                                    ->pluck('clientes.id')
+                                    ->all(),
+                            );
+                        })
+                        ->helperText('Ao salvar, a seleção substituirá a carteira atual. O histórico das vendas já registradas continuará preservado.')
+                        ->extraAttributes(['class' => 'seller-portfolio-grid'])
+                        ->columnSpanFull(),
+                ])
                 ->columnSpanFull(),
 
             Toggle::make('email_approved')
@@ -156,7 +166,7 @@ class UserForm
                 ->description('Marque somente permissões diretas. As permissões do nível de acesso são herdadas automaticamente.')
                 ->visible(fn (Get $get) => $get('usar_permissoes_extras') === true)
                 ->schema(function (?User $record) use ($roleService, $user) {
-                    if (! $user || ! $roleService->ehSuperAdmin($user)) {
+                    if (! $roleService->ehSuperAdmin($user)) {
                         return [];
                     }
                     if ($record && $record->id === $user->id) {
@@ -202,5 +212,58 @@ class UserForm
         }
 
         return $record?->hasRole(RolesEnum::Vendedor->value) ?? false;
+    }
+
+    /**
+     * @return array{options: array<int, string>, descriptions: array<int, string>}
+     */
+    protected static function carteiraDeClientes(?User $record): array
+    {
+        $clientes = Cliente::query()
+            ->select([
+                'id',
+                'codigo_interno',
+                'razao_social',
+                'cnpj',
+                'vendedor_id',
+            ])
+            ->with('vendedor:id,name')
+            ->orderBy('razao_social')
+            ->get();
+
+        $options = [];
+        $descriptions = [];
+
+        foreach ($clientes as $cliente) {
+            $codigo = filled($cliente->codigo_interno)
+                ? $cliente->codigo_interno
+                : 'Sem código';
+            $documento = filled($cliente->cnpj)
+                ? "CNPJ {$cliente->cnpj} · "
+                : '';
+            $vendedor = $cliente->vendedor;
+
+            $options[$cliente->id] = "{$cliente->razao_social} · {$codigo}";
+
+            if (! $vendedor instanceof User) {
+                $descriptions[$cliente->id] = $documento.'Disponível para vínculo';
+
+                continue;
+            }
+
+            if ($record && ((int) $vendedor->id === (int) $record->id)) {
+                $descriptions[$cliente->id] = $documento.'Já faz parte desta carteira';
+
+                continue;
+            }
+
+            $descriptions[$cliente->id] = $documento
+                ."Atualmente com {$vendedor->name} · será transferido ao salvar";
+        }
+
+        return [
+            'options' => $options,
+            'descriptions' => $descriptions,
+        ];
     }
 }

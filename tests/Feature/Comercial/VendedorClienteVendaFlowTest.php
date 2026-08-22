@@ -6,6 +6,7 @@ use App\Enum\PermissoesEnum;
 use App\Enum\RolesEnum;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
+use App\Filament\Resources\Users\UserResource;
 use App\Filament\Resources\VendasOperacao\VendaOperacaoResource;
 use App\Models\Acesso\User;
 use App\Models\Categorias\CategoriaSegmento;
@@ -147,7 +148,8 @@ class VendedorClienteVendaFlowTest extends TestCase
                 'usar_permissoes_extras' => false,
             ])
             ->call('create')
-            ->assertHasNoFormErrors();
+            ->assertHasNoFormErrors()
+            ->assertRedirect(UserResource::getUrl('index'));
 
         $vendedor = User::query()->where('email', 'vendedor.criado@example.com')->firstOrFail();
 

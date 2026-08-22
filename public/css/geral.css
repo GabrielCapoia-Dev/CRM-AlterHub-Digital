@@ -902,3 +902,66 @@ html.dark {
 .fi-sidebar.fi-sidebar-open {
     --sidebar-width: 14rem !important;
 }
+
+/* Carteira comercial no cadastro de vendedores */
+.seller-portfolio-section.fi-section {
+    overflow: hidden;
+    border-color: rgba(58, 109, 214, 0.28);
+    background:
+        radial-gradient(circle at 100% 0%, rgba(126, 168, 240, 0.16), transparent 38%),
+        linear-gradient(145deg, #ffffff 0%, #f8faff 100%);
+    box-shadow: 0 12px 28px rgba(23, 54, 141, 0.08);
+}
+
+.seller-portfolio-section .fi-section-header {
+    border-bottom-color: rgba(58, 109, 214, 0.14);
+}
+
+.seller-portfolio-section .fi-section-header-icon-ctn {
+    border-radius: 0.75rem;
+    background: #eaf1fd;
+    padding: 0.55rem;
+}
+
+.seller-portfolio-grid.fi-fo-checkbox-list-options {
+    gap: 0.7rem;
+}
+
+.seller-portfolio-grid .fi-fo-checkbox-list-option-ctn {
+    min-width: 0;
+    border: 1px solid #e0e6f2;
+    border-radius: 0.85rem;
+    background: rgba(255, 255, 255, 0.88);
+    padding: 0.85rem 0.95rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.seller-portfolio-grid .fi-fo-checkbox-list-option-ctn:hover {
+    border-color: rgba(58, 109, 214, 0.5);
+    box-shadow: 0 8px 18px rgba(23, 54, 141, 0.08);
+    transform: translateY(-1px);
+}
+
+.seller-portfolio-grid .fi-fo-checkbox-list-option-label {
+    color: #1a2340;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.seller-portfolio-grid .fi-fo-checkbox-list-option-description {
+    margin-top: 0.2rem;
+    color: #6b7694;
+    font-size: 0.72rem;
+    line-height: 1.4;
+}
+
+.seller-portfolio-grid .fi-checkbox-input:checked + .fi-fo-checkbox-list-option-text .fi-fo-checkbox-list-option-label {
+    color: #17368d;
+}
+
+@media (max-width: 680px) {
+    .seller-portfolio-grid .fi-fo-checkbox-list-option-ctn {
+        padding: 0.75rem;
+    }
+}

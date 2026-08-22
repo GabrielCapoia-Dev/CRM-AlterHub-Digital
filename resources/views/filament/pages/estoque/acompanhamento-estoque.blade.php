@@ -190,7 +190,10 @@
 
             @if ($items->hasPages())
                 <div class="stock-pagination">
-                    {{ $items->onEachSide(1)->links() }}
+                    <x-filament::pagination
+                        :paginator="$items->onEachSide(1)"
+                        wire:key="stock-items-pagination"
+                    />
                 </div>
             @endif
         </section>
@@ -305,7 +308,10 @@
 
             @if ($movements->hasPages())
                 <div class="stock-pagination">
-                    {{ $movements->onEachSide(1)->links() }}
+                    <x-filament::pagination
+                        :paginator="$movements->onEachSide(1)"
+                        wire:key="stock-movements-pagination"
+                    />
                 </div>
             @endif
         </section>
@@ -852,7 +858,62 @@
 
             .stock-pagination {
                 border-top: 1px solid rgba(212, 216, 230, 0.68);
-                padding: 0.8rem 1rem;
+                padding: 0.9rem 1.1rem;
+                background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+            }
+
+            .stock-pagination .fi-pagination {
+                width: 100%;
+                min-width: 0;
+                gap: 0.75rem;
+            }
+
+            .stock-pagination .fi-pagination-overview {
+                color: #6b7694;
+                font-size: 0.78rem;
+                font-weight: 650;
+            }
+
+            .stock-pagination .fi-pagination-items {
+                overflow: hidden;
+                border: 1px solid #dce3f2;
+                border-radius: 0.75rem;
+                background: #fff;
+                box-shadow: 0 5px 15px rgba(15, 34, 97, 0.06);
+            }
+
+            .stock-pagination .fi-pagination-item {
+                border-color: #e6eaf3;
+            }
+
+            .stock-pagination .fi-pagination-item-btn {
+                min-width: 2.35rem;
+                min-height: 2.35rem;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .stock-pagination .fi-pagination-item-icon {
+                width: 1rem;
+                height: 1rem;
+            }
+
+            .stock-pagination .fi-pagination-item.fi-active .fi-pagination-item-btn {
+                background: #17368d;
+            }
+
+            .stock-pagination .fi-pagination-item.fi-active .fi-pagination-item-label {
+                color: #fff;
+            }
+
+            .stock-pagination .fi-pagination-previous-btn,
+            .stock-pagination .fi-pagination-next-btn {
+                min-height: 2.35rem;
+                border-color: #dce3f2;
+                border-radius: 0.7rem;
+                background: #fff;
+                color: #17368d;
+                box-shadow: 0 4px 12px rgba(15, 34, 97, 0.05);
             }
 
             @media (max-width: 1100px) {
@@ -902,6 +963,21 @@
                 .stock-event__body {
                     margin-left: 0.25rem;
                     padding: 0.85rem;
+                }
+
+                .stock-pagination {
+                    padding: 0.75rem;
+                }
+
+                .stock-pagination .fi-pagination {
+                    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+                    gap: 0.5rem;
+                }
+
+                .stock-pagination .fi-pagination-previous-btn,
+                .stock-pagination .fi-pagination-next-btn {
+                    width: 100%;
+                    padding-inline: 0.65rem;
                 }
             }
         </style>
