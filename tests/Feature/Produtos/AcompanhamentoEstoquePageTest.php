@@ -14,6 +14,7 @@ use App\Models\VendaOperacaoPedido;
 use App\Services\Produtos\EstoqueAcompanhamentoService;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -256,8 +257,166 @@ class AcompanhamentoEstoquePageTest extends TestCase
         $this->assertStringContainsString('fi-pagination-item-icon', $html);
         $this->assertStringContainsString('itemsPage', $html);
         $this->assertStringContainsString('movementsPage', $html);
+        $this->assertSame(5, substr_count($html, 'wire:key="stock-item-'));
+        $this->assertSame(5, substr_count($html, 'wire:key="stock-movement-'));
+        $this->assertStringContainsString('wire:model.live="itemsPerPage"', $html);
+        $this->assertStringContainsString('wire:model.live="movementsPerPage"', $html);
+        $this->assertStringContainsString('wire:click="exportItemsCsv"', $html);
+        $this->assertStringContainsString('wire:click="exportMovementsCsv"', $html);
         $this->assertStringNotContainsString('Pagination Navigation', $html);
         $this->assertStringNotContainsString('class="w-5 h-5"', $html);
+    }
+
+    public function test_exact_item_selection_isolates_balances_history_and_advanced_filters(): void
+    {
+        [$produto, $insumo] = $this->createItems();
+
+        $this->createProductMovement($produto, [
+            'tipo' => 'entrada',
+            'documento_referencia' => 'NF-ENTRADA-EXATA',
+            'impacto_estoque' => 6,
+            'saldo_anterior' => 2,
+            'saldo_atual' => 8,
+            'realizado_em' => '2026-08-20 08:00:00',
+        ]);
+        $this->createProductMovement($produto, [
+            'tipo' => 'saida',
+            'origem_tipo' => 'manual',
+            'documento_referencia' => '=DOCUMENTO-PERIGOSO',
+            'responsavel_nome' => 'Operador Estoque',
+            'observacao' => 'Ajuste solicitado pelo inventário',
+            'impacto_estoque' => -2,
+            'saldo_anterior' => 10,
+            'saldo_atual' => 8,
+            'realizado_em' => '2026-08-22 11:30:00',
+        ]);
+        $this->createInputMovement($insumo, [
+            'tipo' => 'saida',
+            'documento_referencia' => 'NF-OUTRO-ITEM',
+            'responsavel_nome' => 'Operador Estoque',
+            'impacto_estoque' => -4,
+            'realizado_em' => '2026-08-22 12:00:00',
+        ]);
+
+        $service = app(EstoqueAcompanhamentoService::class);
+        $types = ['produto', 'insumo'];
+        $filters = [
+            'selected_item' => "produto:{$produto->id}",
+            // Uma seleção exata deve prevalecer sobre uma busca textual antiga.
+            'item_search' => 'insumo monitorado',
+            'impact_direction' => 'saida',
+            'movement_search' => 'operador estoque',
+        ];
+
+        $items = $service->paginateItems($filters, $types);
+        $movements = $service->paginateMovements($filters, $types);
+        $overview = $service->selectedItemOverview($filters, $types);
+
+        $this->assertSame(1, $items->total());
+        $this->assertSame($produto->id, $items->first()->item_id);
+        $this->assertSame(1, $movements->total());
+        $this->assertSame('=DOCUMENTO-PERIGOSO', $movements->first()->documento_referencia);
+        $this->assertNotNull($overview);
+        $this->assertSame(2, $overview['eventos_total']);
+        $this->assertSame(1, $overview['eventos_filtrados']);
+        $this->assertSame(0.0, $overview['entradas_quantidade']);
+        $this->assertSame(2.0, $overview['saidas_quantidade']);
+        $this->assertSame(-2.0, $overview['variacao_quantidade']);
+        $this->assertSame('2026-08-22 11:30:00', $overview['ultima_movimentacao']);
+
+        $this->assertSame(0, $service->paginateItems([
+            'selected_item' => "produto:{$produto->id}",
+        ], ['insumo'])->total());
+        $this->assertNull($service->selectedItemOverview([
+            'selected_item' => "produto:{$produto->id}",
+        ], ['insumo']));
+        $this->assertSame(0, $service->paginateMovements([
+            'selected_item' => 'produto:999999',
+        ], $types)->total());
+        $this->assertSame(0, $service->paginateMovements([
+            'selected_item' => 'seleção-adulterada',
+        ], $types)->total());
+    }
+
+    public function test_page_size_options_are_independent_clamped_and_default_to_five(): void
+    {
+        [$produto] = $this->createItems();
+
+        for ($index = 1; $index <= 7; $index++) {
+            Produto::query()->create([
+                'codigo_interno' => sprintf('PRD-LIM-%02d', $index),
+                'nome' => sprintf('Produto limite %02d', $index),
+                'unidade_medida' => 'un',
+                'estoque_fisico' => $index,
+                'estoque_reservado' => 0,
+                'estoque_minimo' => 1,
+            ]);
+            $this->createProductMovement($produto, [
+                'documento_referencia' => sprintf('MOV-LIM-%02d', $index),
+                'realizado_em' => now()->subMinutes($index),
+            ]);
+        }
+
+        $service = app(EstoqueAcompanhamentoService::class);
+
+        $this->assertSame(5, $service->paginateItems([], ['produto', 'insumo'])->perPage());
+        $this->assertCount(5, $service->paginateItems([], ['produto', 'insumo'])->items());
+        $this->assertSame(5, $service->paginateMovements([], ['produto'])->perPage());
+        $this->assertCount(5, $service->paginateMovements([], ['produto'])->items());
+
+        $page = new AcompanhamentoEstoque;
+        $page->itemsPerPage = 999;
+        $page->updated('itemsPerPage', 999);
+        $page->movementsPerPage = 100;
+        $page->updated('movementsPerPage', 100);
+
+        $this->assertSame([5, 10, 25, 50, 100], $page->pageSizeOptions());
+        $this->assertSame(5, $page->itemsPerPage);
+        $this->assertSame(100, $page->movementsPerPage);
+    }
+
+    public function test_csv_exports_are_available_and_neutralize_spreadsheet_formulas(): void
+    {
+        [$produto] = $this->createItems();
+        $this->createProductMovement($produto, [
+            'documento_referencia' => '=HYPERLINK("https://example.test")',
+            'realizado_em' => '2026-08-22 10:00:00',
+        ]);
+
+        $this->registerStockPermissions();
+        $viewer = User::factory()->create(['email_approved' => true]);
+        $viewer->givePermissionTo(PermissoesEnum::ListarProdutosCRM->value);
+
+        Filament::setCurrentPanel(Filament::getPanel('painel'));
+        $this->actingAs($viewer);
+
+        Livewire::test(AcompanhamentoEstoque::class)
+            ->call('exportItemsCsv')
+            ->assertFileDownloaded();
+        Livewire::test(AcompanhamentoEstoque::class)
+            ->set('selectedItem', "produto:{$produto->id}")
+            ->call('exportMovementsCsv')
+            ->assertFileDownloaded();
+
+        $page = new AcompanhamentoEstoque;
+        $method = new \ReflectionMethod($page, 'safeCsvRow');
+        $sanitized = $method->invoke($page, [
+            '=FORMULA()',
+            '+FORMULA()',
+            '-FORMULA()',
+            '@FORMULA()',
+            "\tFORMULA()",
+            -2.5,
+        ]);
+
+        $this->assertSame([
+            "'=FORMULA()",
+            "'+FORMULA()",
+            "'-FORMULA()",
+            "'@FORMULA()",
+            "'\tFORMULA()",
+            -2.5,
+        ], $sanitized);
     }
 
     /** @return array{Produto, Insumo} */

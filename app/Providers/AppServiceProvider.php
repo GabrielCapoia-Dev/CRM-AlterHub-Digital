@@ -35,22 +35,30 @@ use App\Policies\VendaOperacaoLotePolicy;
 use App\Policies\VendaOperacaoPedidoPolicy;
 use App\Policies\VendaOperacaoPolicy;
 use App\Policies\VendaPedidoFotoPolicy;
+use App\Services\Email\SmtpConfigurationService;
 use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void {}
-
-    public function boot(): void
+    public function register(): void
     {
+        $this->app->singleton(SmtpConfigurationService::class);
+    }
+
+    public function boot(SmtpConfigurationService $smtpConfiguration): void
+    {
+        $smtpConfiguration->applyStoredConfiguration();
+        Queue::before(fn (): bool => $smtpConfiguration->applyStoredConfiguration());
+
         PasswordRule::defaults(fn (): PasswordRule => PasswordRule::min(
             max(8, (int) config('crm.access.user_password_min_length', 8))
         )

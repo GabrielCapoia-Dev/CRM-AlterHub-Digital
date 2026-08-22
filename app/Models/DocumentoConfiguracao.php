@@ -27,11 +27,26 @@ class DocumentoConfiguracao extends Model
         'nome_comercial',
         'texto_complementar',
         'exibir_valores_romaneio',
+        'smtp_enabled',
+        'smtp_host',
+        'smtp_port',
+        'smtp_encryption',
+        'smtp_username',
+        'smtp_password',
+        'mail_from_address',
+        'mail_from_name',
+    ];
+
+    protected $hidden = [
+        'smtp_password',
     ];
 
     protected $casts = [
         'updated_by' => 'integer',
         'exibir_valores_romaneio' => 'boolean',
+        'smtp_enabled' => 'boolean',
+        'smtp_port' => 'integer',
+        'smtp_password' => 'encrypted',
     ];
 
     public static function atual(): ?self

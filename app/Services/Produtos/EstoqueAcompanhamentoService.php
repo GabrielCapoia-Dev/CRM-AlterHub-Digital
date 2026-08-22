@@ -7,6 +7,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\LazyCollection;
 use Illuminate\Support\Str;
 
 class EstoqueAcompanhamentoService
@@ -22,7 +23,7 @@ class EstoqueAcompanhamentoService
     public function paginateItems(
         array $filters,
         array $accessibleTypes,
-        int $perPage = 12,
+        int $perPage = 5,
         string $pageName = 'itemsPage',
         ?int $page = null,
     ): LengthAwarePaginator {
@@ -46,7 +47,7 @@ class EstoqueAcompanhamentoService
     public function paginateMovements(
         array $filters,
         array $accessibleTypes,
-        int $perPage = 20,
+        int $perPage = 5,
         string $pageName = 'movementsPage',
         ?int $page = null,
     ): LengthAwarePaginator {
@@ -88,9 +89,125 @@ class EstoqueAcompanhamentoService
      * @param  list<string>  $accessibleTypes
      * @return array<string, string>
      */
-    public function originOptions(array $accessibleTypes): array
+    public function itemOptions(array $accessibleTypes, ?string $itemType = null): array
     {
-        return $this->movementsQuery($accessibleTypes)
+        $query = $this->itemsQuery($accessibleTypes);
+
+        if (in_array($itemType, [self::ITEM_PRODUTO, self::ITEM_INSUMO], true)) {
+            $query->where('item_tipo', $itemType);
+        }
+
+        return $query
+            ->orderBy('nome')
+            ->orderBy('codigo')
+            ->get(['item_tipo', 'item_id', 'nome', 'codigo'])
+            ->mapWithKeys(function (object $item): array {
+                $type = $item->item_tipo === self::ITEM_INSUMO ? 'Insumo' : 'Produto';
+                $code = filled($item->codigo) ? " · {$item->codigo}" : '';
+
+                return ["{$item->item_tipo}:{$item->item_id}" => "{$type} · {$item->nome}{$code}"];
+            })
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @param  list<string>  $accessibleTypes
+     * @return array{
+     *     item:object,
+     *     eventos_total:int,
+     *     eventos_filtrados:int,
+     *     entradas_quantidade:float,
+     *     saidas_quantidade:float,
+     *     variacao_quantidade:float,
+     *     primeira_movimentacao:?string,
+     *     ultima_movimentacao:?string
+     * }|null
+     */
+    public function selectedItemOverview(array $filters, array $accessibleTypes): ?array
+    {
+        $selectedItem = trim((string) ($filters['selected_item'] ?? ''));
+
+        if ($selectedItem === '') {
+            return null;
+        }
+
+        $itemFilters = ['selected_item' => $selectedItem];
+        $item = $this->applyItemFilters($this->itemsQuery($accessibleTypes), $itemFilters)->first();
+
+        if (! $item) {
+            return null;
+        }
+
+        $allMovements = $this->applyMovementFilters(
+            $this->movementsQuery($accessibleTypes),
+            $itemFilters,
+        );
+        $filteredMovements = $this->applyMovementFilters(
+            $this->movementsQuery($accessibleTypes),
+            [...$filters, 'selected_item' => $selectedItem],
+        );
+
+        $lifetime = (clone $allMovements)
+            ->selectRaw('COUNT(*) as eventos_total')
+            ->selectRaw('MIN(realizado_em) as primeira_movimentacao')
+            ->selectRaw('MAX(realizado_em) as ultima_movimentacao')
+            ->first();
+        $filtered = (clone $filteredMovements)
+            ->selectRaw('COUNT(*) as eventos_filtrados')
+            ->selectRaw('COALESCE(SUM(CASE WHEN impacto_estoque > 0 THEN impacto_estoque ELSE 0 END), 0) as entradas_quantidade')
+            ->selectRaw('COALESCE(SUM(CASE WHEN impacto_estoque < 0 THEN ABS(impacto_estoque) ELSE 0 END), 0) as saidas_quantidade')
+            ->selectRaw('COALESCE(SUM(impacto_estoque), 0) as variacao_quantidade')
+            ->first();
+
+        return [
+            'item' => $item,
+            'eventos_total' => (int) ($lifetime->eventos_total ?? 0),
+            'eventos_filtrados' => (int) ($filtered->eventos_filtrados ?? 0),
+            'entradas_quantidade' => (float) ($filtered->entradas_quantidade ?? 0),
+            'saidas_quantidade' => (float) ($filtered->saidas_quantidade ?? 0),
+            'variacao_quantidade' => (float) ($filtered->variacao_quantidade ?? 0),
+            'primeira_movimentacao' => $lifetime->primeira_movimentacao ?? null,
+            'ultima_movimentacao' => $lifetime->ultima_movimentacao ?? null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @param  list<string>  $accessibleTypes
+     * @return LazyCollection<int, \stdClass>
+     */
+    public function exportItems(array $filters, array $accessibleTypes): LazyCollection
+    {
+        return $this->applyItemFilters($this->itemsQuery($accessibleTypes), $filters)
+            ->orderByDesc('alerta_estoque')
+            ->orderBy('nome')
+            ->orderBy('item_tipo')
+            ->orderBy('item_id')
+            ->cursor();
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @param  list<string>  $accessibleTypes
+     * @return LazyCollection<int, \stdClass>
+     */
+    public function exportMovements(array $filters, array $accessibleTypes): LazyCollection
+    {
+        return $this->applyMovementFilters($this->movementsQuery($accessibleTypes), $filters)
+            ->orderByDesc('realizado_em')
+            ->orderByDesc('movimento_id')
+            ->orderBy('item_tipo')
+            ->cursor();
+    }
+
+    /**
+     * @param  list<string>  $accessibleTypes
+     * @return array<string, string>
+     */
+    public function originOptions(array $accessibleTypes, array $filters = []): array
+    {
+        return $this->applyItemFilters($this->movementsQuery($accessibleTypes), $filters)
             ->whereNotNull('origem_tipo')
             ->where('origem_tipo', '<>', '')
             ->select('origem_tipo')
@@ -310,6 +427,28 @@ class EstoqueAcompanhamentoService
      */
     protected function applyItemFilters(Builder $query, array $filters): Builder
     {
+        $selectedItem = trim((string) ($filters['selected_item'] ?? ''));
+
+        if ($selectedItem !== '') {
+            $selection = $this->parseItemKey($selectedItem);
+
+            if (! $selection) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            [$selectedType, $selectedId] = $selection;
+
+            if (! in_array($selectedType, [self::ITEM_PRODUTO, self::ITEM_INSUMO], true)) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            $query
+                ->where('item_tipo', $selectedType)
+                ->where('item_id', $selectedId);
+
+            return $query;
+        }
+
         $itemType = (string) ($filters['item_type'] ?? '');
 
         if (in_array($itemType, [self::ITEM_PRODUTO, self::ITEM_INSUMO], true)) {
@@ -349,6 +488,36 @@ class EstoqueAcompanhamentoService
             $query->where('origem_tipo', $originType);
         }
 
+        $impactDirection = trim((string) ($filters['impact_direction'] ?? ''));
+        if ($impactDirection === 'entrada') {
+            $query->where('impacto_estoque', '>', 0);
+        } elseif ($impactDirection === 'saida') {
+            $query->where('impacto_estoque', '<', 0);
+        } elseif ($impactDirection === 'neutro') {
+            $query->where('impacto_estoque', '=', 0);
+        }
+
+        $movementSearch = Str::lower(trim((string) ($filters['movement_search'] ?? '')));
+
+        if ($movementSearch !== '') {
+            $like = "%{$movementSearch}%";
+
+            $query->where(function (Builder $builder) use ($like): void {
+                foreach ([
+                    'documento_referencia',
+                    'venda_documento',
+                    'responsavel',
+                    'motivo',
+                    'observacao',
+                    'destino',
+                    'origem_destino',
+                ] as $column) {
+                    $method = $column === 'documento_referencia' ? 'whereRaw' : 'orWhereRaw';
+                    $builder->{$method}("LOWER(COALESCE({$column}, ?)) LIKE ?", ['', $like]);
+                }
+            });
+        }
+
         if ($dateFrom = $this->normalizeDate($filters['date_from'] ?? null)) {
             $query->where('realizado_em', '>=', $dateFrom->startOfDay()->format('Y-m-d H:i:s'));
         }
@@ -358,6 +527,16 @@ class EstoqueAcompanhamentoService
         }
 
         return $query;
+    }
+
+    /** @return array{string, int}|null */
+    protected function parseItemKey(string $value): ?array
+    {
+        if (! preg_match('/^(produto|insumo):([1-9]\d*)$/', $value, $matches)) {
+            return null;
+        }
+
+        return [$matches[1], (int) $matches[2]];
     }
 
     protected function stockAlertExpression(string $tableAlias): string

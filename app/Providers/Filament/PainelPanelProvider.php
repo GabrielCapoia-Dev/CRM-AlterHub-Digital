@@ -209,6 +209,7 @@ class PainelPanelProvider extends PanelProvider
                             )
                     )
                     ->login(fn (AuthPageConfig $config): AuthPageConfig => $config
+                        ->mediaPosition(MediaPosition::Cover)
                         ->usingPage(Login::class))
                     ->passwordReset(fn (AuthPageConfig $config): AuthPageConfig => $config
                         ->usingPage(RequestPasswordReset::class)

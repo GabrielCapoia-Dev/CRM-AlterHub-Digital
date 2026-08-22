@@ -47,11 +47,14 @@ class AuthenticationScreensTest extends TestCase
 
         $this->get(route('filament.painel.auth.login'))
             ->assertOk()
+            ->assertSee('media-cover')
+            ->assertDontSee('media-left')
             ->assertSee('Bem-vindo à Unibiotech')
             ->assertSee('Acessar o portal')
             ->assertSee($requestUrl, escape: false)
             ->assertSee('unibiotech-logo.svg')
-            ->assertSee('leite-fermentado-2.jpg');
+            ->assertSee('leite-fermentado-2.jpg')
+            ->assertSee('Renovando produtos e criando soluções.');
 
         $this->get($requestUrl)
             ->assertOk()

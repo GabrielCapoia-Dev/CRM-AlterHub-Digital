@@ -4,6 +4,8 @@
     @php($summary = $this->summary)
     @php($items = $this->items)
     @php($movements = $this->movements)
+    @php($itemOptions = $this->itemOptions())
+    @php($selectedOverview = $this->selectedItemOverview)
     @php($hasActiveFilters = collect($this->filters())->contains(fn ($value) => filled($value)))
 
     <div class="crm-resource-page stock-monitor">
@@ -35,6 +37,11 @@
             </div>
 
             <div class="stock-filter-grid">
+                <div class="stock-filter-group-title">
+                    <strong>Itens</strong>
+                    <span>Busque livremente ou selecione um item exato para abrir seu dossiê completo.</span>
+                </div>
+
                 @if (count($this->itemTypeOptions()) > 1)
                     <label class="stock-field">
                         <span>Categoria</span>
@@ -47,8 +54,18 @@
                     </label>
                 @endif
 
-                <label class="stock-field stock-field--search">
-                    <span>Item</span>
+                <label class="stock-field stock-field--wide">
+                    <span>Item específico</span>
+                    <select wire:model.live="selectedItem">
+                        <option value="">Todos os itens</option>
+                        @foreach ($itemOptions as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
+
+                <label class="stock-field stock-field--wide">
+                    <span>Busca rápida</span>
                     <input
                         type="search"
                         wire:model.live.debounce.400ms="itemSearch"
@@ -56,6 +73,11 @@
                         autocomplete="off"
                     >
                 </label>
+
+                <div class="stock-filter-group-title stock-filter-group-title--timeline">
+                    <strong>Histórico</strong>
+                    <span>Refine a timeline sem alterar os saldos atuais exibidos.</span>
+                </div>
 
                 <label class="stock-field">
                     <span>Tipo de movimentação</span>
@@ -68,6 +90,16 @@
                 </label>
 
                 <label class="stock-field">
+                    <span>Impacto no saldo</span>
+                    <select wire:model.live="impactDirection">
+                        <option value="">Qualquer impacto</option>
+                        <option value="entrada">Somente entradas</option>
+                        <option value="saida">Somente saídas</option>
+                        <option value="neutro">Sem impacto</option>
+                    </select>
+                </label>
+
+                <label class="stock-field">
                     <span>Origem</span>
                     <select wire:model.live="originType">
                         <option value="">Todas as origens</option>
@@ -75,6 +107,16 @@
                             <option value="{{ $value }}">{{ $label }}</option>
                         @endforeach
                     </select>
+                </label>
+
+                <label class="stock-field">
+                    <span>Documento, responsável ou observação</span>
+                    <input
+                        type="search"
+                        wire:model.live.debounce.400ms="movementSearch"
+                        placeholder="Ex.: nota fiscal, pedido, operador..."
+                        autocomplete="off"
+                    >
                 </label>
 
                 <label class="stock-field">
@@ -115,6 +157,84 @@
             </article>
         </section>
 
+        @if ($selectedOverview)
+            @php($selected = $selectedOverview['item'])
+            <section class="stock-selected" aria-labelledby="stock-selected-title">
+                <div class="stock-selected__header">
+                    <div>
+                        <div class="stock-selected__badges">
+                            <span class="stock-kind stock-kind--{{ $selected->item_tipo }}">
+                                {{ $this->itemTypeLabel($selected->item_tipo) }}
+                            </span>
+                            @if ((int) $selected->alerta_estoque === 1)
+                                <span class="stock-status stock-status--alert">Abaixo do mínimo</span>
+                            @else
+                                <span class="stock-status stock-status--ok">Estoque regular</span>
+                            @endif
+                        </div>
+                        <h3 id="stock-selected-title">{{ $selected->nome }}</h3>
+                        <p>{{ $selected->codigo ?: 'Sem código interno' }} · Unidade {{ $selected->unidade ?: 'un' }}</p>
+                    </div>
+
+                    <button type="button" class="stock-clear" wire:click="clearSelectedItem">
+                        Ver todos os itens
+                    </button>
+                </div>
+
+                <div class="stock-selected__grid">
+                    <div class="stock-selected__metric">
+                        <span>Estoque físico</span>
+                        <strong>{{ $this->quantity($selected->estoque_fisico) }}</strong>
+                        <small>{{ $selected->unidade ?: 'un' }}</small>
+                    </div>
+                    <div class="stock-selected__metric">
+                        <span>Reservado</span>
+                        <strong>{{ $this->quantity($selected->estoque_reservado) }}</strong>
+                        <small>{{ $selected->unidade ?: 'un' }}</small>
+                    </div>
+                    <div class="stock-selected__metric stock-selected__metric--primary">
+                        <span>Disponível</span>
+                        <strong>{{ $this->quantity($selected->estoque_disponivel) }}</strong>
+                        <small>{{ $selected->unidade ?: 'un' }}</small>
+                    </div>
+                    <div class="stock-selected__metric">
+                        <span>Estoque mínimo</span>
+                        <strong>{{ $selected->estoque_minimo === null ? '—' : $this->quantity($selected->estoque_minimo) }}</strong>
+                        <small>{{ $selected->unidade ?: 'un' }}</small>
+                    </div>
+                </div>
+
+                <div class="stock-selected__history">
+                    <div>
+                        <span>Eventos no recorte</span>
+                        <strong>{{ number_format($selectedOverview['eventos_filtrados'], 0, ',', '.') }}</strong>
+                        <small>de {{ number_format($selectedOverview['eventos_total'], 0, ',', '.') }} em todo o histórico</small>
+                    </div>
+                    <div>
+                        <span>Total de entradas</span>
+                        <strong class="is-inbound">+{{ $this->quantity($selectedOverview['entradas_quantidade']) }}</strong>
+                        <small>{{ $selected->unidade ?: 'un' }} no recorte atual</small>
+                    </div>
+                    <div>
+                        <span>Total de saídas</span>
+                        <strong class="is-outbound">-{{ $this->quantity($selectedOverview['saidas_quantidade']) }}</strong>
+                        <small>{{ $selected->unidade ?: 'un' }} no recorte atual</small>
+                    </div>
+                    <div>
+                        <span>Última movimentação</span>
+                        <strong class="is-date">{{ $this->humanDate($selectedOverview['ultima_movimentacao']) }}</strong>
+                        <small>
+                            @if ($selectedOverview['primeira_movimentacao'])
+                                Histórico desde {{ $this->humanDate($selectedOverview['primeira_movimentacao']) }}
+                            @else
+                                Nenhum evento registrado
+                            @endif
+                        </small>
+                    </div>
+                </div>
+            </section>
+        @endif
+
         <section class="stock-panel" aria-labelledby="stock-items-title">
             <div class="stock-panel__header">
                 <div>
@@ -122,9 +242,22 @@
                     <p>Saldo físico, reservas e disponibilidade sem misturar unidades de medida.</p>
                 </div>
 
-                <span class="stock-panel__count">
-                    {{ number_format($items->total(), 0, ',', '.') }} {{ $items->total() === 1 ? 'item' : 'itens' }}
-                </span>
+                <div class="stock-panel__tools">
+                    <span class="stock-panel__count">
+                        {{ number_format($items->total(), 0, ',', '.') }} {{ $items->total() === 1 ? 'item' : 'itens' }}
+                    </span>
+                    <label class="stock-page-size">
+                        <span>Exibir</span>
+                        <select wire:model.live="itemsPerPage" aria-label="Itens por página">
+                            @foreach ($this->pageSizeOptions() as $pageSize)
+                                <option value="{{ $pageSize }}">{{ $pageSize }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <button type="button" class="stock-export" wire:click="exportItemsCsv" wire:loading.attr="disabled">
+                        Exportar posição CSV
+                    </button>
+                </div>
             </div>
 
             <div class="stock-table-wrap">
@@ -137,6 +270,7 @@
                             <th>Disponível</th>
                             <th>Mínimo</th>
                             <th>Situação</th>
+                            <th><span class="sr-only">Ações</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -178,10 +312,19 @@
                                         <span class="stock-status stock-status--ok">Regular</span>
                                     @endif
                                 </td>
+                                <td>
+                                    <button
+                                        type="button"
+                                        class="stock-history-link {{ $this->selectedItem === "{$item->item_tipo}:{$item->item_id}" ? 'is-active' : '' }}"
+                                        wire:click="selectItem('{{ $item->item_tipo }}:{{ $item->item_id }}')"
+                                    >
+                                        {{ $this->selectedItem === "{$item->item_tipo}:{$item->item_id}" ? 'Selecionado' : 'Ver histórico' }}
+                                    </button>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="stock-empty">Nenhum item encontrado com os filtros atuais.</td>
+                                <td colspan="7" class="stock-empty">Nenhum item encontrado com os filtros atuais.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -205,9 +348,22 @@
                     <p>Cada evento mostra o impacto no saldo e a operação que o originou.</p>
                 </div>
 
-                <span class="stock-panel__count">
-                    {{ number_format($movements->total(), 0, ',', '.') }} {{ $movements->total() === 1 ? 'evento' : 'eventos' }}
-                </span>
+                <div class="stock-panel__tools">
+                    <span class="stock-panel__count">
+                        {{ number_format($movements->total(), 0, ',', '.') }} {{ $movements->total() === 1 ? 'evento' : 'eventos' }}
+                    </span>
+                    <label class="stock-page-size">
+                        <span>Exibir</span>
+                        <select wire:model.live="movementsPerPage" aria-label="Eventos por página">
+                            @foreach ($this->pageSizeOptions() as $pageSize)
+                                <option value="{{ $pageSize }}">{{ $pageSize }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <button type="button" class="stock-export" wire:click="exportMovementsCsv" wire:loading.attr="disabled">
+                        Exportar histórico CSV
+                    </button>
+                </div>
             </div>
 
             <div class="stock-timeline">
@@ -377,6 +533,67 @@
                 white-space: nowrap;
             }
 
+            .stock-panel__tools {
+                display: flex;
+                flex: 0 0 auto;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: flex-end;
+                gap: 0.55rem;
+            }
+
+            .stock-page-size {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.4rem;
+                color: var(--stock-muted);
+                font-size: 0.72rem;
+                font-weight: 700;
+                white-space: nowrap;
+            }
+
+            .stock-page-size select {
+                min-height: 2rem;
+                border: 1px solid #dce3f2;
+                border-radius: 0.6rem;
+                outline: none;
+                background: #fff;
+                padding: 0.25rem 1.65rem 0.25rem 0.55rem;
+                color: #17368d;
+                font: inherit;
+                font-weight: 750;
+            }
+
+            .stock-page-size select:focus {
+                border-color: #5a8be6;
+                box-shadow: 0 0 0 3px rgba(58, 109, 214, 0.12);
+            }
+
+            .stock-export {
+                min-height: 2rem;
+                border: 1px solid #cddbf4;
+                border-radius: 0.65rem;
+                background: #eef4ff;
+                padding: 0.4rem 0.7rem;
+                color: #17368d;
+                font-size: 0.72rem;
+                font-weight: 750;
+                cursor: pointer;
+                transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+            }
+
+            .stock-export:hover {
+                border-color: #9bb8ea;
+                background: #e4efff;
+                transform: translateY(-1px);
+            }
+
+            .stock-export:disabled {
+                cursor: wait;
+                opacity: 0.62;
+                transform: none;
+            }
+
             .stock-filters {
                 overflow: visible;
             }
@@ -394,8 +611,34 @@
                 gap: 0.4rem;
             }
 
-            .stock-field--search {
+            .stock-field--wide {
                 grid-column: span 2;
+            }
+
+            .stock-filter-group-title {
+                display: flex;
+                grid-column: 1 / -1;
+                align-items: baseline;
+                gap: 0.6rem;
+                color: #17368d;
+            }
+
+            .stock-filter-group-title--timeline {
+                margin-top: 0.2rem;
+                border-top: 1px solid #edf0f6;
+                padding-top: 0.85rem;
+            }
+
+            .stock-filter-group-title strong {
+                font-size: 0.76rem;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+            }
+
+            .stock-filter-group-title span {
+                color: #7a849e;
+                font-size: 0.72rem;
             }
 
             .stock-field > span {
@@ -439,6 +682,126 @@
             .stock-clear:hover {
                 color: #17368d;
                 text-decoration: underline;
+            }
+
+            .stock-selected {
+                overflow: hidden;
+                border: 1px solid #cddcf5;
+                border-radius: 1.15rem;
+                background: linear-gradient(135deg, #f7faff 0%, #fff 55%, #f2f7ff 100%);
+                box-shadow: 0 12px 28px rgba(23, 54, 141, 0.07);
+            }
+
+            .stock-selected__header {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 1rem;
+                padding: 1.15rem 1.25rem 0.9rem;
+            }
+
+            .stock-selected__badges {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.35rem;
+            }
+
+            .stock-selected__header h3 {
+                margin: 0.55rem 0 0;
+                color: var(--stock-text);
+                font-size: 1.15rem;
+                font-weight: 800;
+                line-height: 1.3;
+            }
+
+            .stock-selected__header p {
+                margin: 0.2rem 0 0;
+                color: var(--stock-muted);
+                font-size: 0.75rem;
+            }
+
+            .stock-selected__grid,
+            .stock-selected__history {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 0.7rem;
+                padding: 0 1.25rem 1rem;
+            }
+
+            .stock-selected__metric,
+            .stock-selected__history > div {
+                display: grid;
+                min-width: 0;
+                grid-template-columns: 1fr auto;
+                gap: 0.22rem 0.35rem;
+                border: 1px solid rgba(205, 220, 245, 0.85);
+                border-radius: 0.85rem;
+                background: rgba(255, 255, 255, 0.9);
+                padding: 0.8rem;
+            }
+
+            .stock-selected__metric--primary {
+                border-color: #a9c4f1;
+                background: #eef4ff;
+            }
+
+            .stock-selected__metric span,
+            .stock-selected__history span {
+                grid-column: 1 / -1;
+                color: #6b7694;
+                font-size: 0.64rem;
+                font-weight: 750;
+                letter-spacing: 0.045em;
+                text-transform: uppercase;
+            }
+
+            .stock-selected__metric strong,
+            .stock-selected__history strong {
+                overflow-wrap: anywhere;
+                color: var(--stock-text);
+                font-size: 1.05rem;
+                font-variant-numeric: tabular-nums;
+                line-height: 1.25;
+            }
+
+            .stock-selected__metric small,
+            .stock-selected__history small {
+                align-self: end;
+                color: #8a94ad;
+                font-size: 0.66rem;
+                line-height: 1.35;
+            }
+
+            .stock-selected__history {
+                border-top: 1px solid rgba(205, 220, 245, 0.75);
+                background: rgba(238, 244, 255, 0.55);
+                padding-top: 1rem;
+            }
+
+            .stock-selected__history > div {
+                border: 0;
+                background: transparent;
+                padding: 0.25rem 0.5rem;
+            }
+
+            .stock-selected__history strong {
+                grid-column: 1 / -1;
+            }
+
+            .stock-selected__history strong.is-inbound {
+                color: #05734d;
+            }
+
+            .stock-selected__history strong.is-outbound {
+                color: #b51f4b;
+            }
+
+            .stock-selected__history strong.is-date {
+                font-size: 0.83rem;
+            }
+
+            .stock-selected__history small {
+                grid-column: 1 / -1;
             }
 
             .stock-kpis {
@@ -596,6 +959,25 @@
             .stock-muted {
                 color: #9098b0;
                 font-size: 0.73rem;
+            }
+
+            .stock-history-link {
+                border: 1px solid #d5e1f6;
+                border-radius: 999px;
+                background: #f4f8ff;
+                padding: 0.4rem 0.65rem;
+                color: #2452b3;
+                font-size: 0.68rem;
+                font-weight: 750;
+                white-space: nowrap;
+                cursor: pointer;
+            }
+
+            .stock-history-link:hover,
+            .stock-history-link.is-active {
+                border-color: #7fa3e3;
+                background: #17368d;
+                color: #fff;
             }
 
             .stock-status--ok {
@@ -925,6 +1307,11 @@
                     grid-template-columns: repeat(2, minmax(0, 1fr));
                 }
 
+                .stock-selected__grid,
+                .stock-selected__history {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+
                 .stock-event__details {
                     grid-template-columns: repeat(2, minmax(0, 1fr));
                 }
@@ -938,12 +1325,33 @@
 
                 .stock-filter-grid,
                 .stock-kpis,
+                .stock-selected__grid,
+                .stock-selected__history,
                 .stock-event__details {
                     grid-template-columns: 1fr;
                 }
 
-                .stock-field--search {
+                .stock-field--wide {
                     grid-column: auto;
+                }
+
+                .stock-filter-group-title {
+                    align-items: flex-start;
+                    flex-direction: column;
+                    gap: 0.2rem;
+                }
+
+                .stock-selected__header {
+                    flex-direction: column;
+                }
+
+                .stock-panel__tools {
+                    width: 100%;
+                    justify-content: flex-start;
+                }
+
+                .stock-export {
+                    flex: 1 1 100%;
                 }
 
                 .stock-impact {
