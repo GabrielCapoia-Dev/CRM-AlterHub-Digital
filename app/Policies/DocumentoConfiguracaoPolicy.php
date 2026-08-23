@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Enum\PermissoesEnum;
+use App\Enum\RolesEnum;
 use App\Models\Acesso\User;
 use App\Models\DocumentoConfiguracao;
 
@@ -10,7 +10,7 @@ class DocumentoConfiguracaoPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::AcessarConfiguracoesDocumentos->value);
+        return $this->isSuperAdmin($user);
     }
 
     public function view(User $user, DocumentoConfiguracao $configuracao): bool
@@ -20,13 +20,13 @@ class DocumentoConfiguracaoPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::EditarConfiguracoesDocumentos->value)
+        return $this->isSuperAdmin($user)
             && DocumentoConfiguracao::query()->where('chave', DocumentoConfiguracao::CHAVE_PADRAO)->doesntExist();
     }
 
     public function update(User $user, DocumentoConfiguracao $configuracao): bool
     {
-        return $user->hasPermissionTo(PermissoesEnum::EditarConfiguracoesDocumentos->value);
+        return $this->isSuperAdmin($user);
     }
 
     public function delete(User $user, DocumentoConfiguracao $configuracao): bool
@@ -37,5 +37,10 @@ class DocumentoConfiguracaoPolicy
     public function deleteAny(User $user): bool
     {
         return false;
+    }
+
+    private function isSuperAdmin(User $user): bool
+    {
+        return $user->hasRole(RolesEnum::SuperAdmin->value);
     }
 }

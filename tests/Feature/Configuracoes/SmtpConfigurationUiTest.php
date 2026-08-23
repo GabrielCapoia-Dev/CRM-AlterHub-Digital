@@ -2,14 +2,14 @@
 
 namespace Tests\Feature\Configuracoes;
 
-use App\Enum\PermissoesEnum;
+use App\Enum\RolesEnum;
 use App\Filament\Resources\DocumentoConfiguracoes\Pages\ManageDocumentoConfiguracoes;
 use App\Models\Acesso\User;
 use App\Models\DocumentoConfiguracao;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
-use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class SmtpConfigurationUiTest extends TestCase
@@ -18,18 +18,9 @@ class SmtpConfigurationUiTest extends TestCase
 
     public function test_edit_form_never_hydrates_the_existing_smtp_password(): void
     {
-        foreach ([
-            PermissoesEnum::AcessarConfiguracoesDocumentos,
-            PermissoesEnum::EditarConfiguracoesDocumentos,
-        ] as $permission) {
-            Permission::findOrCreate($permission->value, 'web');
-        }
-
         $user = User::factory()->create(['email_approved' => true]);
-        $user->givePermissionTo([
-            PermissoesEnum::AcessarConfiguracoesDocumentos->value,
-            PermissoesEnum::EditarConfiguracoesDocumentos->value,
-        ]);
+        Role::findOrCreate(RolesEnum::SuperAdmin->value, 'web');
+        $user->assignRole(RolesEnum::SuperAdmin->value);
 
         $settings = DocumentoConfiguracao::query()->create([
             'chave' => DocumentoConfiguracao::CHAVE_PADRAO,
